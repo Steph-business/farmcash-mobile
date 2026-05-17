@@ -1,0 +1,12 @@
+targets:
+  $default:
+    builders:
+      json_serializable:
+        options:
+          # Tous les champs Dart camelCase ↔ snake_case JSON (convention Prisma).
+          field_rename: snake
+          # Inclure les fields null serait du bruit dans les POST body :
+          # le code mobile fait déjà des "if (x != null)" via les builders Freezed.
+          include_if_null: false
+          # Erreur explicite en dev si un champ requis est absent du JSON.
+          checked: true

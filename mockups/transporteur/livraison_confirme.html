@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FarmCash — Livraison confirmée</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --primary:#2E7D32;--primary-hover:#256528;--bg:#FFFFFF;
+    --text:#111827;--text-muted:#6B7280;--text-subtle:#9CA3AF;
+    --border:#E5E7EB;--border-strong:#D1D5DB;--bg-soft:#F9FAFB;
+    --error:#C62828;--primary-soft:#E8F5E9;
+    --warn:#B45309;--warn-soft:#FEF3C7;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased;}
+  html,body{font-family:'Inter',sans-serif;background:#ECEFF1;color:var(--text);}
+  body{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 20px;}
+
+  .phone{width:390px;height:844px;background:#1a1a1a;border-radius:50px;padding:14px;box-shadow:0 30px 60px rgba(0,0,0,0.18);position:relative;}
+  .phone::before{content:"";position:absolute;top:14px;left:50%;transform:translateX(-50%);width:130px;height:32px;background:#1a1a1a;border-radius:0 0 22px 22px;z-index:10;}
+  .screen{width:100%;height:100%;background:var(--bg);border-radius:38px;overflow:hidden;position:relative;display:flex;flex-direction:column;}
+
+  .status-bar{height:48px;padding:18px 30px 0;display:flex;justify-content:space-between;align-items:center;font-size:14px;font-weight:600;flex-shrink:0;}
+  .status-bar .icons{display:flex;gap:6px;align-items:center;color:var(--text);}
+
+  .header{padding:8px 16px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);}
+  .header-spacer{width:40px;}
+  .header .title{flex:1;text-align:center;font-size:15px;font-weight:600;}
+  .close-btn{width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--text-muted);cursor:pointer;}
+
+  .content{flex:1;overflow-y:auto;padding:20px 24px 160px;}
+
+  /* HERO */
+  .hero{text-align:center;padding:4px 0 18px;}
+  .hero .check{width:84px;height:84px;border-radius:50%;background:var(--primary);color:#fff;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;}
+  .hero .t{font-family:'Poppins';font-size:22px;font-weight:700;color:var(--text);margin-bottom:4px;}
+  .hero .s{font-family:'Poppins';font-size:15px;font-weight:600;color:var(--primary);}
+
+  /* BANDEAU MONTANT */
+  .wallet-banner{background:var(--primary-soft);border:1px solid var(--primary-soft);border-radius:12px;padding:14px;margin-bottom:16px;display:flex;align-items:center;gap:12px;}
+  .wallet-banner .ic{width:38px;height:38px;border-radius:10px;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .wallet-banner .body{flex:1;min-width:0;}
+  .wallet-banner .v{font-family:'Poppins';font-size:18px;font-weight:700;color:var(--primary);line-height:1.1;}
+  .wallet-banner .s{font-size:11px;color:var(--text-muted);margin-top:3px;}
+
+  /* CARD RECAP */
+  .recap{background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:16px;}
+  .recap-top{display:flex;gap:12px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);}
+  .recap-photo{width:64px;height:64px;border-radius:10px;background-size:cover;background-position:center;border:1px solid var(--border);flex-shrink:0;}
+  .recap-body{flex:1;min-width:0;}
+  .recap-title{font-size:14px;font-weight:600;color:var(--text);}
+  .recap-line{font-size:12px;color:var(--text-muted);margin-top:4px;line-height:1.4;}
+  .recap-row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;}
+  .recap-row:last-child{margin-bottom:0;}
+  .recap-row .l{color:var(--text-muted);}
+  .recap-row .v{color:var(--text);font-weight:600;}
+  .recap-row .v.green{color:var(--primary);font-family:'Poppins';font-size:14px;}
+
+  /* STEPS */
+  .steps-section{margin-bottom:16px;}
+  .steps-title{font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.3px;margin-bottom:10px;padding:0 4px;}
+  .steps{background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:14px;}
+  .step{display:flex;gap:12px;align-items:flex-start;position:relative;}
+  .step:not(:last-child){padding-bottom:14px;}
+  .step:not(:last-child)::before{content:"";position:absolute;left:11px;top:24px;bottom:0;width:1.5px;background:var(--primary);}
+  .step .ic{width:24px;height:24px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative;z-index:1;}
+  .step .body{flex:1;padding-top:2px;}
+  .step .t{font-size:13px;font-weight:600;color:var(--text);line-height:1.3;}
+  .step .s{font-size:11px;color:var(--text-subtle);margin-top:2px;}
+
+  /* STICKY */
+  .sticky{position:absolute;left:0;right:0;bottom:64px;background:var(--bg);border-top:1px solid var(--border);padding:12px 16px;display:flex;flex-direction:column;gap:8px;}
+  .btn-primary{width:100%;padding:14px;border-radius:10px;font-size:14px;font-weight:600;text-align:center;cursor:pointer;background:var(--primary);color:#fff;border:1px solid var(--primary);}
+  .btn-link{font-size:13px;font-weight:600;text-align:center;color:var(--primary);cursor:pointer;padding:4px;}
+
+  .bottom-nav{height:64px;background:var(--bg);border-top:1px solid var(--border);display:flex;align-items:center;flex-shrink:0;}
+  .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--text-subtle);cursor:default;font-size:11px;font-weight:500;opacity:0.5;}
+
+  .home-indicator{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:140px;height:5px;background:var(--text);border-radius:3px;opacity:0.25;}
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="screen">
+
+    <div class="status-bar">
+      <span>9:41</span>
+      <span class="icons">
+        <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor"><path d="M1 7.5h2v3H1v-3zm4-2h2v5H5v-5zm4-2h2v7H9v-7zm4-2h2v9h-2v-9z"/></svg>
+        <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor"><path d="M8 2C4 2 1 4 0 6c1 2 4 4 8 4s7-2 8-4c-1-2-4-4-8-4zm0 6a2 2 0 110-4 2 2 0 010 4z"/></svg>
+        <svg width="24" height="11" viewBox="0 0 24 11" fill="none" stroke="currentColor" stroke-width="1"><rect x="0.5" y="0.5" width="20" height="10" rx="2"/><rect x="2" y="2" width="16" height="7" rx="1" fill="currentColor"/><rect x="21" y="3.5" width="2" height="4" rx="1" fill="currentColor"/></svg>
+      </span>
+    </div>
+
+    <div class="header">
+      <div class="header-spacer"></div>
+      <div class="title">Livraison confirmée</div>
+      <div class="close-btn" onclick="location.href='missions.html'">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <div class="hero">
+        <div class="check">
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+        </div>
+        <div class="t">Livraison confirmée !</div>
+        <div class="s">+18 500 F crédités sur ton wallet</div>
+      </div>
+
+      <div class="wallet-banner">
+        <div class="ic">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 010-4h14v4"/><path d="M3 5v14a2 2 0 002 2h16v-5"/><path d="M18 12a2 2 0 100 4h4v-4z"/></svg>
+        </div>
+        <div class="body">
+          <div class="v">+18 500 F</div>
+          <div class="s">Crédit immédiat sur ton wallet FarmCash</div>
+        </div>
+      </div>
+
+      <div class="recap">
+        <div class="recap-top">
+          <div class="recap-photo" style="background-image:url('https://images.unsplash.com/photo-1601493700631-2b16ec4b4716?w=200&h=200&fit=crop&auto=format')"></div>
+          <div class="recap-body">
+            <div class="recap-title">500 kg Maïs blanc</div>
+            <div class="recap-line">Yopougon → Cocody</div>
+            <div class="recap-line">Restaurant Le Baoulé · 16 mai à 14h47</div>
+          </div>
+        </div>
+        <div class="recap-row">
+          <div class="l">Distance parcourue</div>
+          <div class="v">12 km</div>
+        </div>
+        <div class="recap-row">
+          <div class="l">Durée totale mission</div>
+          <div class="v">2h 35min</div>
+        </div>
+        <div class="recap-row">
+          <div class="l">Mission #</div>
+          <div class="v">M-2026-0089</div>
+        </div>
+        <div class="recap-row">
+          <div class="l">Ta commission</div>
+          <div class="v green">+18 500 F</div>
+        </div>
+      </div>
+
+      <div class="steps-section">
+        <div class="steps-title">Étapes complétées</div>
+        <div class="steps">
+          <div class="step">
+            <div class="ic">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+            </div>
+            <div class="body">
+              <div class="t">Enlèvement validé</div>
+              <div class="s">14h12 · Yopougon</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="ic">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+            </div>
+            <div class="body">
+              <div class="t">Livraison effectuée</div>
+              <div class="s">14h47 · Cocody · QR scanné</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="sticky">
+      <div class="btn-primary">Voir mon wallet</div>
+      <div class="btn-link" onclick="location.href='missions.html'">Retour aux missions</div>
+    </div>
+
+    <div class="bottom-nav">
+      <div class="nav-item">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg>
+        <span>Accueil</span>
+      </div>
+      <div class="nav-item">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 3h15v13H1z"/><path d="M16 8h4l3 4v4h-7"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        <span>Missions</span>
+      </div>
+      <div class="nav-item">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.4 8.4 0 01-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.4 8.4 0 013.8-.9h.5a8.5 8.5 0 018 8z"/></svg>
+        <span>Messages</span>
+      </div>
+      <div class="nav-item">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span>Profil</span>
+      </div>
+    </div>
+
+    <div class="home-indicator"></div>
+  </div>
+</div>
+
+</body>
+</html>

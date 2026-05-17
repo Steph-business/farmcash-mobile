@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FarmCash — Profil Producteur</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --primary:#2E7D32;--primary-hover:#256528;--bg:#FFFFFF;
+    --text:#111827;--text-muted:#6B7280;--text-subtle:#9CA3AF;
+    --border:#E5E7EB;--border-strong:#D1D5DB;--bg-soft:#F9FAFB;
+    --error:#C62828;--primary-soft:#E8F5E9;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased;}
+  html,body{font-family:'Inter',sans-serif;background:#ECEFF1;color:var(--text);}
+  body{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 20px;}
+  .phone{width:390px;height:844px;background:#1a1a1a;border-radius:50px;padding:14px;box-shadow:0 30px 60px rgba(0,0,0,0.18);position:relative;}
+  .phone::before{content:"";position:absolute;top:14px;left:50%;transform:translateX(-50%);width:130px;height:32px;background:#1a1a1a;border-radius:0 0 22px 22px;z-index:10;}
+  .screen{width:100%;height:100%;background:var(--bg-soft);border-radius:38px;overflow:hidden;position:relative;display:flex;flex-direction:column;}
+
+  .status-bar{height:48px;padding:18px 30px 0;display:flex;justify-content:space-between;align-items:center;font-size:14px;font-weight:600;flex-shrink:0;background:var(--bg);}
+  .status-bar .icons{display:flex;gap:6px;align-items:center;color:var(--text);}
+
+  /* TOP BAR titre */
+  .topbar{background:var(--bg);padding:8px 24px 16px;display:flex;align-items:center;justify-content:space-between;}
+  .topbar h1{font-family:'Poppins';font-size:20px;font-weight:700;letter-spacing:-0.3px;}
+  .topbar .icon{width:36px;height:36px;display:flex;align-items:center;justify-content:center;color:var(--text);cursor:pointer;}
+
+  .content{flex:1;overflow-y:auto;padding:16px 24px 16px;}
+
+  /* CARTE D'IDENTITÉ */
+  .identity{background:var(--bg);border:1px solid var(--border);border-radius:16px;padding:20px;display:flex;align-items:center;gap:16px;margin-bottom:24px;}
+  .identity .photo{width:72px;height:72px;border-radius:50%;background-size:cover;background-position:center;background-image:url('https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=300&h=300&fit=crop&auto=format');border:1px solid var(--border);flex-shrink:0;position:relative;}
+  .identity .photo .edit-pic{position:absolute;bottom:-2px;right:-2px;width:24px;height:24px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;border:2px solid var(--bg);}
+  .identity .info{flex:1;min-width:0;}
+  .identity .nom{font-size:17px;font-weight:700;color:var(--text);}
+  .identity .role{font-size:12px;color:var(--text-muted);margin-top:4px;display:flex;align-items:center;gap:6px;}
+  .identity .role .dot{width:4px;height:4px;border-radius:50%;background:var(--text-subtle);}
+  .identity .modifier{font-size:13px;font-weight:600;color:var(--primary);}
+
+  /* SECTION */
+  .section{margin-bottom:20px;}
+  .section-title{font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;padding:0 4px;margin-bottom:8px;}
+
+  .group{background:var(--bg);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+  .row{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border);cursor:pointer;}
+  .row:last-child{border-bottom:none;}
+  .row .ic{width:34px;height:34px;border-radius:10px;background:var(--bg-soft);color:var(--text-muted);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .row .ic.green{background:var(--primary-soft);color:var(--primary);}
+  .row .body{flex:1;min-width:0;}
+  .row .label{font-size:14px;font-weight:500;color:var(--text);}
+  .row .sub{font-size:12px;color:var(--text-muted);margin-top:2px;}
+  .row .value{font-size:13px;color:var(--text-muted);margin-right:6px;}
+  .row .chev{color:var(--text-subtle);flex-shrink:0;}
+
+  /* DÉCO BOUTON */
+  .deco{background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--error);font-size:14px;font-weight:600;cursor:pointer;}
+
+  .legal{text-align:center;padding:16px 0 8px;font-size:11px;color:var(--text-subtle);line-height:1.5;}
+  .legal .v{margin-top:4px;}
+
+  /* BOTTOM NAV */
+  .bottom-nav{height:64px;background:var(--bg);border-top:1px solid var(--border);display:flex;align-items:center;flex-shrink:0;}
+  .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--text-muted);cursor:pointer;font-size:11px;font-weight:500;}
+  .nav-item.active{color:var(--primary);font-weight:600;}
+  .fab{width:56px;height:56px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin:0 4px;cursor:pointer;}
+
+  .home-indicator{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:140px;height:5px;background:var(--text);border-radius:3px;opacity:0.25;}
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="screen">
+
+    <div class="status-bar">
+      <span>9:41</span>
+      <span class="icons">
+        <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor"><path d="M1 7.5h2v3H1v-3zm4-2h2v5H5v-5zm4-2h2v7H9v-7zm4-2h2v9h-2v-9z"/></svg>
+        <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor"><path d="M8 2C4 2 1 4 0 6c1 2 4 4 8 4s7-2 8-4c-1-2-4-4-8-4zm0 6a2 2 0 110-4 2 2 0 010 4z"/></svg>
+        <svg width="24" height="11" viewBox="0 0 24 11" fill="none" stroke="currentColor" stroke-width="1"><rect x="0.5" y="0.5" width="20" height="10" rx="2"/><rect x="2" y="2" width="16" height="7" rx="1" fill="currentColor"/><rect x="21" y="3.5" width="2" height="4" rx="1" fill="currentColor"/></svg>
+      </span>
+    </div>
+
+    <div class="topbar">
+      <h1>Mon profil</h1>
+      <div class="icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h.06a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v.06a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- CARTE IDENTITÉ -->
+      <div class="identity">
+        <div class="photo">
+          <div class="edit-pic">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 113 3L7 19l-4 1 1-4z"/></svg>
+          </div>
+        </div>
+        <div class="info">
+          <div class="nom">Konan Yao Bagayoko</div>
+          <div class="role">Producteur<span class="dot"></span>Lagunes<span class="dot"></span>★ 4.8</div>
+        </div>
+        <span class="modifier">Modifier</span>
+      </div>
+
+      <!-- PROFIL MÉTIER -->
+      <div class="section">
+        <div class="section-title">Mon exploitation</div>
+        <div class="group">
+          <div class="row">
+            <div class="ic green"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/></svg></div>
+            <div class="body"><div class="label">Mes parcelles</div><div class="sub">3 parcelles · 18 ha</div></div>
+            <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
+          </div>
+          <div class="row">
+            <div class="ic green"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3 6 6 1-4.5 4 1 6L12 15l-5.5 3 1-6L3 8l6-1z"/></svg></div>
+            <div class="body"><div class="label">Cultures principales</div><div class="sub">Maïs, Manioc, Tomate</div></div>
+            <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
+          </div>
+          <div class="row">
+            <div class="ic green"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.9"/></svg></div>
+            <div class="body"><div class="label">Ma coopérative</div><div class="sub">COOP-AGRI Lagunes · membre depuis avril</div></div>
+            <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- FINANCE -->
+      <div class="section">
+        <div class="section-title">Finance</div>
+        <div class="group">
+          <div class="row">
+            <div class="ic green"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
+            <div class="body"><div class="label">Mon wallet</div></div>
+            <span class="value">12 500 F</span>
+            <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
+          </div>
+          <div class="row">
+            <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
+            <div class="body"><div class="label">Moyens de paiement</div></div>
+            <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
+          </div>
+          <div class="row">
+            <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-5"/></svg></div>
+            <div class="body"><div class="label">Mes transactions</div></div>
+            <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ACTIVITÉ -->
+      <div class="section">
+        <div class="section-title">Activité</div>
+        <div class="group">
+          <div class="row">
+            <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg></div>
+            <div class="body"><div class="label">Mes annonces</div><div class="sub">3 actives · 12 archivées</div></div>
+            <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
+          </div>
+          <div class="row">
+            <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
+            <div class="body"><div class="label">Documents (KYC)</div><div class="sub">Pièce d'identité validée</div></div>
+            <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- PARAMÈTRES -->
+      <div class="section">
+        <div class="section-title">Paramètres</div>
+        <div class="group">
+          <div class="row">
+            <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg></div>
+            <div class="body"><div class="label">Langue</div></div>
+            <span class="value">Français</span>
+            <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
+          </div>
+          <div class="row">
+            <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 004 0"/></svg></div>
+            <div class="body"><div class="label">Notifications</div></div>
+            <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
+          </div>
+          <div class="row">
+            <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></div>
+            <div class="body"><div class="label">Sécurité (PIN, sessions)</div></div>
+            <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- AIDE -->
+      <div class="section">
+        <div class="section-title">Aide &amp; légal</div>
+        <div class="group">
+          <div class="row">
+            <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 015.8 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12" y2="17"/></svg></div>
+            <div class="body"><div class="label">Centre d'aide</div></div>
+            <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
+          </div>
+          <div class="row">
+            <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg></div>
+            <div class="body"><div class="label">Conditions &amp; confidentialité</div></div>
+            <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- DÉCONNEXION -->
+      <div class="deco">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Se déconnecter
+      </div>
+
+      <div class="legal">
+        FarmCash · v1.0.0<br>
+        <span class="v">Made in Côte d'Ivoire</span>
+      </div>
+
+    </div>
+
+    <div class="bottom-nav">
+      <div class="nav-item">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+        <span>Accueil</span>
+      </div>
+      <div class="nav-item">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.4 8.4 0 01-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.4 8.4 0 013.8-.9 8.5 8.5 0 018.5 8.5z"/></svg>
+        <span>Messages</span>
+      </div>
+      <div class="fab"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+      <div class="nav-item">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+        <span>Commandes</span>
+      </div>
+      <div class="nav-item active">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12a4 4 0 100-8 4 4 0 000 8zm0 2c-4 0-8 2-8 6v2h16v-2c0-4-4-6-8-6z"/></svg>
+        <span>Profil</span>
+      </div>
+    </div>
+
+    <div class="home-indicator"></div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>FarmCash — Maquettes Acheteur</title>
+  <style>
+    :root {
+      --bg: #F5F6F7;
+      --text: #111827;
+      --text-muted: #6B7280;
+      --primary: #2E7D32;
+      --border: #E5E7EB;
+      --tag: #E3F2FD;
+      --tag-text: #1565C0;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    header {
+      padding: 24px 32px;
+      background: white;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .back {
+      display: inline-block;
+      margin-bottom: 8px;
+      color: var(--primary);
+      text-decoration: none;
+      font-size: 13px;
+    }
+    h1 { margin: 0; font-size: 22px; font-weight: 700; }
+    .sub { margin: 4px 0 0; font-size: 14px; color: var(--text-muted); }
+    .toolbar { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+    .filter {
+      padding: 6px 12px; border: 1px solid var(--border); background: white;
+      border-radius: 999px; font-size: 13px; cursor: pointer; color: var(--text);
+    }
+    .filter.active { background: var(--primary); color: white; border-color: var(--primary); }
+    main { padding: 32px; }
+    .group { margin-bottom: 40px; }
+    .group-title {
+      margin: 0 0 16px; font-size: 14px; text-transform: uppercase;
+      letter-spacing: 1px; color: var(--text-muted); font-weight: 600;
+    }
+    .grid {
+      display: grid; gap: 32px;
+      grid-template-columns: repeat(auto-fit, minmax(410px, 1fr));
+    }
+    .card {
+      background: white; border: 1px solid var(--border); border-radius: 12px;
+      overflow: hidden; display: flex; flex-direction: column;
+    }
+    .card-header {
+      padding: 12px 16px; border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .card-title { font-size: 14px; font-weight: 600; }
+    .card-tag {
+      font-size: 11px; padding: 2px 8px; border-radius: 999px;
+      background: var(--tag); color: var(--tag-text);
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .frame-wrapper {
+      padding: 16px; background: #FAFAFA; display: flex; justify-content: center;
+    }
+    iframe {
+      width: 390px; height: 844px; border: 1px solid var(--border);
+      border-radius: 24px; background: white;
+    }
+    .card-actions {
+      padding: 8px 16px; border-top: 1px solid var(--border);
+      text-align: right; font-size: 12px;
+    }
+    .card-actions a { color: var(--primary); text-decoration: none; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="../" class="back">← Toutes les maquettes</a>
+    <h1>Acheteur — 22 écrans</h1>
+    <p class="sub">Onglets nav (5 dont Marché séparé) + panier en icône header (badge nombre items) + flow réservation prévision (acompte 10%) + flow commande complet + QR livraison + demandes d'achat publiées + wallet + communication.</p>
+    <div class="toolbar">
+      <button class="filter active" data-group="all">Tous</button>
+      <button class="filter" data-group="nav">Onglets nav</button>
+      <button class="filter" data-group="march">Marché & détails</button>
+      <button class="filter" data-group="resa">Réservation prévision</button>
+      <button class="filter" data-group="cmd">Flow commande & panier</button>
+      <button class="filter" data-group="dem">Demandes d'achat</button>
+      <button class="filter" data-group="wal">Wallet</button>
+      <button class="filter" data-group="comm">Notifications</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="group" data-group="nav">
+      <h2 class="group-title">Onglets bottom-nav (5)</h2>
+      <div class="grid">
+        <article class="card"><div class="card-header"><span class="card-title">Accueil (dashboard)</span><span class="card-tag">Nav</span></div><div class="frame-wrapper"><iframe src="accueil.html" loading="lazy"></iframe></div><div class="card-actions"><a href="accueil.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Marché (toggle annonces/prévisions)</span><span class="card-tag">Nav</span></div><div class="frame-wrapper"><iframe src="marche.html" loading="lazy"></iframe></div><div class="card-actions"><a href="marche.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Messages</span><span class="card-tag">Nav</span></div><div class="frame-wrapper"><iframe src="messages.html" loading="lazy"></iframe></div><div class="card-actions"><a href="messages.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Commandes</span><span class="card-tag">Nav</span></div><div class="frame-wrapper"><iframe src="commandes.html" loading="lazy"></iframe></div><div class="card-actions"><a href="commandes.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Profil & paramètres</span><span class="card-tag">Nav</span></div><div class="frame-wrapper"><iframe src="profil_settings.html" loading="lazy"></iframe></div><div class="card-actions"><a href="profil_settings.html" target="_blank">Plein écran ↗</a></div></article>
+      </div>
+    </section>
+
+    <section class="group" data-group="march">
+      <h2 class="group-title">Marché & détails produit (2)</h2>
+      <div class="grid">
+        <article class="card"><div class="card-header"><span class="card-title">Annonce détail (vue acheteur)</span><span class="card-tag">Marché</span></div><div class="frame-wrapper"><iframe src="annonce_detail.html" loading="lazy"></iframe></div><div class="card-actions"><a href="annonce_detail.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Prévision détail (réservable)</span><span class="card-tag">Marché</span></div><div class="frame-wrapper"><iframe src="prevision_detail.html" loading="lazy"></iframe></div><div class="card-actions"><a href="prevision_detail.html" target="_blank">Plein écran ↗</a></div></article>
+      </div>
+    </section>
+
+    <section class="group" data-group="resa">
+      <h2 class="group-title">Flow réservation prévision (2)</h2>
+      <div class="grid">
+        <article class="card"><div class="card-header"><span class="card-title">Réservation + paiement acompte 10%</span><span class="card-tag">Resa</span></div><div class="frame-wrapper"><iframe src="reservation_paiement.html" loading="lazy"></iframe></div><div class="card-actions"><a href="reservation_paiement.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Mes réservations en cours</span><span class="card-tag">Resa</span></div><div class="frame-wrapper"><iframe src="mes_reservations.html" loading="lazy"></iframe></div><div class="card-actions"><a href="mes_reservations.html" target="_blank">Plein écran ↗</a></div></article>
+      </div>
+    </section>
+
+    <section class="group" data-group="cmd">
+      <h2 class="group-title">Flow commande & panier (6)</h2>
+      <div class="grid">
+        <article class="card"><div class="card-header"><span class="card-title">Panier (icône header)</span><span class="card-tag">Cmd</span></div><div class="frame-wrapper"><iframe src="panier.html" loading="lazy"></iframe></div><div class="card-actions"><a href="panier.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Paiement (avec 2 options livraison)</span><span class="card-tag">Cmd</span></div><div class="frame-wrapper"><iframe src="paiement_commande.html" loading="lazy"></iframe></div><div class="card-actions"><a href="paiement_commande.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Choisir mon transporteur</span><span class="card-tag">Cmd</span></div><div class="frame-wrapper"><iframe src="choisir_transporteur.html" loading="lazy"></iframe></div><div class="card-actions"><a href="choisir_transporteur.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Commande confirmée (succès)</span><span class="card-tag">Cmd</span></div><div class="frame-wrapper"><iframe src="commande_succes.html" loading="lazy"></iframe></div><div class="card-actions"><a href="commande_succes.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Détail commande (suivi)</span><span class="card-tag">Cmd</span></div><div class="frame-wrapper"><iframe src="commande_detail.html" loading="lazy"></iframe></div><div class="card-actions"><a href="commande_detail.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">QR de réception (livraison)</span><span class="card-tag">Cmd</span></div><div class="frame-wrapper"><iframe src="livraison_qr.html" loading="lazy"></iframe></div><div class="card-actions"><a href="livraison_qr.html" target="_blank">Plein écran ↗</a></div></article>
+      </div>
+    </section>
+
+    <section class="group" data-group="dem">
+      <h2 class="group-title">Demandes d'achat publiées (3)</h2>
+      <div class="grid">
+        <article class="card"><div class="card-header"><span class="card-title">Publier une demande d'achat</span><span class="card-tag">Dem</span></div><div class="frame-wrapper"><iframe src="publier_demande.html" loading="lazy"></iframe></div><div class="card-actions"><a href="publier_demande.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Mes demandes publiées</span><span class="card-tag">Dem</span></div><div class="frame-wrapper"><iframe src="mes_demandes.html" loading="lazy"></iframe></div><div class="card-actions"><a href="mes_demandes.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Propositions reçues (détail)</span><span class="card-tag">Dem</span></div><div class="frame-wrapper"><iframe src="proposition_detail.html" loading="lazy"></iframe></div><div class="card-actions"><a href="proposition_detail.html" target="_blank">Plein écran ↗</a></div></article>
+      </div>
+    </section>
+
+    <section class="group" data-group="wal">
+      <h2 class="group-title">Wallet (3)</h2>
+      <div class="grid">
+        <article class="card"><div class="card-header"><span class="card-title">Wallet (solde + transactions)</span><span class="card-tag">Wallet</span></div><div class="frame-wrapper"><iframe src="wallet.html" loading="lazy"></iframe></div><div class="card-actions"><a href="wallet.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Recharger (5 méthodes)</span><span class="card-tag">Wallet</span></div><div class="frame-wrapper"><iframe src="wallet_recharger.html" loading="lazy"></iframe></div><div class="card-actions"><a href="wallet_recharger.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Retirer (MoMo)</span><span class="card-tag">Wallet</span></div><div class="frame-wrapper"><iframe src="wallet_retirer.html" loading="lazy"></iframe></div><div class="card-actions"><a href="wallet_retirer.html" target="_blank">Plein écran ↗</a></div></article>
+      </div>
+    </section>
+
+    <section class="group" data-group="comm">
+      <h2 class="group-title">Notifications (1)</h2>
+      <div class="grid">
+        <article class="card"><div class="card-header"><span class="card-title">Notifications (cloche)</span><span class="card-tag">Comm</span></div><div class="frame-wrapper"><iframe src="notifications.html" loading="lazy"></iframe></div><div class="card-actions"><a href="notifications.html" target="_blank">Plein écran ↗</a></div></article>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const filters = document.querySelectorAll('.filter');
+    const groups = document.querySelectorAll('.group');
+    filters.forEach(btn => btn.addEventListener('click', () => {
+      filters.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const g = btn.dataset.group;
+      groups.forEach(s => {
+        s.classList.toggle('hidden', g !== 'all' && s.dataset.group !== g);
+      });
+    }));
+  </script>
+</body>
+</html>

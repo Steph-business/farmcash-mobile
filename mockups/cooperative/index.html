@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>FarmCash — Maquettes Coopérative</title>
+  <style>
+    :root {
+      --bg: #F5F6F7;
+      --text: #111827;
+      --text-muted: #6B7280;
+      --primary: #2E7D32;
+      --border: #E5E7EB;
+      --coop: #FFF3E0;
+      --coop-text: #E65100;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    header {
+      padding: 24px 32px;
+      background: white;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .back {
+      display: inline-block;
+      margin-bottom: 8px;
+      color: var(--primary);
+      text-decoration: none;
+      font-size: 13px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 700;
+    }
+    .sub {
+      margin: 4px 0 0;
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+    .toolbar {
+      margin-top: 12px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .filter {
+      padding: 6px 12px;
+      border: 1px solid var(--border);
+      background: white;
+      border-radius: 999px;
+      font-size: 13px;
+      cursor: pointer;
+      color: var(--text);
+    }
+    .filter.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+    main { padding: 32px; }
+    .group {
+      margin-bottom: 40px;
+    }
+    .group-title {
+      margin: 0 0 16px;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    .grid {
+      display: grid;
+      gap: 32px;
+      grid-template-columns: repeat(auto-fit, minmax(410px, 1fr));
+    }
+    .card {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .card-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .card-tag {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: var(--coop);
+      color: var(--coop-text);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .frame-wrapper {
+      padding: 16px;
+      background: #FAFAFA;
+      display: flex;
+      justify-content: center;
+    }
+    iframe {
+      width: 390px;
+      height: 844px;
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      background: white;
+    }
+    .card-actions {
+      padding: 8px 16px;
+      border-top: 1px solid var(--border);
+      text-align: right;
+      font-size: 12px;
+    }
+    .card-actions a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+    .hidden { display: none; }
+    .empty {
+      padding: 24px;
+      text-align: center;
+      color: var(--text-muted);
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="../" class="back">← Toutes les maquettes</a>
+    <h1>Coopérative — 28 écrans</h1>
+    <p class="sub">Accueil + écrans en aval (KPIs, raccourcis, actions, nav, FAB) + communication (notifications, messages) + opérations terrain (pesée, réception, distribution, logistique).</p>
+    <div class="toolbar">
+      <button class="filter active" data-group="all">Tous</button>
+      <button class="filter" data-group="nav">Onglets nav</button>
+      <button class="filter" data-group="kpi">KPIs</button>
+      <button class="filter" data-group="action">Raccourcis</button>
+      <button class="filter" data-group="task">Actions à traiter</button>
+      <button class="filter" data-group="comm">Communication</button>
+      <button class="filter" data-group="ops">Opérations terrain</button>
+      <button class="filter" data-group="agg">Agrégation & prévisions</button>
+      <button class="filter" data-group="fab">FAB</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="group" data-group="nav">
+      <h2 class="group-title">Onglets bottom-nav (4)</h2>
+      <div class="grid">
+        <article class="card"><div class="card-header"><span class="card-title">Accueil</span><span class="card-tag">Nav</span></div><div class="frame-wrapper"><iframe src="../cooperative_accueil.html" loading="lazy"></iframe></div><div class="card-actions"><a href="../cooperative_accueil.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Membres (liste)</span><span class="card-tag">Nav</span></div><div class="frame-wrapper"><iframe src="membres.html" loading="lazy"></iframe></div><div class="card-actions"><a href="membres.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Stock</span><span class="card-tag">Nav</span></div><div class="frame-wrapper"><iframe src="stock.html" loading="lazy"></iframe></div><div class="card-actions"><a href="stock.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Marché</span><span class="card-tag">Nav</span></div><div class="frame-wrapper"><iframe src="marche.html" loading="lazy"></iframe></div><div class="card-actions"><a href="marche.html" target="_blank">Plein écran ↗</a></div></article>
+      </div>
+    </section>
+
+    <section class="group" data-group="kpi">
+      <h2 class="group-title">KPIs cliquables depuis l'accueil (4)</h2>
+      <div class="grid">
+        <article class="card"><div class="card-header"><span class="card-title">Membre — fiche détail</span><span class="card-tag">KPI</span></div><div class="frame-wrapper"><iframe src="membre_detail.html" loading="lazy"></iframe></div><div class="card-actions"><a href="membre_detail.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Stock — détail entrepôt</span><span class="card-tag">KPI</span></div><div class="frame-wrapper"><iframe src="stock_entrepot.html" loading="lazy"></iframe></div><div class="card-actions"><a href="stock_entrepot.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Wallet (solde + transactions)</span><span class="card-tag">KPI</span></div><div class="frame-wrapper"><iframe src="wallet.html" loading="lazy"></iframe></div><div class="card-actions"><a href="wallet.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Payouts (distributions)</span><span class="card-tag">KPI</span></div><div class="frame-wrapper"><iframe src="payouts.html" loading="lazy"></iframe></div><div class="card-actions"><a href="payouts.html" target="_blank">Plein écran ↗</a></div></article>
+      </div>
+    </section>
+
+    <section class="group" data-group="action">
+      <h2 class="group-title">Raccourcis tiles (4)</h2>
+      <div class="grid">
+        <article class="card"><div class="card-header"><span class="card-title">Collecte du jour</span><span class="card-tag">Action</span></div><div class="frame-wrapper"><iframe src="collecte.html" loading="lazy"></iframe></div><div class="card-actions"><a href="collecte.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Inviter un farmer</span><span class="card-tag">Action</span></div><div class="frame-wrapper"><iframe src="inviter_farmer.html" loading="lazy"></iframe></div><div class="card-actions"><a href="inviter_farmer.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Verser une avance</span><span class="card-tag">Action</span></div><div class="frame-wrapper"><iframe src="verser_avance.html" loading="lazy"></iframe></div><div class="card-actions"><a href="verser_avance.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Publier marché (étape 1)</span><span class="card-tag">Action</span></div><div class="frame-wrapper"><iframe src="publication_creer.html" loading="lazy"></iframe></div><div class="card-actions"><a href="publication_creer.html" target="_blank">Plein écran ↗</a></div></article>
+      </div>
+    </section>
+
+    <section class="group" data-group="task">
+      <h2 class="group-title">Actions à traiter (3)</h2>
+      <div class="grid">
+        <article class="card"><div class="card-header"><span class="card-title">Demandes d'adhésion</span><span class="card-tag">Task</span></div><div class="frame-wrapper"><iframe src="adhesions.html" loading="lazy"></iframe></div><div class="card-actions"><a href="adhesions.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Offres d'achat reçues</span><span class="card-tag">Task</span></div><div class="frame-wrapper"><iframe src="offres_recues.html" loading="lazy"></iframe></div><div class="card-actions"><a href="offres_recues.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Distribution — détail</span><span class="card-tag">Task</span></div><div class="frame-wrapper"><iframe src="distribution_detail.html" loading="lazy"></iframe></div><div class="card-actions"><a href="distribution_detail.html" target="_blank">Plein écran ↗</a></div></article>
+      </div>
+    </section>
+
+    <section class="group" data-group="comm">
+      <h2 class="group-title">Communication & profil (3)</h2>
+      <div class="grid">
+        <article class="card"><div class="card-header"><span class="card-title">Notifications (cloche header)</span><span class="card-tag">Comm</span></div><div class="frame-wrapper"><iframe src="notifications.html" loading="lazy"></iframe></div><div class="card-actions"><a href="notifications.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Messages — liste conversations</span><span class="card-tag">Comm</span></div><div class="frame-wrapper"><iframe src="messages.html" loading="lazy"></iframe></div><div class="card-actions"><a href="messages.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Profil & paramètres coop</span><span class="card-tag">Comm</span></div><div class="frame-wrapper"><iframe src="profil_settings.html" loading="lazy"></iframe></div><div class="card-actions"><a href="profil_settings.html" target="_blank">Plein écran ↗</a></div></article>
+      </div>
+    </section>
+
+    <section class="group" data-group="ops">
+      <h2 class="group-title">Opérations terrain (6)</h2>
+      <div class="grid">
+        <article class="card"><div class="card-header"><span class="card-title">Pesée d'une livraison</span><span class="card-tag">Ops</span></div><div class="frame-wrapper"><iframe src="pesee.html" loading="lazy"></iframe></div><div class="card-actions"><a href="pesee.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Réception d'un lot</span><span class="card-tag">Ops</span></div><div class="frame-wrapper"><iframe src="reception_lot.html" loading="lazy"></iframe></div><div class="card-actions"><a href="reception_lot.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Distribution — confirmation</span><span class="card-tag">Ops</span></div><div class="frame-wrapper"><iframe src="distribution_confirmation.html" loading="lazy"></iframe></div><div class="card-actions"><a href="distribution_confirmation.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Logistique (parc + transferts)</span><span class="card-tag">Ops</span></div><div class="frame-wrapper"><iframe src="logistique.html" loading="lazy"></iframe></div><div class="card-actions"><a href="logistique.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Ajouter un véhicule</span><span class="card-tag">Ops</span></div><div class="frame-wrapper"><iframe src="vehicule_ajouter.html" loading="lazy"></iframe></div><div class="card-actions"><a href="vehicule_ajouter.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Demander un transport externe</span><span class="card-tag">Ops</span></div><div class="frame-wrapper"><iframe src="transport_demande.html" loading="lazy"></iframe></div><div class="card-actions"><a href="transport_demande.html" target="_blank">Plein écran ↗</a></div></article>
+      </div>
+    </section>
+
+    <section class="group" data-group="agg">
+      <h2 class="group-title">Agrégation & prévisions (3)</h2>
+      <div class="grid">
+        <article class="card"><div class="card-header"><span class="card-title">Solliciter des fournisseurs</span><span class="card-tag">Agg</span></div><div class="frame-wrapper"><iframe src="sollicitation_creer.html" loading="lazy"></iframe></div><div class="card-actions"><a href="sollicitation_creer.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Suivi sollicitation (progression)</span><span class="card-tag">Agg</span></div><div class="frame-wrapper"><iframe src="sollicitation_suivi.html" loading="lazy"></iframe></div><div class="card-actions"><a href="sollicitation_suivi.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Prévisions de mes membres</span><span class="card-tag">Agg</span></div><div class="frame-wrapper"><iframe src="previsions_membres.html" loading="lazy"></iframe></div><div class="card-actions"><a href="previsions_membres.html" target="_blank">Plein écran ↗</a></div></article>
+      </div>
+    </section>
+
+    <section class="group" data-group="fab">
+      <h2 class="group-title">FAB central — menu publication (1)</h2>
+      <div class="grid">
+        <article class="card"><div class="card-header"><span class="card-title">Menu FAB (overlay)</span><span class="card-tag">FAB</span></div><div class="frame-wrapper"><iframe src="fab_menu.html" loading="lazy"></iframe></div><div class="card-actions"><a href="fab_menu.html" target="_blank">Plein écran ↗</a></div></article>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const filters = document.querySelectorAll('.filter');
+    const groups = document.querySelectorAll('.group');
+    filters.forEach(btn => btn.addEventListener('click', () => {
+      filters.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const g = btn.dataset.group;
+      groups.forEach(s => {
+        s.classList.toggle('hidden', g !== 'all' && s.dataset.group !== g);
+      });
+    }));
+  </script>
+</body>
+</html>

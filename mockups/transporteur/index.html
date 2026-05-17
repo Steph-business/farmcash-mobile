@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>FarmCash — Maquettes Transporteur</title>
+  <style>
+    :root {
+      --bg: #F5F6F7;
+      --text: #111827;
+      --text-muted: #6B7280;
+      --primary: #2E7D32;
+      --border: #E5E7EB;
+      --tag: #F3E5F5;
+      --tag-text: #6A1B9A;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    header {
+      padding: 24px 32px;
+      background: white;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .back {
+      display: inline-block;
+      margin-bottom: 8px;
+      color: var(--primary);
+      text-decoration: none;
+      font-size: 13px;
+    }
+    h1 { margin: 0; font-size: 22px; font-weight: 700; }
+    .sub { margin: 4px 0 0; font-size: 14px; color: var(--text-muted); }
+    .toolbar { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+    .filter {
+      padding: 6px 12px; border: 1px solid var(--border); background: white;
+      border-radius: 999px; font-size: 13px; cursor: pointer; color: var(--text);
+    }
+    .filter.active { background: var(--primary); color: white; border-color: var(--primary); }
+    main { padding: 32px; }
+    .group { margin-bottom: 40px; }
+    .group-title {
+      margin: 0 0 16px; font-size: 14px; text-transform: uppercase;
+      letter-spacing: 1px; color: var(--text-muted); font-weight: 600;
+    }
+    .grid {
+      display: grid; gap: 32px;
+      grid-template-columns: repeat(auto-fit, minmax(410px, 1fr));
+    }
+    .card {
+      background: white; border: 1px solid var(--border); border-radius: 12px;
+      overflow: hidden; display: flex; flex-direction: column;
+    }
+    .card-header {
+      padding: 12px 16px; border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .card-title { font-size: 14px; font-weight: 600; }
+    .card-tag {
+      font-size: 11px; padding: 2px 8px; border-radius: 999px;
+      background: var(--tag); color: var(--tag-text);
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .frame-wrapper {
+      padding: 16px; background: #FAFAFA; display: flex; justify-content: center;
+    }
+    iframe {
+      width: 390px; height: 844px; border: 1px solid var(--border);
+      border-radius: 24px; background: white;
+    }
+    .card-actions {
+      padding: 8px 16px; border-top: 1px solid var(--border);
+      text-align: right; font-size: 12px;
+    }
+    .card-actions a { color: var(--primary); text-decoration: none; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="../" class="back">← Toutes les maquettes</a>
+    <h1>Transporteur — 16 écrans</h1>
+    <p class="sub">Onglets nav (4) + flow opérationnel (missions, navigation GPS, scan QR, confirmations enlèvement/livraison) + demandes entrantes + wallet (commissions + recharge carburant + retrait) + profil & véhicules.</p>
+    <div class="toolbar">
+      <button class="filter active" data-group="all">Tous</button>
+      <button class="filter" data-group="nav">Onglets nav</button>
+      <button class="filter" data-group="ops">Flow opérationnel</button>
+      <button class="filter" data-group="conf">Confirmations</button>
+      <button class="filter" data-group="wal">Wallet</button>
+      <button class="filter" data-group="prof">Profil & véhicules</button>
+      <button class="filter" data-group="comm">Notifications</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="group" data-group="nav">
+      <h2 class="group-title">Onglets bottom-nav (4)</h2>
+      <div class="grid">
+        <article class="card"><div class="card-header"><span class="card-title">Accueil</span><span class="card-tag">Nav</span></div><div class="frame-wrapper"><iframe src="../transporteur_accueil.html" loading="lazy"></iframe></div><div class="card-actions"><a href="../transporteur_accueil.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Missions (liste)</span><span class="card-tag">Nav</span></div><div class="frame-wrapper"><iframe src="missions.html" loading="lazy"></iframe></div><div class="card-actions"><a href="missions.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Messages</span><span class="card-tag">Nav</span></div><div class="frame-wrapper"><iframe src="messages.html" loading="lazy"></iframe></div><div class="card-actions"><a href="messages.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Profil</span><span class="card-tag">Nav</span></div><div class="frame-wrapper"><iframe src="../transporteur_profil.html" loading="lazy"></iframe></div><div class="card-actions"><a href="../transporteur_profil.html" target="_blank">Plein écran ↗</a></div></article>
+      </div>
+    </section>
+
+    <section class="group" data-group="ops">
+      <h2 class="group-title">Flow opérationnel (4)</h2>
+      <div class="grid">
+        <article class="card"><div class="card-header"><span class="card-title">Détail mission (timeline)</span><span class="card-tag">Ops</span></div><div class="frame-wrapper"><iframe src="mission_detail.html" loading="lazy"></iframe></div><div class="card-actions"><a href="mission_detail.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Mission en route (navigation GPS)</span><span class="card-tag">Ops</span></div><div class="frame-wrapper"><iframe src="mission_en_route.html" loading="lazy"></iframe></div><div class="card-actions"><a href="mission_en_route.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Scanner QR (caméra)</span><span class="card-tag">Ops</span></div><div class="frame-wrapper"><iframe src="scanner.html" loading="lazy"></iframe></div><div class="card-actions"><a href="scanner.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Demandes de transport entrantes</span><span class="card-tag">Ops</span></div><div class="frame-wrapper"><iframe src="demandes_entrantes.html" loading="lazy"></iframe></div><div class="card-actions"><a href="demandes_entrantes.html" target="_blank">Plein écran ↗</a></div></article>
+      </div>
+    </section>
+
+    <section class="group" data-group="conf">
+      <h2 class="group-title">Confirmations (2)</h2>
+      <div class="grid">
+        <article class="card"><div class="card-header"><span class="card-title">Enlèvement confirmé</span><span class="card-tag">Conf</span></div><div class="frame-wrapper"><iframe src="enlevement_confirme.html" loading="lazy"></iframe></div><div class="card-actions"><a href="enlevement_confirme.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Livraison confirmée + crédit</span><span class="card-tag">Conf</span></div><div class="frame-wrapper"><iframe src="livraison_confirme.html" loading="lazy"></iframe></div><div class="card-actions"><a href="livraison_confirme.html" target="_blank">Plein écran ↗</a></div></article>
+      </div>
+    </section>
+
+    <section class="group" data-group="wal">
+      <h2 class="group-title">Wallet (3)</h2>
+      <div class="grid">
+        <article class="card"><div class="card-header"><span class="card-title">Wallet (solde + commissions)</span><span class="card-tag">Wallet</span></div><div class="frame-wrapper"><iframe src="wallet.html" loading="lazy"></iframe></div><div class="card-actions"><a href="wallet.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Recharger (carburant)</span><span class="card-tag">Wallet</span></div><div class="frame-wrapper"><iframe src="wallet_recharger.html" loading="lazy"></iframe></div><div class="card-actions"><a href="wallet_recharger.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Retirer (MoMo)</span><span class="card-tag">Wallet</span></div><div class="frame-wrapper"><iframe src="wallet_retirer.html" loading="lazy"></iframe></div><div class="card-actions"><a href="wallet_retirer.html" target="_blank">Plein écran ↗</a></div></article>
+      </div>
+    </section>
+
+    <section class="group" data-group="prof">
+      <h2 class="group-title">Profil & véhicules (2)</h2>
+      <div class="grid">
+        <article class="card"><div class="card-header"><span class="card-title">Profil & paramètres (settings)</span><span class="card-tag">Prof</span></div><div class="frame-wrapper"><iframe src="profil_settings.html" loading="lazy"></iframe></div><div class="card-actions"><a href="profil_settings.html" target="_blank">Plein écran ↗</a></div></article>
+        <article class="card"><div class="card-header"><span class="card-title">Ajouter un véhicule</span><span class="card-tag">Prof</span></div><div class="frame-wrapper"><iframe src="vehicule_ajouter.html" loading="lazy"></iframe></div><div class="card-actions"><a href="vehicule_ajouter.html" target="_blank">Plein écran ↗</a></div></article>
+      </div>
+    </section>
+
+    <section class="group" data-group="comm">
+      <h2 class="group-title">Notifications (1)</h2>
+      <div class="grid">
+        <article class="card"><div class="card-header"><span class="card-title">Notifications (cloche header)</span><span class="card-tag">Comm</span></div><div class="frame-wrapper"><iframe src="notifications.html" loading="lazy"></iframe></div><div class="card-actions"><a href="notifications.html" target="_blank">Plein écran ↗</a></div></article>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const filters = document.querySelectorAll('.filter');
+    const groups = document.querySelectorAll('.group');
+    filters.forEach(btn => btn.addEventListener('click', () => {
+      filters.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const g = btn.dataset.group;
+      groups.forEach(s => {
+        s.classList.toggle('hidden', g !== 'all' && s.dataset.group !== g);
+      });
+    }));
+  </script>
+</body>
+</html>

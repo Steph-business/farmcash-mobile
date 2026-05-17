@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FarmCash — Créer une parcelle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --primary:#2E7D32;--primary-hover:#256528;--bg:#FFFFFF;
+    --text:#111827;--text-muted:#6B7280;--text-subtle:#9CA3AF;
+    --border:#E5E7EB;--border-strong:#D1D5DB;--bg-soft:#F9FAFB;
+    --error:#C62828;--primary-soft:#E8F5E9;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased;}
+  html,body{font-family:'Inter',sans-serif;background:#ECEFF1;color:var(--text);}
+  body{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 20px;}
+
+  .phone{width:390px;height:844px;background:#1a1a1a;border-radius:50px;padding:14px;box-shadow:0 30px 60px rgba(0,0,0,0.18);position:relative;}
+  .phone::before{content:"";position:absolute;top:14px;left:50%;transform:translateX(-50%);width:130px;height:32px;background:#1a1a1a;border-radius:0 0 22px 22px;z-index:10;}
+  .screen{width:100%;height:100%;background:var(--bg);border-radius:38px;overflow:hidden;position:relative;display:flex;flex-direction:column;}
+
+  .status-bar{height:48px;padding:18px 30px 0;display:flex;justify-content:space-between;align-items:center;font-size:14px;font-weight:600;flex-shrink:0;}
+  .status-bar .icons{display:flex;gap:6px;align-items:center;color:var(--text);}
+
+  .header{padding:8px 24px 12px;display:flex;align-items:center;gap:12px;}
+  .back-btn{width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--text);cursor:pointer;margin-left:-8px;}
+  .greet{flex:1;min-width:0;}
+  .greet .name{font-size:15px;font-weight:600;line-height:1.2;}
+  .greet .sub{font-size:12px;color:var(--text-muted);margin-top:2px;}
+
+  .content{flex:1;overflow-y:auto;padding:0 24px 16px;}
+
+  .group{margin-bottom:20px;}
+  .section-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px;}
+  .field{margin-bottom:14px;}
+  .field-label{font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:6px;}
+  .field-hint{font-size:11px;color:var(--text-subtle);margin-top:4px;}
+  .helper{font-size:12px;color:var(--text-muted);margin-bottom:10px;}
+
+  .select{display:flex;align-items:center;gap:10px;border:1px solid var(--border);border-radius:12px;padding:12px;background:var(--bg);cursor:pointer;}
+  .select .ic{width:32px;height:32px;border-radius:50%;background:var(--primary-soft);color:var(--primary);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .select .txt{flex:1;min-width:0;}
+  .select .t{font-size:13px;font-weight:600;color:var(--text);}
+  .select .chev{color:var(--text-subtle);flex-shrink:0;}
+
+  .input{display:flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:12px;padding:12px;background:var(--bg);}
+  .input input{flex:1;border:none;outline:none;background:transparent;font-family:inherit;font-size:14px;color:var(--text);min-width:0;}
+  .input input::placeholder{color:var(--text-subtle);}
+  .input .unit{font-size:13px;color:var(--text-muted);font-weight:600;}
+
+  .gps-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;border-radius:12px;border:1px solid var(--primary);background:var(--primary-soft);color:var(--primary);font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;}
+
+  .crop-chips{display:flex;flex-wrap:wrap;gap:8px;}
+  .crop-chip{font-size:12px;font-weight:600;padding:8px 14px;border-radius:14px;border:1px solid var(--border);color:var(--text-muted);background:var(--bg);cursor:pointer;}
+  .crop-chip.active{background:var(--primary);border-color:var(--primary);color:#fff;}
+
+  .footer{padding:14px 24px 12px;background:var(--bg);border-top:1px solid var(--border);flex-shrink:0;}
+  .btn-primary{width:100%;padding:14px 0;border-radius:12px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;border:1px solid var(--primary);background:var(--primary);color:#fff;text-align:center;}
+
+  .bottom-nav{height:64px;background:var(--bg);border-top:1px solid var(--border);display:flex;align-items:center;flex-shrink:0;}
+  .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--text-muted);cursor:pointer;font-size:11px;font-weight:500;}
+  .nav-item.active{color:var(--primary);font-weight:600;}
+  .fab{width:56px;height:56px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin:0 4px;cursor:pointer;}
+
+  .home-indicator{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:140px;height:5px;background:var(--text);border-radius:3px;opacity:0.25;}
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="screen">
+
+    <div class="status-bar">
+      <span>9:41</span>
+      <span class="icons">
+        <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor"><path d="M1 7.5h2v3H1v-3zm4-2h2v5H5v-5zm4-2h2v7H9v-7zm4-2h2v9h-2v-9z"/></svg>
+        <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor"><path d="M8 2C4 2 1 4 0 6c1 2 4 4 8 4s7-2 8-4c-1-2-4-4-8-4zm0 6a2 2 0 110-4 2 2 0 010 4z"/></svg>
+        <svg width="24" height="11" viewBox="0 0 24 11" fill="none" stroke="currentColor" stroke-width="1"><rect x="0.5" y="0.5" width="20" height="10" rx="2"/><rect x="2" y="2" width="16" height="7" rx="1" fill="currentColor"/><rect x="21" y="3.5" width="2" height="4" rx="1" fill="currentColor"/></svg>
+      </span>
+    </div>
+
+    <div class="header">
+      <div class="back-btn" onclick="history.back()">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </div>
+      <div class="greet">
+        <div class="name">Créer une parcelle</div>
+        <div class="sub">Enregistre un nouveau champ</div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <div class="group">
+        <div class="section-title">Localisation</div>
+
+        <div class="field">
+          <div class="field-label">Ville</div>
+          <div class="select">
+            <div class="ic">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            </div>
+            <div class="txt">
+              <div class="t">Yopougon</div>
+            </div>
+            <div class="chev"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></div>
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="field-label">Nom du champ</div>
+          <div class="input">
+            <input type="text" placeholder="Optionnel — auto-généré sinon" />
+          </div>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="section-title">Mesure</div>
+
+        <div class="field">
+          <div class="field-label">Superficie</div>
+          <div class="input">
+            <input type="text" placeholder="0" value="1.5" />
+            <span class="unit">ha</span>
+          </div>
+          <div class="field-hint">Ex. 0.5 ha ≈ 50m × 100m</div>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="section-title">Position GPS</div>
+        <button class="gps-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          Capturer ma position
+        </button>
+      </div>
+
+      <div class="group">
+        <div class="section-title">Quelles cultures se trouvent ici ?</div>
+        <div class="helper">Sélectionne les produits que tu cultives</div>
+        <div class="crop-chips">
+          <div class="crop-chip active">Maïs</div>
+          <div class="crop-chip active">Manioc</div>
+          <div class="crop-chip active">Tomate</div>
+          <div class="crop-chip">Banane plantain</div>
+          <div class="crop-chip">Arachide</div>
+          <div class="crop-chip">Riz</div>
+          <div class="crop-chip">Igname</div>
+          <div class="crop-chip">Cacao</div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="footer">
+      <button class="btn-primary">Enregistrer ma parcelle</button>
+    </div>
+
+    <div class="bottom-nav">
+      <div class="nav-item active">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l9 8h-3v9h-5v-6H11v6H6v-9H3z"/></svg>
+        <span>Accueil</span>
+      </div>
+      <div class="nav-item">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.4 8.4 0 01-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.4 8.4 0 013.8-.9 8.5 8.5 0 018.5 8.5z"/></svg>
+        <span>Messages</span>
+      </div>
+      <div class="fab">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      </div>
+      <div class="nav-item">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+        <span>Commandes</span>
+      </div>
+      <div class="nav-item">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span>Profil</span>
+      </div>
+    </div>
+
+    <div class="home-indicator"></div>
+  </div>
+</div>
+
+</body>
+</html>

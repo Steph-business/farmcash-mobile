@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>FarmCash — Galerie mockups</title>
+  <style>
+    :root {
+      --bg: #F5F6F7;
+      --text: #111827;
+      --text-muted: #6B7280;
+      --primary: #2E7D32;
+      --border: #E5E7EB;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    header {
+      padding: 24px 32px;
+      background: white;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    h1 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 700;
+    }
+    .sub {
+      margin: 4px 0 0;
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+    .toolbar {
+      margin-top: 12px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .filter {
+      padding: 6px 12px;
+      border: 1px solid var(--border);
+      background: white;
+      border-radius: 999px;
+      font-size: 13px;
+      cursor: pointer;
+      color: var(--text);
+    }
+    .filter.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+    main {
+      padding: 32px;
+    }
+    .grid {
+      display: grid;
+      gap: 32px;
+      grid-template-columns: repeat(auto-fit, minmax(395px, 1fr));
+    }
+    .card {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .card-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .card-role {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .role-producteur { background: #E8F5E9; color: #2E7D32; }
+    .role-acheteur   { background: #E3F2FD; color: #1565C0; }
+    .role-cooperative{ background: #FFF3E0; color: #E65100; }
+    .role-transporteur{ background: #F3E5F5; color: #6A1B9A; }
+    .role-auth       { background: #F5F5F5; color: #6B7280; }
+    .frame-wrapper {
+      padding: 16px;
+      background: #FAFAFA;
+      display: flex;
+      justify-content: center;
+    }
+    iframe {
+      width: 375px;
+      height: 812px;
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      background: white;
+    }
+    .card-actions {
+      padding: 8px 16px;
+      border-top: 1px solid var(--border);
+      text-align: right;
+      font-size: 12px;
+    }
+    .card-actions a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>FarmCash — Galerie maquettes</h1>
+    <p class="sub">Toutes les maquettes HTML côte à côte (format iPhone 375×812). Filtre par rôle pour comparer.</p>
+    <p class="sub" style="margin-top:8px;">
+      Galeries détaillées par rôle :
+      <a href="cooperative/" style="color:#E65100;font-weight:600;text-decoration:none;">Coopérative — 28 écrans →</a>
+      &nbsp;·&nbsp;
+      <a href="producteur/" style="color:#2E7D32;font-weight:600;text-decoration:none;">Producteur — 24 écrans →</a>
+      &nbsp;·&nbsp;
+      <a href="acheteur/" style="color:#1565C0;font-weight:600;text-decoration:none;">Acheteur — 22 écrans →</a>
+      &nbsp;·&nbsp;
+      <a href="transporteur/" style="color:#6A1B9A;font-weight:600;text-decoration:none;">Transporteur — 16 écrans →</a>
+    </p>
+    <div class="toolbar">
+      <button class="filter active" data-role="all">Tous</button>
+      <button class="filter" data-role="producteur">Producteur</button>
+      <button class="filter" data-role="acheteur">Acheteur</button>
+      <button class="filter" data-role="cooperative">Coopérative</button>
+      <button class="filter" data-role="transporteur">Transporteur</button>
+      <button class="filter" data-role="auth">Auth</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="grid" id="grid">
+      <!-- Producteur -->
+      <article class="card" data-role="producteur">
+        <div class="card-header">
+          <span class="card-title">Accueil producteur</span>
+          <span class="card-role role-producteur">Producteur</span>
+        </div>
+        <div class="frame-wrapper"><iframe src="producteur_accueil.html" loading="lazy"></iframe></div>
+        <div class="card-actions"><a href="producteur_accueil.html" target="_blank">Ouvrir en plein écran ↗</a></div>
+      </article>
+      <article class="card" data-role="producteur">
+        <div class="card-header">
+          <span class="card-title">Profil producteur</span>
+          <span class="card-role role-producteur">Producteur</span>
+        </div>
+        <div class="frame-wrapper"><iframe src="producteur_profil.html" loading="lazy"></iframe></div>
+        <div class="card-actions"><a href="producteur_profil.html" target="_blank">Ouvrir en plein écran ↗</a></div>
+      </article>
+
+      <!-- Acheteur -->
+      <article class="card" data-role="acheteur">
+        <div class="card-header">
+          <span class="card-title">Accueil acheteur</span>
+          <span class="card-role role-acheteur">Acheteur</span>
+        </div>
+        <div class="frame-wrapper"><iframe src="acheteur_accueil.html" loading="lazy"></iframe></div>
+        <div class="card-actions"><a href="acheteur_accueil.html" target="_blank">Ouvrir en plein écran ↗</a></div>
+      </article>
+      <article class="card" data-role="acheteur">
+        <div class="card-header">
+          <span class="card-title">Profil acheteur</span>
+          <span class="card-role role-acheteur">Acheteur</span>
+        </div>
+        <div class="frame-wrapper"><iframe src="acheteur_profil.html" loading="lazy"></iframe></div>
+        <div class="card-actions"><a href="acheteur_profil.html" target="_blank">Ouvrir en plein écran ↗</a></div>
+      </article>
+
+      <!-- Coopérative -->
+      <article class="card" data-role="cooperative">
+        <div class="card-header">
+          <span class="card-title">Accueil coopérative</span>
+          <span class="card-role role-cooperative">Coopérative</span>
+        </div>
+        <div class="frame-wrapper"><iframe src="cooperative_accueil.html" loading="lazy"></iframe></div>
+        <div class="card-actions"><a href="cooperative_accueil.html" target="_blank">Ouvrir en plein écran ↗</a></div>
+      </article>
+      <article class="card" data-role="cooperative">
+        <div class="card-header">
+          <span class="card-title">Profil coopérative</span>
+          <span class="card-role role-cooperative">Coopérative</span>
+        </div>
+        <div class="frame-wrapper"><iframe src="cooperative_profil.html" loading="lazy"></iframe></div>
+        <div class="card-actions"><a href="cooperative_profil.html" target="_blank">Ouvrir en plein écran ↗</a></div>
+      </article>
+
+      <!-- Transporteur -->
+      <article class="card" data-role="transporteur">
+        <div class="card-header">
+          <span class="card-title">Accueil transporteur</span>
+          <span class="card-role role-transporteur">Transporteur</span>
+        </div>
+        <div class="frame-wrapper"><iframe src="transporteur_accueil.html" loading="lazy"></iframe></div>
+        <div class="card-actions"><a href="transporteur_accueil.html" target="_blank">Ouvrir en plein écran ↗</a></div>
+      </article>
+      <article class="card" data-role="transporteur">
+        <div class="card-header">
+          <span class="card-title">Profil transporteur</span>
+          <span class="card-role role-transporteur">Transporteur</span>
+        </div>
+        <div class="frame-wrapper"><iframe src="transporteur_profil.html" loading="lazy"></iframe></div>
+        <div class="card-actions"><a href="transporteur_profil.html" target="_blank">Ouvrir en plein écran ↗</a></div>
+      </article>
+
+      <!-- Auth -->
+      <article class="card" data-role="auth">
+        <div class="card-header">
+          <span class="card-title">Login</span>
+          <span class="card-role role-auth">Auth</span>
+        </div>
+        <div class="frame-wrapper"><iframe src="login.html" loading="lazy"></iframe></div>
+        <div class="card-actions"><a href="login.html" target="_blank">Ouvrir en plein écran ↗</a></div>
+      </article>
+    </div>
+  </main>
+
+  <script>
+    const filters = document.querySelectorAll('.filter');
+    const cards = document.querySelectorAll('.card');
+    filters.forEach(btn => btn.addEventListener('click', () => {
+      filters.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const role = btn.dataset.role;
+      cards.forEach(c => {
+        c.classList.toggle('hidden', role !== 'all' && c.dataset.role !== role);
+      });
+    }));
+  </script>
+</body>
+</html>

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FarmCash — En route</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --primary:#2E7D32;--primary-hover:#256528;--bg:#FFFFFF;
+    --text:#111827;--text-muted:#6B7280;--text-subtle:#9CA3AF;
+    --border:#E5E7EB;--border-strong:#D1D5DB;--bg-soft:#F9FAFB;
+    --error:#C62828;--primary-soft:#E8F5E9;
+    --warn:#B45309;--warn-soft:#FEF3C7;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased;}
+  html,body{font-family:'Inter',sans-serif;background:#ECEFF1;color:var(--text);}
+  body{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 20px;}
+
+  .phone{width:390px;height:844px;background:#1a1a1a;border-radius:50px;padding:14px;box-shadow:0 30px 60px rgba(0,0,0,0.18);position:relative;}
+  .phone::before{content:"";position:absolute;top:14px;left:50%;transform:translateX(-50%);width:130px;height:32px;background:#1a1a1a;border-radius:0 0 22px 22px;z-index:10;}
+  .screen{width:100%;height:100%;background:var(--bg);border-radius:38px;overflow:hidden;position:relative;display:flex;flex-direction:column;}
+
+  .status-bar{height:48px;padding:18px 30px 0;display:flex;justify-content:space-between;align-items:center;font-size:14px;font-weight:600;flex-shrink:0;}
+  .status-bar .icons{display:flex;gap:6px;align-items:center;color:var(--text);}
+
+  .header{padding:8px 16px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);}
+  .back-btn{width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--text);cursor:pointer;}
+  .header .title{flex:1;font-size:15px;font-weight:600;}
+
+  .content{flex:1;overflow-y:auto;}
+
+  /* MAP */
+  .map{width:100%;height:280px;background:#E5F4E8;position:relative;border-bottom:1px solid var(--border);overflow:hidden;}
+  .map-grid{position:absolute;inset:0;background-image:
+    linear-gradient(to right,rgba(46,125,50,0.08) 1px,transparent 1px),
+    linear-gradient(to bottom,rgba(46,125,50,0.08) 1px,transparent 1px);background-size:30px 30px;}
+  .map-road{position:absolute;left:50%;top:50%;width:1px;height:160px;background:transparent;transform:translate(-50%,-50%);}
+  .map-road::before{content:"";position:absolute;left:-1px;top:0;width:3px;height:100%;background:var(--primary);border-radius:2px;
+    clip-path:polygon(50% 0%,30% 30%,60% 50%,40% 70%,50% 100%);
+  }
+  .map-route-line{position:absolute;top:50%;left:50%;width:2px;height:160px;transform:translate(-50%,-50%) rotate(8deg);}
+  .map-route-line svg{width:120px;height:170px;position:absolute;left:-60px;top:-85px;}
+  .truck-marker{position:absolute;left:50%;top:55%;transform:translate(-50%,-50%);width:36px;height:36px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;border:3px solid #fff;}
+  .dest-marker{position:absolute;right:60px;top:50px;width:30px;height:30px;border-radius:50% 50% 50% 0;background:var(--error);color:#fff;display:flex;align-items:center;justify-content:center;transform:rotate(-45deg);border:2px solid #fff;}
+  .dest-marker svg{transform:rotate(45deg);}
+  .recenter{position:absolute;right:14px;bottom:14px;width:44px;height:44px;border-radius:12px;background:#fff;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--text);cursor:pointer;}
+
+  /* INFO BAND */
+  .info-band{background:var(--primary);color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;}
+  .info-band .l{font-size:13px;opacity:0.9;}
+  .info-band .v{font-family:'Poppins';font-size:18px;font-weight:700;letter-spacing:-0.2px;}
+  .info-band .right{text-align:right;}
+
+  /* CARGO STRIP */
+  .cargo-strip{display:flex;align-items:center;gap:10px;background:var(--bg-soft);border-bottom:1px solid var(--border);padding:10px 20px;}
+  .cargo-thumb{width:40px;height:40px;border-radius:8px;background-size:cover;background-position:center;border:1px solid var(--border);flex-shrink:0;}
+  .cargo-body{flex:1;min-width:0;}
+  .cargo-title{font-size:13px;font-weight:600;color:var(--text);}
+  .cargo-meta{font-size:11px;color:var(--text-muted);margin-top:2px;}
+
+  /* DESTINATION */
+  .dest-card{padding:16px 20px;border-bottom:1px solid var(--border);}
+  .dest-label{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.3px;margin-bottom:6px;}
+  .dest-row{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;}
+  .dest-ic{width:28px;height:28px;border-radius:8px;background:var(--primary-soft);color:var(--primary);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .dest-text{flex:1;font-size:13px;color:var(--text);line-height:1.4;}
+  .dest-text strong{font-weight:600;display:block;margin-bottom:2px;}
+  .btn-call{width:100%;padding:12px;border-radius:10px;background:var(--bg);border:1px solid var(--primary);color:var(--primary);font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;}
+
+  /* PROGRESS LIST */
+  .progress{padding:14px 20px;}
+  .progress-title{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.3px;margin-bottom:10px;}
+  .progress-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);font-size:12px;}
+  .progress-item:last-child{border-bottom:none;}
+  .progress-item .ic{width:24px;height:24px;border-radius:50%;background:var(--primary-soft);color:var(--primary);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .progress-item .body{flex:1;}
+  .progress-item .l{color:var(--text-muted);}
+  .progress-item .v{font-weight:600;color:var(--text);}
+
+  /* STICKY */
+  .sticky{position:absolute;left:0;right:0;bottom:64px;background:var(--bg);border-top:1px solid var(--border);padding:12px 16px;}
+  .btn-scan{width:100%;height:54px;border-radius:12px;background:var(--primary);color:#fff;font-size:15px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;border:none;}
+
+  .bottom-nav{height:64px;background:var(--bg);border-top:1px solid var(--border);display:flex;align-items:center;flex-shrink:0;}
+  .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--text-subtle);cursor:default;font-size:11px;font-weight:500;opacity:0.5;}
+
+  .home-indicator{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:140px;height:5px;background:var(--text);border-radius:3px;opacity:0.25;}
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="screen">
+
+    <div class="status-bar">
+      <span>9:41</span>
+      <span class="icons">
+        <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor"><path d="M1 7.5h2v3H1v-3zm4-2h2v5H5v-5zm4-2h2v7H9v-7zm4-2h2v9h-2v-9z"/></svg>
+        <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor"><path d="M8 2C4 2 1 4 0 6c1 2 4 4 8 4s7-2 8-4c-1-2-4-4-8-4zm0 6a2 2 0 110-4 2 2 0 010 4z"/></svg>
+        <svg width="24" height="11" viewBox="0 0 24 11" fill="none" stroke="currentColor" stroke-width="1"><rect x="0.5" y="0.5" width="20" height="10" rx="2"/><rect x="2" y="2" width="16" height="7" rx="1" fill="currentColor"/><rect x="21" y="3.5" width="2" height="4" rx="1" fill="currentColor"/></svg>
+      </span>
+    </div>
+
+    <div class="header">
+      <div class="back-btn" onclick="location.href='mission_detail.html'">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </div>
+      <div class="title">En route vers producteur</div>
+    </div>
+
+    <div class="content">
+
+      <!-- MAP -->
+      <div class="map">
+        <div class="map-grid"></div>
+        <svg style="position:absolute;left:0;top:0;width:100%;height:100%;" viewBox="0 0 390 280" preserveAspectRatio="none">
+          <path d="M 195 180 Q 240 130 270 90 Q 290 70 310 60" stroke="#2E7D32" stroke-width="3" fill="none" stroke-linecap="round" stroke-dasharray="0"/>
+        </svg>
+        <div class="truck-marker">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4 20h16L12 2z"/></svg>
+        </div>
+        <div class="dest-marker">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="3"/></svg>
+        </div>
+        <div class="recenter">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+        </div>
+      </div>
+
+      <!-- INFO BAND -->
+      <div class="info-band">
+        <div>
+          <div class="l">Distance restante</div>
+          <div class="v">8 km</div>
+        </div>
+        <div class="right">
+          <div class="l">ETA</div>
+          <div class="v">12 min</div>
+        </div>
+      </div>
+
+      <!-- CARGO STRIP -->
+      <div class="cargo-strip">
+        <div class="cargo-thumb" style="background-image:url('https://images.unsplash.com/photo-1601493700631-2b16ec4b4716?w=200&h=200&fit=crop&auto=format')"></div>
+        <div class="cargo-body">
+          <div class="cargo-title">Maïs grain blanc</div>
+          <div class="cargo-meta">500 kg · Yao Konan</div>
+        </div>
+      </div>
+
+      <!-- DESTINATION -->
+      <div class="dest-card">
+        <div class="dest-label">Destination</div>
+        <div class="dest-row">
+          <div class="dest-ic">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          </div>
+          <div class="dest-text">
+            <strong>Yao Konan</strong>
+            Rue Adjamé, Yopougon · Carrefour Marché
+          </div>
+        </div>
+        <div class="btn-call">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.13.96.37 1.9.72 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.35 1.85.59 2.81.72A2 2 0 0122 16.92z"/></svg>
+          Appeler le producteur
+        </div>
+      </div>
+
+      <!-- PROGRESS -->
+      <div class="progress">
+        <div class="progress-title">Indicateurs course</div>
+        <div class="progress-item">
+          <div class="ic">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+          </div>
+          <div class="body"><span class="l">Heure départ</span></div>
+          <div class="v">10h30</div>
+        </div>
+        <div class="progress-item">
+          <div class="ic">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg>
+          </div>
+          <div class="body"><span class="l">Distance parcourue</span></div>
+          <div class="v">4 km</div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="sticky">
+      <button class="btn-scan" onclick="location.href='scanner.html'">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        Scanner le QR à l'arrivée
+      </button>
+    </div>
+
+    <div class="bottom-nav">
+      <div class="nav-item">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg>
+        <span>Accueil</span>
+      </div>
+      <div class="nav-item">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 3h15v13H1z"/><path d="M16 8h4l3 4v4h-7"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        <span>Missions</span>
+      </div>
+      <div class="nav-item">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.4 8.4 0 01-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.4 8.4 0 013.8-.9h.5a8.5 8.5 0 018 8z"/></svg>
+        <span>Messages</span>
+      </div>
+      <div class="nav-item">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span>Profil</span>
+      </div>
+    </div>
+
+    <div class="home-indicator"></div>
+  </div>
+</div>
+
+</body>
+</html>

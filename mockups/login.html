@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FarmCash — Connexion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --primary:        #2E7D32;
+    --primary-hover:  #256528;
+    --bg:             #FFFFFF;
+    --text:           #111827;
+    --text-muted:     #6B7280;
+    --text-subtle:    #9CA3AF;
+    --border:         #E5E7EB;
+    --border-strong:  #D1D5DB;
+    --bg-soft:        #F9FAFB;
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased;}
+  html,body{font-family:'Inter',sans-serif;background:#ECEFF1;color:var(--text);}
+  body{
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:40px 20px;
+  }
+
+  /* =========== PHONE FRAME =========== */
+  .phone{
+    width:390px;
+    height:844px;
+    background:#1a1a1a;
+    border-radius:50px;
+    padding:14px;
+    box-shadow:0 30px 60px rgba(0,0,0,0.18);
+    position:relative;
+  }
+  .phone::before{
+    content:"";
+    position:absolute;
+    top:14px;left:50%;
+    transform:translateX(-50%);
+    width:130px;height:32px;
+    background:#1a1a1a;
+    border-radius:0 0 22px 22px;
+    z-index:10;
+  }
+  .screen{
+    width:100%;height:100%;
+    background:var(--bg);
+    border-radius:38px;
+    overflow:hidden;
+    position:relative;
+    display:flex;
+    flex-direction:column;
+  }
+
+  /* =========== STATUS BAR =========== */
+  .status-bar{
+    height:48px;
+    padding:18px 30px 0 30px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size:14px;
+    font-weight:600;
+    flex-shrink:0;
+  }
+  .status-bar .icons{display:flex;gap:6px;align-items:center;color:var(--text);}
+
+  /* =========== HEADER =========== */
+  .header{
+    padding:24px 24px 0;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    min-height:32px;
+  }
+  .lang{
+    display:flex;align-items:center;gap:6px;
+    font-size:13px;
+    font-weight:500;
+    color:var(--text-muted);
+    cursor:pointer;
+  }
+  .lang .arrow{opacity:0.6;}
+
+  /* =========== BRAND =========== */
+  .brand{
+    padding:36px 32px 0;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .brand .mark{
+    width:32px;height:32px;
+    color:var(--primary);
+  }
+  .brand .name{
+    font-family:'Poppins',sans-serif;
+    font-size:20px;
+    font-weight:700;
+    letter-spacing:-0.3px;
+    color:var(--text);
+  }
+
+  /* =========== FORM =========== */
+  .form{
+    padding:36px 32px 0;
+    flex:1;
+  }
+  .form h1{
+    font-family:'Poppins',sans-serif;
+    font-size:26px;
+    font-weight:700;
+    letter-spacing:-0.5px;
+    color:var(--text);
+    margin-bottom:6px;
+  }
+  .form .sub{
+    font-size:14px;
+    color:var(--text-muted);
+    margin-bottom:32px;
+    line-height:1.5;
+  }
+
+  .field{margin-bottom:18px;}
+  .field label{
+    display:block;
+    font-size:13px;
+    font-weight:500;
+    color:var(--text);
+    margin-bottom:8px;
+  }
+
+  .input{
+    width:100%;
+    height:50px;
+    border-radius:10px;
+    background:var(--bg);
+    border:1px solid var(--border-strong);
+    padding:0 14px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-family:inherit;
+    transition:border-color .15s ease;
+  }
+  .input:hover{border-color:#9CA3AF;}
+  .input.focused{border-color:var(--primary);}
+  .input .prefix{
+    display:flex;align-items:center;gap:6px;
+    padding-right:10px;
+    border-right:1px solid var(--border);
+    font-weight:500;
+    font-size:14px;
+    color:var(--text);
+  }
+  .input .prefix .flag{font-size:16px;line-height:1;}
+  .input input{
+    flex:1;
+    border:none;
+    background:transparent;
+    outline:none;
+    font-family:inherit;
+    font-size:14px;
+    font-weight:500;
+    color:var(--text);
+    height:100%;
+  }
+  .input input::placeholder{color:var(--text-subtle);font-weight:400;}
+  .input .suffix{
+    color:var(--text-muted);
+    width:18px;height:18px;
+    cursor:pointer;
+    flex-shrink:0;
+  }
+
+  /* PIN styling */
+  .pin-input{
+    letter-spacing:6px;
+    font-size:16px !important;
+    font-weight:600 !important;
+  }
+
+  .forgot{
+    text-align:right;
+    margin-top:-8px;
+    margin-bottom:28px;
+  }
+  .forgot a{
+    color:var(--primary);
+    text-decoration:none;
+    font-size:13px;
+    font-weight:500;
+  }
+  .forgot a:hover{text-decoration:underline;}
+
+  /* =========== BUTTONS =========== */
+  .btn{
+    width:100%;
+    height:50px;
+    border:none;
+    border-radius:10px;
+    font-family:inherit;
+    font-size:15px;
+    font-weight:600;
+    cursor:pointer;
+    transition:background .15s ease,border-color .15s ease;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .btn-primary{
+    background:var(--primary);
+    color:#fff;
+  }
+  .btn-primary:hover{background:var(--primary-hover);}
+
+  /* =========== FOOTER LINK =========== */
+  .signup{
+    text-align:center;
+    margin-top:24px;
+    font-size:14px;
+    color:var(--text-muted);
+  }
+  .signup a{
+    color:var(--primary);
+    font-weight:600;
+    text-decoration:none;
+    margin-left:4px;
+  }
+  .signup a:hover{text-decoration:underline;}
+
+  /* =========== LEGAL FOOTER =========== */
+  .legal{
+    text-align:center;
+    padding:16px 32px 24px;
+    font-size:11px;
+    color:var(--text-subtle);
+    line-height:1.5;
+  }
+  .legal a{color:var(--text-muted);text-decoration:underline;}
+
+  /* =========== HOME INDICATOR =========== */
+  .home-indicator{
+    position:absolute;
+    bottom:8px;left:50%;
+    transform:translateX(-50%);
+    width:140px;height:5px;
+    background:var(--text);
+    border-radius:3px;
+    opacity:0.25;
+  }
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="screen">
+
+    <!-- ====== STATUS BAR ====== -->
+    <div class="status-bar">
+      <span>9:41</span>
+      <span class="icons">
+        <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor"><path d="M1 7.5h2v3H1v-3zm4-2h2v5H5v-5zm4-2h2v7H9v-7zm4-2h2v9h-2v-9z"/></svg>
+        <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor"><path d="M8 2C4 2 1 4 0 6c1 2 4 4 8 4s7-2 8-4c-1-2-4-4-8-4zm0 6a2 2 0 110-4 2 2 0 010 4z"/></svg>
+        <svg width="24" height="11" viewBox="0 0 24 11" fill="none" stroke="currentColor" stroke-width="1"><rect x="0.5" y="0.5" width="20" height="10" rx="2"/><rect x="2" y="2" width="16" height="7" rx="1" fill="currentColor"/><rect x="21" y="3.5" width="2" height="4" rx="1" fill="currentColor"/></svg>
+      </span>
+    </div>
+
+    <!-- ====== HEADER ====== -->
+    <div class="header">
+      <span></span>
+      <div class="lang">
+        FR
+        <svg class="arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 1l4 4 4-4"/></svg>
+      </div>
+    </div>
+
+    <!-- ====== BRAND ====== -->
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 20V10"/>
+        <path d="M12 10c0-3 2-5 5-5 0 3-2 5-5 5z"/>
+        <path d="M12 10c0-3-2-5-5-5 0 3 2 5 5 5z"/>
+      </svg>
+      <span class="name">FarmCash</span>
+    </div>
+
+    <!-- ====== FORM ====== -->
+    <div class="form">
+      <h1>Connexion</h1>
+      <p class="sub">Entre ton numéro de téléphone et ton code PIN.</p>
+
+      <div class="field">
+        <label>Numéro de téléphone</label>
+        <div class="input">
+          <div class="prefix">
+            <span class="flag">🇨🇮</span>
+            <span>+225</span>
+          </div>
+          <input type="tel" placeholder="07 12 34 56 78" value="07 12 34 56 78" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Code PIN</label>
+        <div class="input focused">
+          <input type="password" class="pin-input" placeholder="••••" value="••••" maxlength="6" />
+          <svg class="suffix" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="forgot">
+        <a href="#">Code PIN oublié ?</a>
+      </div>
+
+      <button class="btn btn-primary">Se connecter</button>
+
+      <div class="signup">
+        Pas encore de compte ?<a href="#">Créer un compte</a>
+      </div>
+    </div>
+
+    <!-- ====== LEGAL ====== -->
+    <div class="legal">
+      En continuant, tu acceptes les <a href="#">Conditions</a> et la <a href="#">Politique de confidentialité</a>.
+    </div>
+
+    <div class="home-indicator"></div>
+  </div>
+</div>
+
+</body>
+</html>

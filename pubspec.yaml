@@ -1,0 +1,109 @@
+name: farmcash_mobile
+description: "FarmCash AI - marketplace agricole CI"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.2
+
+# =====================================================================
+#  DEPENDENCIES
+# =====================================================================
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # ─── UI ────────────────────────────────────────────────────────────
+  cupertino_icons: ^1.0.8
+  google_fonts: ^6.2.1               # Poppins via Google Fonts (pas besoin de .ttf locaux)
+  flutter_svg: ^2.0.10               # Icônes SVG (mais, igname, etc.)
+  cached_network_image: ^3.4.1       # Cache des images réseau (photos annonces)
+  qr_flutter: ^4.1.0                 # Génération QR codes (bordereau d'enlèvement)
+  shimmer: ^3.0.0                    # Placeholders pendant le chargement
+  fl_chart: ^0.69.0                  # Graphiques dashboards (revenus, etc.)
+  lottie: ^3.1.3                     # Animations (success check, empty box)
+
+  # ─── State management ──────────────────────────────────────────────
+  flutter_riverpod: ^2.5.1           # Provider type-safe, standard 2026
+  riverpod_annotation: ^2.3.5        # Codegen Riverpod
+
+  # ─── Réseau / API ──────────────────────────────────────────────────
+  dio: ^5.7.0                        # HTTP client + interceptors
+  pretty_dio_logger: ^1.4.0          # Log lisible des requêtes (dev)
+
+  # ─── Routing ───────────────────────────────────────────────────────
+  go_router: ^14.6.1                 # Navigation déclarative + deep links
+
+  # ─── Stockage ──────────────────────────────────────────────────────
+  flutter_secure_storage: ^9.2.2     # JWT + refresh (Keychain/Keystore)
+  shared_preferences: ^2.3.3         # Préférences non-sensibles
+
+  # ─── Sérialisation / Modèles ───────────────────────────────────────
+  freezed_annotation: ^2.4.4         # Modèles immutables
+  json_annotation: ^4.9.0            # JSON ↔ Dart
+
+  # ─── Téléphone, dates, format ─────────────────────────────────────
+  intl: ^0.20.1                      # Dates fr, formatage nombres
+  phone_form_field: ^9.1.0           # Champ téléphone E.164 avec drapeau
+
+  # ─── Camera / Image / Files ────────────────────────────────────────
+  image_picker: ^1.1.2               # Galerie + caméra
+  camera: ^0.11.0+2                  # Caméra avancée (analyse plante)
+  permission_handler: ^11.3.1        # Permissions Android/iOS
+
+  # ─── Géolocalisation ───────────────────────────────────────────────
+  geolocator: ^13.0.2                # GPS device
+  flutter_map: ^7.0.2                # Cartes (alternative gratuite à Google Maps)
+  latlong2: ^0.9.1                   # Coords pour flutter_map
+
+  # ─── Notifications ─────────────────────────────────────────────────
+  flutter_local_notifications: ^17.2.4  # Notifs locales
+  # firebase_messaging et firebase_core seront ajoutés plus tard (FCM push)
+
+  # ─── Env / Config ──────────────────────────────────────────────────
+  flutter_dotenv: ^5.2.1             # Charge env/dev.env, prod.env, etc.
+
+  # ─── Logger ────────────────────────────────────────────────────────
+  logger: ^2.4.0                     # Logs propres dev/prod
+  http_parser: ^4.1.2
+
+
+# =====================================================================
+#  DEV DEPENDENCIES
+# =====================================================================
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+  # ─── Codegen ───────────────────────────────────────────────────────
+  build_runner: ^2.4.13              # Runner pour freezed + json_serializable + riverpod
+  freezed: ^2.5.7
+  json_serializable: ^6.8.0
+  riverpod_generator: ^2.4.3
+
+
+# =====================================================================
+#  FLUTTER CONFIG
+# =====================================================================
+flutter:
+  uses-material-design: true
+
+  # i18n (fichiers .arb dans lib/langages/)
+  generate: true
+
+  # ─── Assets statiques ──────────────────────────────────────────────
+  assets:
+    - assets/images/
+    - assets/images/illustrations/
+    - assets/images/icons/
+    - assets/lottie/
+    - env/dev.env
+    - env/staging.env
+    - env/prod.env
+
+  # ─── Fonts ─────────────────────────────────────────────────────────
+  # Poppins est chargée via google_fonts (pas besoin de .ttf locaux).
+  # Si besoin offline, on remettra des .ttf dans assets/fonts/.

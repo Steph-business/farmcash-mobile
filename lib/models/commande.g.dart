@@ -1,0 +1,183 @@
+// GENERATED CODE - DO NOT MODIFY BY HAND
+
+part of 'commande.dart';
+
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+_$CommandeImpl _$$CommandeImplFromJson(Map<String, dynamic> json) =>
+    $checkedCreate(
+      r'_$CommandeImpl',
+      json,
+      ($checkedConvert) {
+        final val = _$CommandeImpl(
+          id: $checkedConvert('id', (v) => v as String),
+          reference: $checkedConvert('reference', (v) => v as String? ?? ''),
+          buyerId: $checkedConvert('buyer_id', (v) => v as String),
+          sellerId: $checkedConvert('seller_id', (v) => v as String),
+          annonceId: $checkedConvert('annonce_id', (v) => v as String),
+          quantiteKg: $checkedConvert(
+            'quantite_kg',
+            (v) => const FlexDouble().fromJson(v),
+          ),
+          prixUnitaireKg: $checkedConvert(
+            'prix_unitaire_kg',
+            (v) => const FlexDouble().fromJson(v),
+          ),
+          montantTotal: $checkedConvert(
+            'montant_total',
+            (v) => const FlexDouble().fromJson(v),
+          ),
+          status: $checkedConvert(
+            'status',
+            (v) =>
+                $enumDecodeNullable(
+                  _$OrderStatusEnumMap,
+                  v,
+                  unknownValue: OrderStatus.unknown,
+                ) ??
+                OrderStatus.unknown,
+          ),
+          paymentProvider: $checkedConvert(
+            'payment_provider',
+            (v) => $enumDecodeNullable(
+              _$MobileProviderEnumMap,
+              v,
+              unknownValue: MobileProvider.unknown,
+            ),
+          ),
+          escrowReleased: $checkedConvert(
+            'escrow_released',
+            (v) => v as bool? ?? false,
+          ),
+          livraisonAdresse: $checkedConvert(
+            'livraison_adresse',
+            (v) => v as String?,
+          ),
+          livraisonDate: $checkedConvert(
+            'livraison_date',
+            (v) => v == null ? null : DateTime.parse(v as String),
+          ),
+          createdAt: $checkedConvert(
+            'created_at',
+            (v) => v == null ? null : DateTime.parse(v as String),
+          ),
+          updatedAt: $checkedConvert(
+            'updated_at',
+            (v) => v == null ? null : DateTime.parse(v as String),
+          ),
+        );
+        return val;
+      },
+      fieldKeyMap: const {
+        'buyerId': 'buyer_id',
+        'sellerId': 'seller_id',
+        'annonceId': 'annonce_id',
+        'quantiteKg': 'quantite_kg',
+        'prixUnitaireKg': 'prix_unitaire_kg',
+        'montantTotal': 'montant_total',
+        'paymentProvider': 'payment_provider',
+        'escrowReleased': 'escrow_released',
+        'livraisonAdresse': 'livraison_adresse',
+        'livraisonDate': 'livraison_date',
+        'createdAt': 'created_at',
+        'updatedAt': 'updated_at',
+      },
+    );
+
+Map<String, dynamic> _$$CommandeImplToJson(
+  _$CommandeImpl instance,
+) => <String, dynamic>{
+  'id': instance.id,
+  'reference': instance.reference,
+  'buyer_id': instance.buyerId,
+  'seller_id': instance.sellerId,
+  'annonce_id': instance.annonceId,
+  if (const FlexDouble().toJson(instance.quantiteKg) case final value?)
+    'quantite_kg': value,
+  if (const FlexDouble().toJson(instance.prixUnitaireKg) case final value?)
+    'prix_unitaire_kg': value,
+  if (const FlexDouble().toJson(instance.montantTotal) case final value?)
+    'montant_total': value,
+  'status': _$OrderStatusEnumMap[instance.status]!,
+  if (_$MobileProviderEnumMap[instance.paymentProvider] case final value?)
+    'payment_provider': value,
+  'escrow_released': instance.escrowReleased,
+  if (instance.livraisonAdresse case final value?) 'livraison_adresse': value,
+  if (instance.livraisonDate?.toIso8601String() case final value?)
+    'livraison_date': value,
+  if (instance.createdAt?.toIso8601String() case final value?)
+    'created_at': value,
+  if (instance.updatedAt?.toIso8601String() case final value?)
+    'updated_at': value,
+};
+
+const _$OrderStatusEnumMap = {
+  OrderStatus.sent: 'SENT',
+  OrderStatus.accepted: 'ACCEPTED',
+  OrderStatus.rejected: 'REJECTED',
+  OrderStatus.inProgress: 'IN_PROGRESS',
+  OrderStatus.delivered: 'DELIVERED',
+  OrderStatus.completed: 'COMPLETED',
+  OrderStatus.disputed: 'DISPUTED',
+  OrderStatus.cancelled: 'CANCELLED',
+  OrderStatus.unknown: 'UNKNOWN',
+};
+
+const _$MobileProviderEnumMap = {
+  MobileProvider.orangeMoney: 'ORANGE_MONEY',
+  MobileProvider.mtnMomo: 'MTN_MOMO',
+  MobileProvider.wave: 'WAVE',
+  MobileProvider.moov: 'MOOV',
+  MobileProvider.virement: 'VIREMENT',
+  MobileProvider.wallet: 'WALLET',
+  MobileProvider.unknown: 'UNKNOWN',
+};
+
+_$DisputeImpl _$$DisputeImplFromJson(Map<String, dynamic> json) =>
+    $checkedCreate(
+      r'_$DisputeImpl',
+      json,
+      ($checkedConvert) {
+        final val = _$DisputeImpl(
+          id: $checkedConvert('id', (v) => v as String),
+          commandeId: $checkedConvert('commande_id', (v) => v as String),
+          openedById: $checkedConvert('opened_by_id', (v) => v as String),
+          status: $checkedConvert('status', (v) => v as String? ?? 'OPEN'),
+          motif: $checkedConvert('motif', (v) => v as String?),
+          description: $checkedConvert('description', (v) => v as String?),
+          resolution: $checkedConvert('resolution', (v) => v as String?),
+          createdAt: $checkedConvert(
+            'created_at',
+            (v) => v == null ? null : DateTime.parse(v as String),
+          ),
+          resolvedAt: $checkedConvert(
+            'resolved_at',
+            (v) => v == null ? null : DateTime.parse(v as String),
+          ),
+        );
+        return val;
+      },
+      fieldKeyMap: const {
+        'commandeId': 'commande_id',
+        'openedById': 'opened_by_id',
+        'createdAt': 'created_at',
+        'resolvedAt': 'resolved_at',
+      },
+    );
+
+Map<String, dynamic> _$$DisputeImplToJson(_$DisputeImpl instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'commande_id': instance.commandeId,
+      'opened_by_id': instance.openedById,
+      'status': instance.status,
+      if (instance.motif case final value?) 'motif': value,
+      if (instance.description case final value?) 'description': value,
+      if (instance.resolution case final value?) 'resolution': value,
+      if (instance.createdAt?.toIso8601String() case final value?)
+        'created_at': value,
+      if (instance.resolvedAt?.toIso8601String() case final value?)
+        'resolved_at': value,
+    };

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FarmCash — Commande confirmée</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --primary:#2E7D32;--primary-hover:#256528;--bg:#FFFFFF;
+    --text:#111827;--text-muted:#6B7280;--text-subtle:#9CA3AF;
+    --border:#E5E7EB;--border-strong:#D1D5DB;--bg-soft:#F9FAFB;
+    --error:#C62828;--primary-soft:#E8F5E9;--warn:#B45309;--warn-soft:#FEF3C7;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased;}
+  html,body{font-family:'Inter',sans-serif;background:#ECEFF1;color:var(--text);}
+  body{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 20px;}
+
+  .phone{width:390px;height:844px;background:#1a1a1a;border-radius:50px;padding:14px;box-shadow:0 30px 60px rgba(0,0,0,0.18);position:relative;}
+  .phone::before{content:"";position:absolute;top:14px;left:50%;transform:translateX(-50%);width:130px;height:32px;background:#1a1a1a;border-radius:0 0 22px 22px;z-index:10;}
+  .screen{width:100%;height:100%;background:var(--bg);border-radius:38px;overflow:hidden;position:relative;display:flex;flex-direction:column;}
+
+  .status-bar{height:48px;padding:18px 30px 0;display:flex;justify-content:space-between;align-items:center;font-size:14px;font-weight:600;flex-shrink:0;}
+  .status-bar .icons{display:flex;gap:6px;align-items:center;color:var(--text);}
+
+  .header{padding:8px 16px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);}
+  .spacer{width:40px;}
+  .header .title{flex:1;text-align:center;font-size:15px;font-weight:600;}
+  .close-btn{width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--text-muted);cursor:pointer;}
+
+  .content{flex:1;overflow-y:auto;padding:20px 24px 16px;}
+
+  .hero{text-align:center;padding:6px 0 18px;}
+  .hero .check{width:84px;height:84px;border-radius:50%;background:var(--primary);color:#fff;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;}
+  .hero .t{font-family:'Poppins';font-size:22px;font-weight:700;color:var(--text);margin-bottom:6px;}
+  .hero .s{font-size:13px;color:var(--text-muted);line-height:1.5;padding:0 16px;}
+
+  .recap{background:var(--bg);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:18px;}
+  .recap-row{padding:11px 14px;display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:1px solid var(--border);font-size:13px;}
+  .recap-row:last-child{border-bottom:none;}
+  .recap-row .l{color:var(--text-muted);}
+  .recap-row .v{color:var(--text);font-weight:600;text-align:right;}
+  .recap-row .v.green{color:var(--primary);font-family:'Poppins';}
+  .recap-thumb{width:48px;height:48px;border-radius:8px;background-size:cover;background-position:center;border:1px solid var(--border);flex-shrink:0;}
+  .recap-prod{display:flex;align-items:center;gap:10px;}
+
+  .section-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px;}
+
+  .steps{display:flex;flex-direction:column;gap:10px;}
+  .step{display:flex;align-items:flex-start;gap:12px;background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:12px;}
+  .step .num{width:28px;height:28px;border-radius:50%;background:var(--primary-soft);color:var(--primary);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .step .t{font-size:13px;color:var(--text);line-height:1.45;}
+
+  .sticky{padding:14px 16px;background:var(--bg);border-top:1px solid var(--border);flex-shrink:0;display:flex;flex-direction:column;gap:10px;}
+  .btn-primary{width:100%;padding:14px 0;border-radius:12px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;border:1px solid var(--primary);background:var(--primary);color:#fff;text-align:center;}
+  .btn-link{font-size:13px;font-weight:600;text-align:center;color:var(--primary);cursor:pointer;}
+
+  .bottom-nav{height:64px;background:var(--bg);border-top:1px solid var(--border);display:flex;align-items:center;flex-shrink:0;opacity:0.45;}
+  .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--text-muted);cursor:pointer;font-size:11px;font-weight:500;}
+
+  .home-indicator{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:140px;height:5px;background:var(--text);border-radius:3px;opacity:0.25;}
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="screen">
+
+    <div class="status-bar">
+      <span>9:41</span>
+      <span class="icons">
+        <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor"><path d="M1 7.5h2v3H1v-3zm4-2h2v5H5v-5zm4-2h2v7H9v-7zm4-2h2v9h-2v-9z"/></svg>
+        <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor"><path d="M8 2C4 2 1 4 0 6c1 2 4 4 8 4s7-2 8-4c-1-2-4-4-8-4zm0 6a2 2 0 110-4 2 2 0 010 4z"/></svg>
+        <svg width="24" height="11" viewBox="0 0 24 11" fill="none" stroke="currentColor" stroke-width="1"><rect x="0.5" y="0.5" width="20" height="10" rx="2"/><rect x="2" y="2" width="16" height="7" rx="1" fill="currentColor"/><rect x="21" y="3.5" width="2" height="4" rx="1" fill="currentColor"/></svg>
+      </span>
+    </div>
+
+    <div class="header">
+      <div class="spacer"></div>
+      <div class="title">Commande confirmée</div>
+      <div class="close-btn">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <div class="hero">
+        <div class="check">
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+        </div>
+        <div class="t">Commande passée !</div>
+        <div class="s">Yao Konan a été notifié. Tu seras alerté à chaque étape.</div>
+      </div>
+
+      <div class="recap">
+        <div class="recap-row">
+          <div class="l">N° commande</div>
+          <div class="v">#C-2026-0089</div>
+        </div>
+        <div class="recap-row">
+          <div class="recap-prod">
+            <div class="recap-thumb" style="background-image:url('https://images.unsplash.com/photo-1601493700631-2b16ec4b4716?w=200&h=200&fit=crop&auto=format')"></div>
+            <div class="l">Produit</div>
+          </div>
+          <div class="v">Maïs blanc · 500 kg</div>
+        </div>
+        <div class="recap-row">
+          <div class="l">Montant</div>
+          <div class="v green">182 125 F</div>
+        </div>
+        <div class="recap-row">
+          <div class="l">Livraison estimée</div>
+          <div class="v">23 mai 2026</div>
+        </div>
+      </div>
+
+      <div class="section-title">Et maintenant ?</div>
+      <div class="steps">
+        <div class="step">
+          <div class="num">1</div>
+          <div class="t">Le vendeur prépare ton colis</div>
+        </div>
+        <div class="step">
+          <div class="num">2</div>
+          <div class="t">Le transporteur prend le colis (tu paies à ce moment via escrow auto)</div>
+        </div>
+        <div class="step">
+          <div class="num">3</div>
+          <div class="t">Tu reçois et tu montres ton QR pour valider la livraison</div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="sticky">
+      <button class="btn-primary">Suivre ma commande</button>
+      <div class="btn-link">Retour au marché</div>
+    </div>
+
+    <div class="bottom-nav">
+      <div class="nav-item">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l9 8h-3v9h-5v-6H11v6H6v-9H3z"/></svg>
+        <span>Accueil</span>
+      </div>
+      <div class="nav-item">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M4 7l8-4 8 4v3h-2v9h-12v-9H4V7zm6 4v6h4v-6h-4z"/></svg>
+        <span>Marché</span>
+      </div>
+      <div class="nav-item">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.4 8.4 0 01-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.4 8.4 0 013.8-.9 8.5 8.5 0 018.5 8.5z"/></svg>
+        <span>Messages</span>
+      </div>
+      <div class="nav-item">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+        <span>Commandes</span>
+      </div>
+      <div class="nav-item">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span>Profil</span>
+      </div>
+    </div>
+
+    <div class="home-indicator"></div>
+  </div>
+</div>
+
+</body>
+</html>
+</content>
+</invoke>

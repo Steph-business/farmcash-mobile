@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FarmCash — Commande détail</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --primary:#2E7D32;--primary-hover:#256528;--bg:#FFFFFF;
+    --text:#111827;--text-muted:#6B7280;--text-subtle:#9CA3AF;
+    --border:#E5E7EB;--border-strong:#D1D5DB;--bg-soft:#F9FAFB;
+    --error:#C62828;--primary-soft:#E8F5E9;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased;}
+  html,body{font-family:'Inter',sans-serif;background:#ECEFF1;color:var(--text);}
+  body{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 20px;}
+
+  .phone{width:390px;height:844px;background:#1a1a1a;border-radius:50px;padding:14px;box-shadow:0 30px 60px rgba(0,0,0,0.18);position:relative;}
+  .phone::before{content:"";position:absolute;top:14px;left:50%;transform:translateX(-50%);width:130px;height:32px;background:#1a1a1a;border-radius:0 0 22px 22px;z-index:10;}
+  .screen{width:100%;height:100%;background:var(--bg);border-radius:38px;overflow:hidden;position:relative;display:flex;flex-direction:column;}
+
+  .status-bar{height:48px;padding:18px 30px 0;display:flex;justify-content:space-between;align-items:center;font-size:14px;font-weight:600;flex-shrink:0;}
+  .status-bar .icons{display:flex;gap:6px;align-items:center;color:var(--text);}
+
+  .header{padding:8px 16px 8px;display:flex;align-items:center;gap:8px;}
+  .back-btn{width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--text);cursor:pointer;}
+  .header .title{flex:1;font-size:15px;font-weight:600;}
+
+  .content{flex:1;overflow-y:auto;padding:0 0 130px;}
+
+  /* HERO */
+  .hero{width:100%;height:160px;background-size:cover;background-position:center;}
+  .title-card{padding:16px 20px 14px;border-bottom:1px solid var(--border);}
+  .title-card h1{font-size:18px;font-weight:700;color:var(--text);}
+  .title-card .s{font-size:12px;color:var(--text-muted);margin-top:4px;}
+
+  /* SECTIONS */
+  .section{padding:14px 20px;border-bottom:1px solid var(--border);}
+  .section h3{font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.3px;}
+
+  /* VENDEUR */
+  .vendor{display:flex;align-items:center;gap:12px;}
+  .vendor .av{width:46px;height:46px;border-radius:50%;background-size:cover;background-position:center;background-image:url('https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=200&h=200&fit=crop&auto=format');border:1px solid var(--border);flex-shrink:0;}
+  .vendor .b{flex:1;min-width:0;}
+  .vendor .n{font-size:14px;font-weight:600;color:var(--text);}
+  .vendor .s{font-size:11px;color:var(--text-muted);margin-top:2px;}
+  .vendor-actions{display:flex;gap:6px;}
+  .icon-act{width:36px;height:36px;border-radius:10px;border:1px solid var(--primary);background:var(--bg);color:var(--primary);display:flex;align-items:center;justify-content:center;cursor:pointer;}
+
+  /* MONTANT info */
+  .money-info{display:flex;gap:10px;background:var(--primary-soft);border:1px solid var(--border);border-radius:12px;padding:12px;}
+  .money-info .ic{width:32px;height:32px;border-radius:50%;background:#fff;color:var(--primary);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .money-info .b{flex:1;}
+  .money-info .t{font-size:13px;font-weight:600;color:var(--text);}
+  .money-info .s{font-size:11px;color:var(--text-muted);margin-top:2px;}
+
+  /* TIMELINE */
+  .timeline{position:relative;padding-left:8px;}
+  .tl-item{position:relative;padding:0 0 16px 32px;}
+  .tl-item:last-child{padding-bottom:0;}
+  .tl-item::before{content:"";position:absolute;left:11px;top:22px;bottom:-2px;width:2px;background:var(--border);}
+  .tl-item:last-child::before{display:none;}
+  .tl-dot{position:absolute;left:0;top:0;width:24px;height:24px;border-radius:50%;background:var(--bg-soft);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--text-subtle);font-size:11px;}
+  .tl-dot.done{background:var(--primary);border-color:var(--primary);color:#fff;}
+  .tl-dot.wait{background:var(--bg-soft);}
+  .tl-item .t{font-size:13px;font-weight:600;color:var(--text);}
+  .tl-item.wait .t{color:var(--text-muted);}
+  .tl-item .s{font-size:11px;color:var(--text-muted);margin-top:3px;}
+
+  /* QR */
+  .qr-section{display:flex;align-items:center;gap:12px;background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:14px;}
+  .qr-section .ic{width:46px;height:46px;border-radius:10px;background:var(--primary-soft);color:var(--primary);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .qr-section .b{flex:1;}
+  .qr-section .t{font-size:13px;font-weight:600;color:var(--text);}
+  .qr-section .s{font-size:11px;color:var(--text-muted);margin-top:2px;}
+
+  /* STICKY */
+  .sticky{position:absolute;left:0;right:0;bottom:0;background:var(--bg);border-top:1px solid var(--border);padding:12px 16px 14px;display:flex;flex-direction:column;gap:8px;}
+  .btn{padding:13px;border-radius:10px;font-size:14px;font-weight:600;text-align:center;cursor:pointer;}
+  .btn-primary{background:var(--primary);color:#fff;border:1px solid var(--primary);}
+  .btn-outline{background:var(--bg);color:var(--primary);border:1px solid var(--primary);}
+
+  .home-indicator{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:140px;height:5px;background:var(--text);border-radius:3px;opacity:0.25;}
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="screen">
+
+    <div class="status-bar">
+      <span>9:41</span>
+      <span class="icons">
+        <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor"><path d="M1 7.5h2v3H1v-3zm4-2h2v5H5v-5zm4-2h2v7H9v-7zm4-2h2v9h-2v-9z"/></svg>
+        <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor"><path d="M8 2C4 2 1 4 0 6c1 2 4 4 8 4s7-2 8-4c-1-2-4-4-8-4zm0 6a2 2 0 110-4 2 2 0 010 4z"/></svg>
+        <svg width="24" height="11" viewBox="0 0 24 11" fill="none" stroke="currentColor" stroke-width="1"><rect x="0.5" y="0.5" width="20" height="10" rx="2"/><rect x="2" y="2" width="16" height="7" rx="1" fill="currentColor"/><rect x="21" y="3.5" width="2" height="4" rx="1" fill="currentColor"/></svg>
+      </span>
+    </div>
+
+    <div class="header">
+      <div class="back-btn" onclick="history.back()">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </div>
+      <div class="title">Commande #C-2026-0089</div>
+    </div>
+
+    <div class="content">
+
+      <div class="hero" style="background-image:url('https://images.unsplash.com/photo-1601493700631-2b16ec4b4716?w=800&h=400&fit=crop&auto=format')"></div>
+
+      <div class="title-card">
+        <h1>500 kg Maïs blanc</h1>
+        <div class="s">Standard · Récolté le 8 mai · Yopougon</div>
+      </div>
+
+      <div class="section">
+        <h3>Vendeur</h3>
+        <div class="vendor">
+          <div class="av"></div>
+          <div class="b">
+            <div class="n">Yao K.</div>
+            <div class="s">Producteur · 4.8 ★ · 47 ventes</div>
+          </div>
+          <div class="vendor-actions">
+            <div class="icon-act" onclick="location.href='messages.html'">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.4 8.4 0 01-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.4 8.4 0 013.8-.9 8.5 8.5 0 018.5 8.5z"/></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Montants</h3>
+        <div class="money-info">
+          <div class="ic">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+          </div>
+          <div class="b">
+            <div class="t">Total payé : 175 000 F</div>
+            <div class="s">Bloqué en escrow · libéré à la livraison</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Suivi</h3>
+        <div class="timeline">
+          <div class="tl-item">
+            <div class="tl-dot done">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div class="t">Commande passée</div>
+            <div class="s">10 mai · 14h22</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-dot done">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div class="t">Paiement bloqué en escrow</div>
+            <div class="s">10 mai · 14h24</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-dot done">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div class="t">Producteur a marqué expédié</div>
+            <div class="s">14 mai · 09h10</div>
+          </div>
+          <div class="tl-item wait">
+            <div class="tl-dot wait">⏳</div>
+            <div class="t">Transporteur en route</div>
+            <div class="s">ETA 16 mai · 14h</div>
+          </div>
+          <div class="tl-item wait">
+            <div class="tl-dot wait">⏳</div>
+            <div class="t">Livraison + scan de mon QR</div>
+            <div class="s">En attente</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Mon QR de réception</h3>
+        <div class="qr-section">
+          <div class="ic">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="3" height="3"/><rect x="18" y="18" width="3" height="3"/><rect x="14" y="18" width="3" height="3"/></svg>
+          </div>
+          <div class="b">
+            <div class="t">QR de réception</div>
+            <div class="s">À montrer au transporteur</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="sticky">
+      <button class="btn btn-primary">Voir mon QR de réception</button>
+      <button class="btn btn-outline" onclick="location.href='messages.html'">Voir la conversation</button>
+    </div>
+
+    <div class="home-indicator"></div>
+  </div>
+</div>
+
+</body>
+</html>

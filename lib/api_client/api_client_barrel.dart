@@ -1,0 +1,7 @@
+/// Barrel — couche HTTP transverse.
+library;
+
+export 'api_client.dart';
+export 'api_endpoints.dart';
+export 'api_exception.dart';
+export 'auth_interceptor.dart';
