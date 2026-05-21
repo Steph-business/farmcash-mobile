@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api_client/api_client.dart';
 import 'ai_service.dart';
 import 'auth_service.dart';
+import 'buyer_service.dart';
+import 'coop_logistics_service.dart';
 import 'cooperatives_service.dart';
 import 'finance_service.dart';
 import 'logistics_service.dart';
@@ -39,6 +41,14 @@ final authServiceProvider = Provider<AuthService>((ref) {
 
 final marketplaceServiceProvider = Provider<MarketplaceService>((ref) {
   return MarketplaceService(ref.watch(apiClientProvider));
+});
+
+final buyerServiceProvider = Provider<BuyerService>((ref) {
+  return BuyerService(ref.watch(apiClientProvider));
+});
+
+final coopLogisticsServiceProvider = Provider<CoopLogisticsService>((ref) {
+  return CoopLogisticsService(ref.watch(apiClientProvider));
 });
 
 final ordersServiceProvider = Provider<OrdersService>((ref) {

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -253,6 +255,45 @@ class AuthService {
         return;
     }
     await _api.post<dynamic>(endpoint, body: profile);
+  }
+
+  // ─── KYC ─────────────────────────────────────────────────────────────
+
+  /// Liste les justificatifs KYC du user connecté (CNI, parcelle, etc.).
+  Future<List<KycDocument>> listMyKyc() async {
+    final raw = await _api.get<dynamic>(ApiEndpoints.authKycMy);
+    if (raw is List) {
+      return raw
+          .whereType<Map>()
+          .map((m) => KycDocument.fromJson(m.cast<String, dynamic>()))
+          .toList();
+    }
+    return const <KycDocument>[];
+  }
+
+  /// Upload multipart d'un justificatif KYC (CNI_RECTO, CNI_VERSO,
+  /// SELFIE, CARTE_PRODUCTEUR, JUSTIFICATIF_PARCELLE...).
+  Future<KycDocument> uploadKyc({
+    required File file,
+    required String docType,
+    void Function(int sent, int total)? progress,
+  }) async {
+    final fileName = file.path.split(Platform.pathSeparator).last;
+    final form = FormData.fromMap({
+      'doc_type': docType,
+      'file': await MultipartFile.fromFile(file.path, filename: fileName),
+    });
+    final json = await _api.upload<Map<String, dynamic>>(
+      ApiEndpoints.authKycUpload,
+      formData: form,
+      onSendProgress: progress,
+    );
+    return KycDocument.fromJson(json);
+  }
+
+  /// Supprime un justificatif KYC (uniquement si statut PENDING côté back).
+  Future<void> deleteKyc(String id) async {
+    await _api.delete<dynamic>(ApiEndpoints.authKycById(id));
   }
 
   Future<void> registerDeviceToken({

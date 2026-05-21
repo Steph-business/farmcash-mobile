@@ -61,6 +61,31 @@ class OrdersService {
     return Commande.fromJson(json);
   }
 
+  /// Paie une commande **déjà créée** (status SENT). Typiquement utilisée
+  /// pour une commande issue de l'acceptation d'une candidature ou
+  /// proposition côté négociation — le backend a alors créé la commande
+  /// sans déclencher le payin, l'acheteur doit donc payer explicitement.
+  ///
+  /// L'[idempotencyKey] (UUID v4) est obligatoire pour empêcher les
+  /// doubles paiements en cas de retry réseau. Le [paymentProvider] et
+  /// [moyenPayementId] sont optionnels — si absents, le wallet est utilisé.
+  Future<Commande> payOrder({
+    required String id,
+    required String idempotencyKey,
+    MobileProvider? paymentProvider,
+    String? moyenPayementId,
+  }) async {
+    final json = await _api.post<Map<String, dynamic>>(
+      ApiEndpoints.orderPay(id),
+      body: {
+        if (paymentProvider != null) 'payment_provider': paymentProvider.apiValue,
+        if (moyenPayementId != null) 'moyen_payement_id': moyenPayementId,
+      },
+      options: Options(headers: {'Idempotency-Key': idempotencyKey}),
+    );
+    return Commande.fromJson(json);
+  }
+
   Future<Commande> updateOrderStatus({
     required String id,
     required OrderStatus newStatus,

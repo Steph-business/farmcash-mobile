@@ -17,6 +17,7 @@ _$CommandeImpl _$$CommandeImplFromJson(Map<String, dynamic> json) =>
           buyerId: $checkedConvert('buyer_id', (v) => v as String),
           sellerId: $checkedConvert('seller_id', (v) => v as String),
           annonceId: $checkedConvert('annonce_id', (v) => v as String),
+          lotId: $checkedConvert('lot_id', (v) => v as String?),
           quantiteKg: $checkedConvert(
             'quantite_kg',
             (v) => const FlexDouble().fromJson(v),
@@ -74,6 +75,7 @@ _$CommandeImpl _$$CommandeImplFromJson(Map<String, dynamic> json) =>
         'buyerId': 'buyer_id',
         'sellerId': 'seller_id',
         'annonceId': 'annonce_id',
+        'lotId': 'lot_id',
         'quantiteKg': 'quantite_kg',
         'prixUnitaireKg': 'prix_unitaire_kg',
         'montantTotal': 'montant_total',
@@ -94,6 +96,7 @@ Map<String, dynamic> _$$CommandeImplToJson(
   'buyer_id': instance.buyerId,
   'seller_id': instance.sellerId,
   'annonce_id': instance.annonceId,
+  if (instance.lotId case final value?) 'lot_id': value,
   if (const FlexDouble().toJson(instance.quantiteKg) case final value?)
     'quantite_kg': value,
   if (const FlexDouble().toJson(instance.prixUnitaireKg) case final value?)

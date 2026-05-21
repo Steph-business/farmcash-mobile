@@ -1,66 +1,92 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../api_client/api_exception.dart';
 import '../../../../routing/route_names.dart';
+import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
 import '../../../widgets/communs/snackbars.dart';
 
-// ─── Couleurs / radius locaux alignés sur la maquette ─────────────────────
-const Color _kPrimarySoft = Color(0xFFE8F5E9);
-
 const BorderRadius _kBrCard12 = BorderRadius.all(Radius.circular(12));
-const BorderRadius _kBrChip14 = BorderRadius.all(Radius.circular(14));
-const BorderRadius _kBrChip12 = BorderRadius.all(Radius.circular(12));
 
-const List<String> _kTypes = [
-  'Pick-up',
-  'Camion 3.5t',
-  'Camion 8t',
-  'Camion 15t',
+/// Types de véhicules acceptés côté backend coop (alignés sur la
+/// nomenclature transporteur).
+const List<({String label, String apiType})> _kTypes = [
+  (label: 'Pick-up', apiType: 'PICKUP'),
+  (label: 'Camion 3.5 t', apiType: 'CAMION_3_5T'),
+  (label: 'Camion 8 t', apiType: 'CAMION_8T'),
+  (label: 'Camion 15 t', apiType: 'CAMION_15T'),
 ];
 
-/// Formulaire « Ajouter un véhicule » à la flotte coop.
-/// Reproduction fidèle de `mockups/cooperative/vehicule_ajouter.html`.
-class VehiculeAjouterCooperativePage extends StatefulWidget {
+/// Formulaire d'ajout d'un véhicule au parc coopérative.
+class VehiculeAjouterCooperativePage extends ConsumerStatefulWidget {
   const VehiculeAjouterCooperativePage({super.key});
 
   @override
-  State<VehiculeAjouterCooperativePage> createState() =>
+  ConsumerState<VehiculeAjouterCooperativePage> createState() =>
       _VehiculeAjouterCooperativePageState();
 }
 
 class _VehiculeAjouterCooperativePageState
-    extends State<VehiculeAjouterCooperativePage> {
+    extends ConsumerState<VehiculeAjouterCooperativePage> {
+  int _typeIndex = 0;
   final TextEditingController _immatCtrl = TextEditingController();
   final TextEditingController _marqueCtrl = TextEditingController();
-  final TextEditingController _chargeCtrl = TextEditingController(text: '1000');
-  final TextEditingController _volumeCtrl = TextEditingController();
+  final TextEditingController _chargeCtrl = TextEditingController();
   final TextEditingController _chauffeurNomCtrl = TextEditingController();
-  final TextEditingController _chauffeurTelCtrl = TextEditingController();
-
-  int _typeIndex = 0;
-  bool _conduisMoi = true;
+  final TextEditingController _chauffeurPhoneCtrl = TextEditingController();
+  bool _busy = false;
 
   @override
   void dispose() {
     _immatCtrl.dispose();
     _marqueCtrl.dispose();
     _chargeCtrl.dispose();
-    _volumeCtrl.dispose();
     _chauffeurNomCtrl.dispose();
-    _chauffeurTelCtrl.dispose();
+    _chauffeurPhoneCtrl.dispose();
     super.dispose();
   }
 
-  void _enregistrer() {
-    Snackbars.showSucces(context, 'Véhicule enregistré');
-    if (context.canPop()) context.pop();
+  Future<void> _enregistrer() async {
+    if (_busy) return;
+    final chargeText = _chargeCtrl.text.replaceAll(',', '.').trim();
+    final charge = double.tryParse(chargeText);
+    if (charge == null || charge <= 0) {
+      Snackbars.showErreur(context, 'Charge max invalide');
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      await ref.read(coopLogisticsServiceProvider).createVehicle(
+            type: _kTypes[_typeIndex].apiType,
+            chargeMaxKg: charge,
+            immatriculation: _immatCtrl.text.trim().isEmpty
+                ? null
+                : _immatCtrl.text.trim(),
+            marque: _marqueCtrl.text.trim().isEmpty
+                ? null
+                : _marqueCtrl.text.trim(),
+            chauffeurNom: _chauffeurNomCtrl.text.trim().isEmpty
+                ? null
+                : _chauffeurNomCtrl.text.trim(),
+            chauffeurPhone: _chauffeurPhoneCtrl.text.trim().isEmpty
+                ? null
+                : _chauffeurPhoneCtrl.text.trim(),
+          );
+      if (!mounted) return;
+      Snackbars.showSucces(context, 'Véhicule ajouté');
+      if (context.canPop()) context.pop();
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      Snackbars.showErreur(context, e.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
-
-  void _info(String message) => Snackbars.showInfo(context, message);
 
   @override
   Widget build(BuildContext context) {
@@ -75,125 +101,76 @@ class _VehiculeAjouterCooperativePageState
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(
                   AppDimens.pagePaddingH,
-                  0,
+                  12,
                   AppDimens.pagePaddingH,
                   AppDimens.space16,
                 ),
                 children: [
-                  // ── Section "Photo du véhicule (recommandé)" ──────────
-                  const _SectionTitle('Photo du véhicule (recommandé)'),
-                  AppDimens.vGap12,
-                  _PhotoBanner(
-                    onTap: () => _info('Prendre une photo — à venir'),
-                  ),
-                  AppDimens.vGap24,
-
-                  // ── Section "Identification" ──────────────────────────
-                  const _SectionTitle('Identification'),
-                  AppDimens.vGap12,
-                  const _FieldLabel('Immatriculation'),
-                  const SizedBox(height: 6),
-                  _InputField(
-                    controller: _immatCtrl,
-                    placeholder: '2345 AB 01',
-                    upper: true,
-                  ),
-                  const SizedBox(height: 14),
-                  const _FieldLabel('Marque & modèle'),
-                  const SizedBox(height: 6),
-                  _InputField(
-                    controller: _marqueCtrl,
-                    placeholder: 'Toyota Hilux 2018',
-                  ),
-                  const SizedBox(height: 14),
-                  const _FieldLabel('Type'),
+                  _FieldLabel('Type de véhicule'),
                   const SizedBox(height: 6),
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
                     children: [
                       for (int i = 0; i < _kTypes.length; i++)
-                        _TypeChip(
-                          label: _kTypes[i],
+                        _Chip(
+                          label: _kTypes[i].label,
                           active: _typeIndex == i,
                           onTap: () => setState(() => _typeIndex = i),
                         ),
                     ],
                   ),
-                  AppDimens.vGap24,
-
-                  // ── Section "Capacité" ────────────────────────────────
-                  const _SectionTitle('Capacité'),
-                  AppDimens.vGap12,
-                  const _FieldLabel('Charge utile'),
+                  const SizedBox(height: 16),
+                  _FieldLabel('Immatriculation'),
                   const SizedBox(height: 6),
-                  _InputWithUnit(
-                    controller: _chargeCtrl,
-                    unit: 'kg',
-                    placeholder: '0',
+                  _Input(
+                    controller: _immatCtrl,
+                    placeholder: '5125 AB 01',
                   ),
                   const SizedBox(height: 14),
-                  const _FieldLabel('Volume utile (optionnel)'),
+                  _FieldLabel('Marque'),
                   const SizedBox(height: 6),
-                  _InputWithUnit(
-                    controller: _volumeCtrl,
-                    unit: 'm³',
-                    placeholder: '0',
+                  _Input(
+                    controller: _marqueCtrl,
+                    placeholder: 'Toyota, Mercedes…',
                   ),
-                  AppDimens.vGap24,
-
-                  // ── Section "Chauffeur" ───────────────────────────────
-                  const _SectionTitle('Chauffeur'),
-                  AppDimens.vGap12,
-                  _DriverToggle(
-                    value: _conduisMoi,
-                    onChanged: (v) => setState(() => _conduisMoi = v),
+                  const SizedBox(height: 14),
+                  _FieldLabel('Charge max (kg)'),
+                  const SizedBox(height: 6),
+                  _Input(
+                    controller: _chargeCtrl,
+                    placeholder: '3500',
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                    ],
                   ),
-                  if (!_conduisMoi) ...[
-                    const SizedBox(height: 14),
-                    const _FieldLabel('Nom du chauffeur'),
-                    const SizedBox(height: 6),
-                    _InputField(
-                      controller: _chauffeurNomCtrl,
-                      placeholder: 'Kouassi Aristide',
-                    ),
-                    const SizedBox(height: 14),
-                    const _FieldLabel('Téléphone'),
-                    const SizedBox(height: 6),
-                    _InputField(
-                      controller: _chauffeurTelCtrl,
-                      placeholder: '+225 07 00 00 00 00',
-                      keyboardType: TextInputType.phone,
-                    ),
-                  ],
-                  AppDimens.vGap24,
-
-                  // ── Section "Documents (optionnel)" ───────────────────
-                  const _SectionTitle('Documents (optionnel)'),
-                  AppDimens.vGap12,
-                  _DocRow(
-                    titre: 'Carte grise',
-                    sous: 'PDF ou photo',
-                    onTap: () => _info('Joindre la carte grise — à venir'),
+                  const SizedBox(height: 14),
+                  _FieldLabel('Chauffeur — nom'),
+                  const SizedBox(height: 6),
+                  _Input(
+                    controller: _chauffeurNomCtrl,
+                    placeholder: 'Kouamé Konan',
                   ),
-                  const SizedBox(height: 10),
-                  _DocRow(
-                    titre: 'Assurance',
-                    sous: 'PDF ou photo',
-                    onTap: () => _info('Joindre l\'assurance — à venir'),
+                  const SizedBox(height: 14),
+                  _FieldLabel('Chauffeur — téléphone'),
+                  const SizedBox(height: 6),
+                  _Input(
+                    controller: _chauffeurPhoneCtrl,
+                    placeholder: '+225 0700000000',
+                    keyboardType: TextInputType.phone,
                   ),
                 ],
               ),
             ),
-            _StickyButton(onTap: _enregistrer),
+            _StickyButton(onTap: _enregistrer, busy: _busy),
           ],
         ),
       ),
     );
   }
 }
-
-// ─── Header (back + titre) ────────────────────────────────────────────────
 
 class _Header extends StatelessWidget {
   const _Header();
@@ -225,53 +202,17 @@ class _Header extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Ajouter un véhicule',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.titleSmall.copyWith(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    height: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Flotte logistique',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.bodySmall.copyWith(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
+            child: Text(
+              'Ajouter un véhicule',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.titleSmall.copyWith(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-// ─── Section title / Field label ──────────────────────────────────────────
-
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle(this.label);
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      label,
-      style: AppTextStyles.titleSmall.copyWith(
-        fontSize: 14,
-        fontWeight: FontWeight.w700,
       ),
     );
   }
@@ -295,211 +236,8 @@ class _FieldLabel extends StatelessWidget {
   }
 }
 
-// ─── Photo banner (slot dashed) ───────────────────────────────────────────
-
-class _PhotoBanner extends StatelessWidget {
-  const _PhotoBanner({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: _kBrCard12,
-      child: Container(
-        height: 140,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: AppColors.surfaceSoft,
-          borderRadius: _kBrCard12,
-          border: Border.all(
-            color: AppColors.borderStrong,
-            width: AppDimens.borderThin,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: AppColors.background,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: AppColors.border,
-                  width: AppDimens.borderThin,
-                ),
-              ),
-              alignment: Alignment.center,
-              child: const Icon(
-                Icons.add,
-                size: 22,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Prendre une photo ou choisir',
-              style: AppTextStyles.labelMedium.copyWith(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Inputs ───────────────────────────────────────────────────────────────
-
-class _InputField extends StatelessWidget {
-  const _InputField({
-    required this.controller,
-    required this.placeholder,
-    this.upper = false,
-    this.keyboardType,
-  });
-
-  final TextEditingController controller;
-  final String placeholder;
-  final bool upper;
-  final TextInputType? keyboardType;
-
-  @override
-  Widget build(BuildContext context) {
-    final baseStyle = AppTextStyles.bodyMedium.copyWith(
-      fontSize: 14,
-      color: AppColors.text,
-    );
-    final textStyle = upper
-        ? baseStyle.copyWith(
-            fontFamily: 'Poppins',
-            fontWeight: FontWeight.w600,
-            letterSpacing: 1,
-          )
-        : baseStyle;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: _kBrCard12,
-        border: Border.all(
-          color: AppColors.border,
-          width: AppDimens.borderThin,
-        ),
-      ),
-      child: TextField(
-        controller: controller,
-        keyboardType: keyboardType,
-        textCapitalization:
-            upper ? TextCapitalization.characters : TextCapitalization.none,
-        inputFormatters: upper
-            ? [
-                FilteringTextInputFormatter.allow(
-                  RegExp(r'[A-Za-z0-9 ]'),
-                ),
-                _UpperCaseFormatter(),
-              ]
-            : null,
-        style: textStyle,
-        decoration: InputDecoration(
-          hintText: placeholder,
-          border: InputBorder.none,
-          isDense: true,
-          contentPadding: const EdgeInsets.symmetric(vertical: 12),
-          hintStyle: textStyle.copyWith(color: AppColors.textSubtle),
-        ),
-      ),
-    );
-  }
-}
-
-class _UpperCaseFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    return newValue.copyWith(
-      text: newValue.text.toUpperCase(),
-      selection: newValue.selection,
-    );
-  }
-}
-
-class _InputWithUnit extends StatelessWidget {
-  const _InputWithUnit({
-    required this.controller,
-    required this.unit,
-    required this.placeholder,
-  });
-
-  final TextEditingController controller;
-  final String unit;
-  final String placeholder;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: _kBrCard12,
-        border: Border.all(
-          color: AppColors.border,
-          width: AppDimens.borderThin,
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: controller,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-              ],
-              decoration: InputDecoration(
-                hintText: placeholder,
-                border: InputBorder.none,
-                isDense: true,
-                contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                hintStyle: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.textSubtle,
-                ),
-              ),
-              style: AppTextStyles.bodyMedium.copyWith(
-                fontSize: 14,
-                color: AppColors.text,
-              ),
-            ),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            unit,
-            style: AppTextStyles.titleSmall.copyWith(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Type chip ────────────────────────────────────────────────────────────
-
-class _TypeChip extends StatelessWidget {
-  const _TypeChip({
+class _Chip extends StatelessWidget {
+  const _Chip({
     required this.label,
     required this.active,
     required this.onTap,
@@ -513,12 +251,12 @@ class _TypeChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: _kBrChip14,
+      borderRadius: BorderRadius.circular(14),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
-          color: active ? AppColors.primary : AppColors.surface,
-          borderRadius: _kBrChip14,
+          color: active ? AppColors.primary : AppColors.background,
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: active ? AppColors.primary : AppColors.border,
             width: AppDimens.borderThin,
@@ -537,174 +275,55 @@ class _TypeChip extends StatelessWidget {
   }
 }
 
-// ─── Driver toggle (SwitchListTile-like) ─────────────────────────────────
-
-class _DriverToggle extends StatelessWidget {
-  const _DriverToggle({required this.value, required this.onChanged});
-
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () => onChanged(!value),
-      borderRadius: _kBrCard12,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: _kBrCard12,
-          border: Border.all(
-            color: AppColors.border,
-            width: AppDimens.borderThin,
-          ),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    "C'est moi qui conduis",
-                    style: AppTextStyles.titleSmall.copyWith(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Le compte coopérative est le conducteur',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      fontSize: 11,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            Switch.adaptive(
-              value: value,
-              onChanged: onChanged,
-              activeThumbColor: AppColors.onPrimary,
-              activeTrackColor: AppColors.primary,
-              inactiveTrackColor: AppColors.borderStrong,
-              inactiveThumbColor: AppColors.onPrimary,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Doc row ──────────────────────────────────────────────────────────────
-
-class _DocRow extends StatelessWidget {
-  const _DocRow({
-    required this.titre,
-    required this.sous,
-    required this.onTap,
+class _Input extends StatelessWidget {
+  const _Input({
+    required this.controller,
+    this.placeholder = '',
+    this.keyboardType,
+    this.inputFormatters,
   });
 
-  final String titre;
-  final String sous;
-  final VoidCallback onTap;
+  final TextEditingController controller;
+  final String placeholder;
+  final TextInputType? keyboardType;
+  final List<TextInputFormatter>? inputFormatters;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: _kBrCard12,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: _kBrCard12,
-          border: Border.all(
-            color: AppColors.border,
-            width: AppDimens.borderThin,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: _kBrCard12,
+        border: Border.all(
+          color: AppColors.border,
+          width: AppDimens.borderThin,
+        ),
+      ),
+      child: TextField(
+        controller: controller,
+        keyboardType: keyboardType,
+        inputFormatters: inputFormatters,
+        decoration: InputDecoration(
+          hintText: placeholder,
+          border: InputBorder.none,
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(vertical: 12),
+          hintStyle: AppTextStyles.bodyMedium.copyWith(
+            color: AppColors.textSubtle,
           ),
         ),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: const BoxDecoration(
-                color: _kPrimarySoft,
-                shape: BoxShape.circle,
-              ),
-              alignment: Alignment.center,
-              child: const Icon(
-                Icons.upload_outlined,
-                size: 18,
-                color: AppColors.primary,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    titre,
-                    style: AppTextStyles.titleSmall.copyWith(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    sous,
-                    style: AppTextStyles.bodySmall.copyWith(
-                      fontSize: 11,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 5,
-              ),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceSoft,
-                borderRadius: _kBrChip12,
-                border: Border.all(
-                  color: AppColors.border,
-                  width: AppDimens.borderThin,
-                ),
-              ),
-              child: Text(
-                'Non joint',
-                style: AppTextStyles.labelSmall.copyWith(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ),
-          ],
-        ),
+        style: AppTextStyles.bodyMedium.copyWith(fontSize: 14),
       ),
     );
   }
 }
 
-// ─── Sticky bouton ────────────────────────────────────────────────────────
-
 class _StickyButton extends StatelessWidget {
-  const _StickyButton({required this.onTap});
+  const _StickyButton({required this.onTap, required this.busy});
 
   final VoidCallback onTap;
+  final bool busy;
 
   @override
   Widget build(BuildContext context) {
@@ -728,24 +347,32 @@ class _StickyButton extends StatelessWidget {
         width: double.infinity,
         height: 48,
         child: ElevatedButton(
-          onPressed: onTap,
+          onPressed: busy ? null : onTap,
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
             foregroundColor: AppColors.onPrimary,
             elevation: 0,
             shape: const RoundedRectangleBorder(borderRadius: _kBrCard12),
           ),
-          child: Text(
-            'Enregistrer mon véhicule',
-            style: AppTextStyles.labelLarge.copyWith(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppColors.onPrimary,
-            ),
-          ),
+          child: busy
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : Text(
+                  'Ajouter au parc',
+                  style: AppTextStyles.labelLarge.copyWith(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.onPrimary,
+                  ),
+                ),
         ),
       ),
     );
   }
 }
-

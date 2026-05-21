@@ -1,118 +1,79 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../models/models.dart';
+import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
-import '../../../widgets/communs/snackbars.dart';
+import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/vue_erreur.dart';
 
 // ─── Constantes ────────────────────────────────────────────────────────
 
 const Color _kPrimarySoft = Color(0xFFE8F5E9);
-const Color _kWarnSoft = Color(0xFFFEF3C7);
-const Color _kWarn = Color(0xFFB45309);
 
-// ─── Mock transporteurs ────────────────────────────────────────────────
+// ─── Args devis ────────────────────────────────────────────────────────
 
-enum _Badge { meilleurPrix, plusRapide, none }
-
-class _MockTransporteur {
-  const _MockTransporteur({
-    required this.id,
-    required this.nom,
-    required this.photoUrl,
-    required this.rating,
-    required this.livraisons,
-    required this.capacite,
-    required this.prix,
-    required this.eta,
-    required this.badge,
+/// Trio nécessaire pour interroger `logisticsService.getQuotes(...)`.
+class _QuoteArgs {
+  const _QuoteArgs({
+    required this.origineZone,
+    required this.destinationZone,
+    required this.quantiteKg,
   });
-  final String id;
-  final String nom;
-  final String photoUrl;
-  final double rating;
-  final int livraisons;
-  final String capacite;
-  final int prix;
-  final String eta;
-  final _Badge badge;
+
+  final String origineZone;
+  final String destinationZone;
+  final double quantiteKg;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is _QuoteArgs &&
+          other.origineZone == origineZone &&
+          other.destinationZone == destinationZone &&
+          other.quantiteKg == quantiteKg;
+
+  @override
+  int get hashCode => Object.hash(origineZone, destinationZone, quantiteKg);
 }
 
-const List<_MockTransporteur> _kTransporteurs = [
-  _MockTransporteur(
-    id: 't-1',
-    nom: 'Trans-Eburnie',
-    photoUrl:
-        'https://images.unsplash.com/photo-1599045118108-bf9954418b76?w=200&h=200&fit=crop&auto=format',
-    rating: 4.8,
-    livraisons: 142,
-    capacite: 'Camion 3.5t · suffisant pour 500 kg',
-    prix: 11800,
-    eta: 'ETA 2h',
-    badge: _Badge.meilleurPrix,
-  ),
-  _MockTransporteur(
-    id: 't-2',
-    nom: 'Logi-Plus CI',
-    photoUrl:
-        'https://images.unsplash.com/photo-1574484284002-952d92456975?w=200&h=200&fit=crop&auto=format',
-    rating: 4.6,
-    livraisons: 89,
-    capacite: 'Camion 3.5t · suffisant pour 500 kg',
-    prix: 12500,
-    eta: 'ETA 3h',
-    badge: _Badge.none,
-  ),
-  _MockTransporteur(
-    id: 't-3',
-    nom: 'Express Lagunes',
-    photoUrl:
-        'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=200&h=200&fit=crop&auto=format',
-    rating: 4.9,
-    livraisons: 215,
-    capacite: 'Camion 5t · suffisant pour 500 kg',
-    prix: 14000,
-    eta: 'ETA aujourd\'hui 14h',
-    badge: _Badge.plusRapide,
-  ),
-  _MockTransporteur(
-    id: 't-4',
-    nom: 'Premium Cargo',
-    photoUrl:
-        'https://images.unsplash.com/photo-1488459716781-31db52582fe9?w=200&h=200&fit=crop&auto=format',
-    rating: 4.7,
-    livraisons: 67,
-    capacite: 'Camion 8t · suffisant pour 500 kg',
-    prix: 18000,
-    eta: 'ETA demain matin',
-    badge: _Badge.none,
-  ),
-];
-
-const List<String> _kFiltres = [
-  'Prix bas',
-  'Note ★',
-  'Plus rapide',
-  'Disponible aujourd\'hui',
-];
+final _quotesProvider = FutureProvider.autoDispose
+    .family<List<TransportQuote>, _QuoteArgs>((ref, args) async {
+  return ref.read(logisticsServiceProvider).getQuotes(
+        origineZone: args.origineZone,
+        destinationZone: args.destinationZone,
+        quantiteKg: args.quantiteKg,
+      );
+});
 
 /// Choix du transporteur depuis le flow de paiement acheteur.
-/// Calque sur `mockups/acheteur/choisir_transporteur.html`.
-class ChoisirTransporteurPage extends StatefulWidget {
-  const ChoisirTransporteurPage({super.key});
+///
+/// Reçoit en arguments [origineZone], [destinationZone] et [quantiteKg]
+/// via les `extras` de la route. Si l'un manque, on affiche un état vide
+/// expliquant qu'il faut passer par le flow paiement.
+class ChoisirTransporteurPage extends ConsumerWidget {
+  const ChoisirTransporteurPage({
+    super.key,
+    this.origineZone,
+    this.destinationZone,
+    this.quantiteKg,
+  });
+
+  final String? origineZone;
+  final String? destinationZone;
+  final double? quantiteKg;
+
+  bool get _hasArgs =>
+      (origineZone?.isNotEmpty ?? false) &&
+      (destinationZone?.isNotEmpty ?? false) &&
+      quantiteKg != null &&
+      quantiteKg! > 0;
 
   @override
-  State<ChoisirTransporteurPage> createState() =>
-      _ChoisirTransporteurPageState();
-}
-
-class _ChoisirTransporteurPageState extends State<ChoisirTransporteurPage> {
-  int _filtreActif = 0;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -120,29 +81,56 @@ class _ChoisirTransporteurPageState extends State<ChoisirTransporteurPage> {
         child: Column(
           children: [
             const _Header(),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
-                children: [
-                  const _InfoTrip(),
-                  const SizedBox(height: 14),
-                  _Filters(
-                    active: _filtreActif,
-                    onChange: (i) => setState(() => _filtreActif = i),
-                  ),
-                  const SizedBox(height: 14),
-                  for (final t in _kTransporteurs)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _TransporteurCard(transporteur: t),
-                    ),
-                ],
-              ),
-            ),
-            const _StickyAutoLink(),
+            Expanded(child: _body(context, ref)),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _body(BuildContext context, WidgetRef ref) {
+    if (!_hasArgs) {
+      return const _MissingArgsState();
+    }
+    final args = _QuoteArgs(
+      origineZone: origineZone!,
+      destinationZone: destinationZone!,
+      quantiteKg: quantiteKg!,
+    );
+    final async = ref.watch(_quotesProvider(args));
+    return async.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.only(top: AppDimens.space32),
+        child: Chargement(size: 22),
+      ),
+      error: (e, _) => Padding(
+        padding: const EdgeInsets.all(AppDimens.pagePaddingH),
+        child: VueErreur(
+          message: 'Impossible de charger les devis transport. $e',
+          onRetry: () => ref.invalidate(_quotesProvider(args)),
+        ),
+      ),
+      data: (quotes) {
+        if (quotes.isEmpty) {
+          return _EmptyQuotesState(args: args);
+        }
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+          children: [
+            _InfoTrip(args: args),
+            const SizedBox(height: 14),
+            for (var i = 0; i < quotes.length; i++)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _TransporteurCard(
+                  quote: quotes[i],
+                  isBest: i == 0,
+                  onChoose: () => Navigator.of(context).pop(quotes[i]),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }
@@ -197,9 +185,11 @@ class _Header extends StatelessWidget {
 // ─── Bandeau info trajet ───────────────────────────────────────────────
 
 class _InfoTrip extends StatelessWidget {
-  const _InfoTrip();
+  const _InfoTrip({required this.args});
+  final _QuoteArgs args;
   @override
   Widget build(BuildContext context) {
+    final qte = _nf.format(args.quantiteKg.round());
     return Container(
       decoration: BoxDecoration(
         color: _kPrimarySoft,
@@ -229,7 +219,7 @@ class _InfoTrip extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Trajet : Yopougon → Cocody · 12 km · 500 kg Maïs blanc',
+              'Trajet : ${args.origineZone} → ${args.destinationZone} · $qte kg',
               style: AppTextStyles.bodyMedium.copyWith(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
@@ -244,69 +234,30 @@ class _InfoTrip extends StatelessWidget {
   }
 }
 
-// ─── Chips filtres horizontaux ─────────────────────────────────────────
-
-class _Filters extends StatelessWidget {
-  const _Filters({required this.active, required this.onChange});
-  final int active;
-  final ValueChanged<int> onChange;
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 30,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: _kFiltres.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
-        itemBuilder: (_, i) {
-          final isActive = i == active;
-          return InkWell(
-            onTap: () => onChange(i),
-            borderRadius: BorderRadius.circular(14),
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 6,
-              ),
-              decoration: BoxDecoration(
-                color: isActive ? AppColors.primary : AppColors.background,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: isActive ? AppColors.primary : AppColors.border,
-                  width: AppDimens.borderThin,
-                ),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                _kFiltres[i],
-                style: AppTextStyles.labelMedium.copyWith(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: isActive ? Colors.white : AppColors.text,
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
 // ─── Card transporteur ─────────────────────────────────────────────────
 
 class _TransporteurCard extends StatelessWidget {
-  const _TransporteurCard({required this.transporteur});
-  final _MockTransporteur transporteur;
+  const _TransporteurCard({
+    required this.quote,
+    required this.isBest,
+    required this.onChoose,
+  });
+  final TransportQuote quote;
+  final bool isBest;
+  final VoidCallback onChoose;
 
   @override
   Widget build(BuildContext context) {
+    final nom = quote.transporterName.isNotEmpty
+        ? quote.transporterName
+        : 'Transporteur';
+    final delai = quote.delaiTypique?.trim();
     return Container(
       decoration: BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: AppColors.border,
+          color: isBest ? AppColors.primary : AppColors.border,
           width: AppDimens.borderThin,
         ),
       ),
@@ -314,29 +265,18 @@ class _TransporteurCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Photo camion 60×60
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                color: AppColors.surfaceSoft,
-                border: Border.all(
-                  color: AppColors.border,
-                  width: AppDimens.borderThin,
-                ),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              clipBehavior: Clip.hardEdge,
-              child: CachedNetworkImage(
-                imageUrl: transporteur.photoUrl,
-                fit: BoxFit.cover,
-                placeholder: (_, _) =>
-                    Container(color: AppColors.surfaceSoft),
-                errorWidget: (_, _, _) =>
-                    Container(color: AppColors.surfaceSoft),
-              ),
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: _kPrimarySoft,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            alignment: Alignment.center,
+            child: const Icon(
+              Icons.local_shipping_outlined,
+              size: 22,
+              color: AppColors.primary,
             ),
           ),
           const SizedBox(width: 12),
@@ -351,27 +291,20 @@ class _TransporteurCard extends StatelessWidget {
                   runSpacing: 4,
                   children: [
                     Text(
-                      transporteur.nom,
+                      nom,
                       style: AppTextStyles.bodyMedium.copyWith(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    if (transporteur.badge != _Badge.none)
-                      _BadgeChip(badge: transporteur.badge),
+                    if (isBest) const _BestPriceChip(),
                   ],
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${transporteur.rating.toStringAsFixed(1)} ★ · ${transporteur.livraisons} livraisons',
-                  style: AppTextStyles.labelSmall.copyWith(
-                    fontSize: 11,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  transporteur.capacite,
+                  quote.rating > 0
+                      ? '${quote.rating.toStringAsFixed(1)} ★'
+                      : 'Nouveau',
                   style: AppTextStyles.labelSmall.copyWith(
                     fontSize: 11,
                     color: AppColors.textSecondary,
@@ -387,7 +320,7 @@ class _TransporteurCard extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            '${_nf.format(transporteur.prix)} F',
+                            '${_nf.format(quote.tarifTotal)} F',
                             style: AppTextStyles.titleSmall.copyWith(
                               fontFamily: 'Poppins',
                               fontSize: 16,
@@ -396,22 +329,20 @@ class _TransporteurCard extends StatelessWidget {
                               letterSpacing: -0.3,
                             ),
                           ),
-                          Text(
-                            transporteur.eta,
-                            style: AppTextStyles.labelSmall.copyWith(
-                              fontSize: 11,
-                              color: AppColors.textSecondary,
+                          if (delai != null && delai.isNotEmpty)
+                            Text(
+                              delai,
+                              style: AppTextStyles.labelSmall.copyWith(
+                                fontSize: 11,
+                                color: AppColors.textSecondary,
+                              ),
                             ),
-                          ),
                         ],
                       ),
                     ),
                     const SizedBox(width: 8),
                     InkWell(
-                      onTap: () => Snackbars.showSucces(
-                        context,
-                        '${transporteur.nom} sélectionné.',
-                      ),
+                      onTap: onChoose,
                       borderRadius: BorderRadius.circular(10),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
@@ -447,66 +378,99 @@ class _TransporteurCard extends StatelessWidget {
   }
 }
 
-class _BadgeChip extends StatelessWidget {
-  const _BadgeChip({required this.badge});
-  final _Badge badge;
+class _BestPriceChip extends StatelessWidget {
+  const _BestPriceChip();
   @override
   Widget build(BuildContext context) {
-    final isBest = badge == _Badge.meilleurPrix;
-    final bg = isBest ? _kPrimarySoft : _kWarnSoft;
-    final fg = isBest ? AppColors.primary : _kWarn;
-    final label = isBest ? '🟢 Meilleur prix' : '⚡ Plus rapide';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: bg,
+        color: _kPrimarySoft,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Text(
-        label,
+        'Meilleur prix',
         style: AppTextStyles.labelSmall.copyWith(
           fontSize: 10,
           fontWeight: FontWeight.w600,
-          color: fg,
+          color: AppColors.primary,
         ),
       ),
     );
   }
 }
 
-// ─── Sticky lien auto ──────────────────────────────────────────────────
+// ─── États vides ───────────────────────────────────────────────────────
 
-class _StickyAutoLink extends StatelessWidget {
-  const _StickyAutoLink();
+class _MissingArgsState extends StatelessWidget {
+  const _MissingArgsState();
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.background,
-        border: Border(
-          top: BorderSide(color: AppColors.border, width: AppDimens.borderThin),
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppDimens.space24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.local_shipping_outlined,
+              size: 44,
+              color: AppColors.textSubtle.withValues(alpha: 0.9),
+            ),
+            const SizedBox(height: AppDimens.space12),
+            Text(
+              'Devis transport indisponibles',
+              style: AppTextStyles.titleSmall,
+            ),
+            const SizedBox(height: AppDimens.space8),
+            Text(
+              'Ouvre cette page depuis l\'écran de paiement\nd\'une commande pour comparer les transporteurs.',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.bodySmall.copyWith(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+                height: 1.4,
+              ),
+            ),
+          ],
         ),
       ),
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-      alignment: Alignment.center,
-      child: InkWell(
-        onTap: () => Snackbars.showInfo(
-          context,
-          'Mode automatique FarmCash — à venir.',
-        ),
-        borderRadius: BorderRadius.circular(6),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          child: Text(
-            'Préférer le mode automatique FarmCash',
-            style: AppTextStyles.labelMedium.copyWith(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
-              decoration: TextDecoration.underline,
-              decorationColor: AppColors.borderStrong,
+    );
+  }
+}
+
+class _EmptyQuotesState extends StatelessWidget {
+  const _EmptyQuotesState({required this.args});
+  final _QuoteArgs args;
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppDimens.space24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.search_off_outlined,
+              size: 44,
+              color: AppColors.textSubtle.withValues(alpha: 0.9),
             ),
-          ),
+            const SizedBox(height: AppDimens.space12),
+            Text(
+              'Aucun devis pour ce trajet',
+              style: AppTextStyles.titleSmall,
+            ),
+            const SizedBox(height: AppDimens.space8),
+            Text(
+              'Aucun transporteur n\'a déclaré une route\n${args.origineZone} → ${args.destinationZone}.',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.bodySmall.copyWith(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+                height: 1.4,
+              ),
+            ),
+          ],
         ),
       ),
     );

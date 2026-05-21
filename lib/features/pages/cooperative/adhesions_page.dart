@@ -20,87 +20,23 @@ const Color _kPrimarySoft = Color(0xFFE8F5E9);
 // Radius des cards (14 — comme la maquette HTML).
 const BorderRadius _kBrCard = BorderRadius.all(Radius.circular(14));
 
-/// Modèle local pour une demande mock — calqué sur la maquette HTML.
-class _AdhesionMock {
-  final String id;
-  final String nom;
-  final String avatarUrl;
-  final String ville;
-  final String tel;
-  final String time;
-  const _AdhesionMock({
-    required this.id,
-    required this.nom,
-    required this.avatarUrl,
-    required this.ville,
-    required this.tel,
-    required this.time,
-  });
-}
+// ─── Provider racine — appel API uniquement ─────────────────────────────
 
-/// 3 cards mock alignées 1:1 sur `mockups/cooperative/adhesions.html`.
-const List<_AdhesionMock> _kMockAdhesions = [
-  _AdhesionMock(
-    id: 'mock-yao',
-    nom: 'Yao Konan',
-    avatarUrl:
-        'https://images.unsplash.com/photo-1531123897727-8f129e1688ce'
-        '?w=200&h=200&fit=crop&auto=format',
-    ville: 'Abidjan',
-    tel: '+225 07 12 34 56 78',
-    time: 'Demande reçue il y a 2h',
-  ),
-  _AdhesionMock(
-    id: 'mock-aya',
-    nom: "Aya N'Guessan",
-    avatarUrl:
-        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d'
-        '?w=200&h=200&fit=crop&auto=format',
-    ville: 'Dabou',
-    tel: '+225 05 87 65 43 21',
-    time: 'Demande reçue il y a 2h',
-  ),
-  _AdhesionMock(
-    id: 'mock-konan',
-    nom: 'Kouassi Bamba',
-    avatarUrl:
-        'https://images.unsplash.com/photo-1500648767791-00dcc994a43e'
-        '?w=200&h=200&fit=crop&auto=format',
-    ville: 'Anyama',
-    tel: '+225 01 23 45 67 89',
-    time: 'Demande reçue il y a 2h',
-  ),
-];
-
-// ─── Provider racine — appel API + fallback sur les mocks ───────────────
-
+/// Liste des demandes d'adhésion en attente côté coop. Aucune fallback
+/// mock : si la liste est vide, l'UI affiche un empty-state honnête.
 final _adhesionsCoopProvider =
     FutureProvider.autoDispose<List<_AdhesionView>>((ref) async {
-  final coopSvc = ref.watch(cooperativesServiceProvider);
-  try {
-    final api = await coopSvc.listJoinRequests();
-    final pending = api
-        .where((r) => r.status.toUpperCase() == 'PENDING')
-        .toList(growable: false);
-    if (pending.isEmpty) {
-      // L'API a répondu mais il n'y a aucune demande en attente : on
-      // affiche les mocks pour rester aligné sur la maquette V1.
-      return _kMockAdhesions
-          .map((m) => _AdhesionView.fromMock(m))
-          .toList(growable: false);
-    }
-    return pending
-        .map((r) => _AdhesionView.fromApi(r))
-        .toList(growable: false);
-  } catch (_) {
-    // Fallback total sur les mocks si l'API n'est pas dispo.
-    return _kMockAdhesions
-        .map((m) => _AdhesionView.fromMock(m))
-        .toList(growable: false);
-  }
+  final coopSvc = ref.read(cooperativesServiceProvider);
+  final api = await coopSvc.listJoinRequests();
+  return api
+      .where((r) => r.status.toUpperCase() == 'PENDING')
+      .map((r) => _AdhesionView.fromApi(r))
+      .toList(growable: false);
 });
 
-/// Vue dédiée à l'affichage — on agrège mock & API derrière la même forme.
+/// Vue d'affichage d'une demande d'adhésion. Le backend ne renvoie pas
+/// encore le profil complet du demandeur — on affiche un id court en
+/// attendant l'enrichissement back.
 class _AdhesionView {
   final String id;
   final String nom;
@@ -108,7 +44,6 @@ class _AdhesionView {
   final String? ville;
   final String? tel;
   final String? time;
-  final bool isMock;
 
   _AdhesionView({
     required this.id,
@@ -117,29 +52,15 @@ class _AdhesionView {
     required this.ville,
     required this.tel,
     required this.time,
-    required this.isMock,
   });
-
-  factory _AdhesionView.fromMock(_AdhesionMock m) => _AdhesionView(
-        id: m.id,
-        nom: m.nom,
-        avatarUrl: m.avatarUrl,
-        ville: m.ville,
-        tel: m.tel,
-        time: m.time,
-        isMock: true,
-      );
 
   factory _AdhesionView.fromApi(CoopJoinRequest r) => _AdhesionView(
         id: r.id,
-        // L'API ne renvoie pas (encore) le nom complet du demandeur : on
-        // affiche l'id farmer en attendant l'enrichissement back.
         nom: 'Demandeur ${_short(r.farmerId)}',
         avatarUrl: null,
         ville: null,
         tel: null,
         time: r.message,
-        isMock: false,
       );
 
   static String _short(String id) {
@@ -222,15 +143,6 @@ class AdhesionsCooperativePage extends ConsumerWidget {
     _AdhesionView a, {
     required bool accept,
   }) async {
-    if (a.isMock) {
-      Snackbars.showInfo(
-        context,
-        accept
-            ? '${a.nom} a été accepté(e) (mock)'
-            : '${a.nom} a été refusé(e) (mock)',
-      );
-      return;
-    }
     try {
       await ref.read(cooperativesServiceProvider).handleJoinRequest(
             id: a.id,

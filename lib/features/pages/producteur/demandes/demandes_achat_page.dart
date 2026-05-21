@@ -71,84 +71,6 @@ class _MockDemande {
   });
 }
 
-/// Liste mock alignée 1:1 avec `mockups/producteur/demandes_achat.html`.
-const List<_MockDemande> _kMockDemandes = [
-  _MockDemande(
-    id: 'da-1',
-    buyerNom: 'Aya — Restaurant Le B.',
-    buyerAvatar:
-        'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=120&h=120&fit=crop&auto=format',
-    ville: 'Cocody · à 12 km',
-    viaCoop: false,
-    produitNom: 'Maïs blanc',
-    produitThumb: _kMaisThumb,
-    quantite: '100 kg de Maïs blanc',
-    prixMaxLabel: 'jusqu\'à 850 F/kg · soit max 85 000 F',
-    publieIlYa: 'Publié il y a 2h',
-    livraisonLabel: 'Livraison sous 7j',
-    urgent: true,
-  ),
-  _MockDemande(
-    id: 'da-2',
-    buyerNom: 'Marc — Grossiste Y.',
-    buyerAvatar:
-        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&h=120&fit=crop&auto=format',
-    ville: 'Yopougon · à 18 km',
-    viaCoop: false,
-    produitNom: 'Manioc amer',
-    produitThumb: _kManiocThumb,
-    quantite: '500 kg de Manioc amer',
-    prixMaxLabel: 'jusqu\'à 400 F/kg · soit max 200 000 F',
-    publieIlYa: 'Publié hier',
-    livraisonLabel: 'Livraison sous 14j',
-    urgent: false,
-  ),
-  _MockDemande(
-    id: 'da-3',
-    buyerNom: 'Marie — Restaurant C.',
-    buyerAvatar:
-        'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=120&h=120&fit=crop&auto=format',
-    ville: 'Cocody · à 14 km',
-    viaCoop: true,
-    produitNom: 'Tomate fraîche',
-    produitThumb: _kTomateThumb,
-    quantite: '80 kg de Tomate fraîche',
-    prixMaxLabel: 'jusqu\'à 1 200 F/kg · soit max 96 000 F',
-    publieIlYa: 'Publié il y a 6h',
-    livraisonLabel: 'Livraison sous 5j',
-    urgent: true,
-  ),
-  _MockDemande(
-    id: 'da-4',
-    buyerNom: 'Industries A.',
-    buyerAvatar:
-        'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=120&h=120&fit=crop&auto=format',
-    ville: 'Treichville · à 22 km',
-    viaCoop: false,
-    produitNom: 'Maïs blanc',
-    produitThumb: _kMaisThumb,
-    quantite: '1 tonne de Maïs blanc',
-    prixMaxLabel: 'jusqu\'à 780 F/kg · soit max 780 000 F',
-    publieIlYa: 'Publié hier',
-    livraisonLabel: 'Livraison sous 30j',
-    urgent: false,
-  ),
-  _MockDemande(
-    id: 'da-5',
-    buyerNom: 'Hôtel Beau R.',
-    buyerAvatar:
-        'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120&h=120&fit=crop&auto=format',
-    ville: 'Plateau · à 20 km',
-    viaCoop: false,
-    produitNom: 'Banane plantain',
-    produitThumb: _kBananeThumb,
-    quantite: '200 kg de Banane plantain',
-    prixMaxLabel: 'jusqu\'à 720 F/kg · soit max 144 000 F',
-    publieIlYa: 'Publié il y a 3j',
-    livraisonLabel: 'Livraison sous 10j',
-    urgent: false,
-  ),
-];
 
 // ─── Filtres ──────────────────────────────────────────────────────────────
 
@@ -167,46 +89,37 @@ const List<_Filtre> _kFiltres = [
   _Filtre('banane', 'Banane', 1),
 ];
 
-/// Tente de récupérer les demandes d'achat publiques depuis le backend ;
-/// fallback sur les mocks fidèles à la maquette.
+/// Récupère les demandes d'achat publiques depuis le backend. Pas de
+/// fallback mock — si l'API renvoie vide ou échoue, l'UI affiche un état
+/// vide / erreur honnête.
 final _demandesProvider =
     FutureProvider.autoDispose<List<_MockDemande>>((ref) async {
-  try {
-    final paginated =
-        await ref.watch(marketplaceServiceProvider).listAnnoncesAchat();
-    if (paginated.data.isEmpty) return _kMockDemandes;
-    return paginated.data
-        .map(_annonceAchatToMock)
-        .toList(growable: false);
-  } catch (_) {
-    return _kMockDemandes;
-  }
+  final paginated =
+      await ref.read(marketplaceServiceProvider).listAnnoncesAchat();
+  return paginated.data.map(_annonceAchatToMock).toList(growable: false);
 });
 
-/// Convertit une `AnnonceAchat` backend en mock d'affichage. Champs
-/// riches (buyer name, ville, distance) absents du modèle plat — on
-/// fournit des valeurs neutres anonymisées.
+/// Convertit une `AnnonceAchat` backend (avec ses relations jointes) en
+/// modèle d'affichage local. Utilise le nom du buyer et la région réels
+/// quand le back les fournit.
 _MockDemande _annonceAchatToMock(AnnonceAchat a) {
-  final produitNom = a.titre ?? 'Produit';
+  final produitNom = a.produitLabel;
   final qte = a.quantiteKg.toStringAsFixed(0);
   final prixMax = a.prixMaxKg.toStringAsFixed(0);
   final total = (a.prixMaxKg * a.quantiteKg).toStringAsFixed(0);
   return _MockDemande(
     id: a.id,
-    buyerNom: 'Acheteur',
-    buyerAvatar: _kDefaultThumb,
-    ville: '—',
+    buyerNom: a.buyerNom ?? 'Acheteur',
+    buyerAvatar: a.buyer?.photoUrl ?? _kDefaultThumb,
+    ville: a.regionNom ?? '—',
     viaCoop: a.targetCooperativeId != null,
     produitNom: produitNom,
     produitThumb: _thumbForProduit(produitNom),
     quantite: '$qte kg de $produitNom',
     prixMaxLabel: 'jusqu\'à $prixMax F/kg · soit max $total F',
-    publieIlYa: a.createdAt != null
-        ? 'Publié récemment'
-        : 'Publié récemment',
-    livraisonLabel: a.dateLimiteLivraison != null
-        ? 'Livraison sous délai'
-        : 'À convenir',
+    publieIlYa: a.createdAt != null ? 'Publié récemment' : '—',
+    livraisonLabel:
+        a.dateLimiteLivraison != null ? 'Livraison sous délai' : 'À convenir',
     urgent: false,
   );
 }
@@ -263,15 +176,29 @@ class _DemandesAchatPageState extends ConsumerState<DemandesAchatPage> {
                     ),
                   ),
                 ),
-                error: (_, _) => _Body(
-                  items: _filter(_kMockDemandes),
-                  activeFilter: _activeFilter,
-                  onFilterChange: (k) => setState(() => _activeFilter = k),
+                error: (e, _) => Padding(
+                  padding: const EdgeInsets.all(AppDimens.pagePaddingH),
+                  child: Center(
+                    child: Text(
+                      'Impossible de charger les demandes. $e',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
                 ),
-                data: (items) => _Body(
-                  items: _filter(items),
-                  activeFilter: _activeFilter,
-                  onFilterChange: (k) => setState(() => _activeFilter = k),
+                data: (items) => RefreshIndicator(
+                  color: AppColors.primary,
+                  onRefresh: () async {
+                    ref.invalidate(_demandesProvider);
+                    await ref.read(_demandesProvider.future);
+                  },
+                  child: _Body(
+                    items: _filter(items),
+                    activeFilter: _activeFilter,
+                    onFilterChange: (k) => setState(() => _activeFilter = k),
+                  ),
                 ),
               ),
             ),

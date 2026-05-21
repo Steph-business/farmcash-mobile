@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../models/annonce_achat.dart';
 import '../../../../routing/route_names.dart';
 import '../../../../services/providers.dart';
+import '../../../state/auth_state.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
@@ -57,38 +58,6 @@ class _MockDemandeAcheteur {
   final String photoUrl;
 }
 
-const List<_MockDemandeAcheteur> _kMockDemandes = [
-  _MockDemandeAcheteur(
-    id: 'demande-1',
-    produitNom: 'Maïs blanc',
-    quantite: '500 kg',
-    prixMaxLabel: 'max 850 F/kg',
-    villeLabel: 'Cocody',
-    propositions: 5,
-    publieIlYa: 'publiée il y a 2j',
-    photoUrl: _kMaisThumb,
-  ),
-  _MockDemandeAcheteur(
-    id: 'demande-2',
-    produitNom: 'Manioc frais',
-    quantite: '300 kg',
-    prixMaxLabel: 'max 400 F/kg',
-    villeLabel: 'Yopougon',
-    propositions: 4,
-    publieIlYa: 'publiée il y a 4j',
-    photoUrl: _kManiocThumb,
-  ),
-  _MockDemandeAcheteur(
-    id: 'demande-3',
-    produitNom: 'Tomate fraîche',
-    quantite: '50 kg',
-    prixMaxLabel: 'max 1 200 F/kg',
-    villeLabel: 'Cocody',
-    propositions: 3,
-    publieIlYa: 'publiée hier',
-    photoUrl: _kTomateThumb,
-  ),
-];
 
 _MockDemandeAcheteur _annonceAchatToMock(AnnonceAchat a) {
   final produit = a.titre ?? 'Produit';
@@ -106,13 +75,13 @@ _MockDemandeAcheteur _annonceAchatToMock(AnnonceAchat a) {
 
 final _mesDemandesProvider =
     FutureProvider.autoDispose<List<_MockDemandeAcheteur>>((ref) async {
-  try {
-    final p = await ref.watch(marketplaceServiceProvider).listAnnoncesAchat();
-    if (p.data.isEmpty) return _kMockDemandes;
-    return p.data.map(_annonceAchatToMock).toList(growable: false);
-  } catch (_) {
-    return _kMockDemandes;
-  }
+  final user = ref.watch(currentUserProvider);
+  final p = await ref.read(marketplaceServiceProvider).listAnnoncesAchat();
+  // Côté buyer : on filtre pour ne garder que les demandes de l'utilisateur.
+  final mes = user == null
+      ? p.data
+      : p.data.where((a) => a.buyerId == user.id).toList();
+  return mes.map(_annonceAchatToMock).toList(growable: false);
 });
 
 enum _Tab { actives, conclues, archivees }
@@ -147,10 +116,16 @@ class _MesDemandesAcheteurPageState
                   padding: EdgeInsets.only(top: AppDimens.space32),
                   child: Chargement(size: 22),
                 ),
-                error: (_, _) => _Body(
-                  items: _kMockDemandes,
-                  tab: _tab,
-                  onTabChange: (t) => setState(() => _tab = t),
+                error: (e, _) => Padding(
+                  padding: const EdgeInsets.all(AppDimens.pagePaddingH),
+                  child: Center(
+                    child: Text(
+                      'Impossible de charger les demandes. $e',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
                 ),
                 data: (items) => _Body(
                   items: items,

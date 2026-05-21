@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'features/storage/prefs_storage.dart';
@@ -15,6 +16,10 @@ Future<void> main() async {
   const envFile =
       String.fromEnvironment('ENV_FILE', defaultValue: 'env/dev.env');
   await dotenv.load(fileName: envFile);
+
+  // Init locale fr_FR pour les DateFormat (intl). Sans ça, tout widget
+  // qui fait `DateFormat('xxx', 'fr_FR')` lève LocaleDataException.
+  await initializeDateFormatting('fr_FR', null);
 
   final prefs = await SharedPreferences.getInstance();
 

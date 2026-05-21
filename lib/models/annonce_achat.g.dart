@@ -54,6 +54,12 @@ _$AnnonceAchatImpl _$$AnnonceAchatImplFromJson(Map<String, dynamic> json) =>
             'updated_at',
             (v) => v == null ? null : DateTime.parse(v as String),
           ),
+          produitNom: $checkedConvert(
+            'produits_agricoles',
+            (v) => _nomFromMap(v),
+          ),
+          buyer: $checkedConvert('users', (v) => _buyerInfoFromJson(v)),
+          regionNom: $checkedConvert('regions_ci', (v) => _nomFromMap(v)),
         );
         return val;
       },
@@ -70,6 +76,9 @@ _$AnnonceAchatImpl _$$AnnonceAchatImplFromJson(Map<String, dynamic> json) =>
         'dateLimiteLivraison': 'date_limite_livraison',
         'createdAt': 'created_at',
         'updatedAt': 'updated_at',
+        'produitNom': 'produits_agricoles',
+        'buyer': 'users',
+        'regionNom': 'regions_ci',
       },
     );
 
@@ -96,6 +105,10 @@ Map<String, dynamic> _$$AnnonceAchatImplToJson(_$AnnonceAchatImpl instance) =>
         'created_at': value,
       if (instance.updatedAt?.toIso8601String() case final value?)
         'updated_at': value,
+      if (_nomToMap(instance.produitNom) case final value?)
+        'produits_agricoles': value,
+      if (_buyerInfoToJson(instance.buyer) case final value?) 'users': value,
+      if (_nomToMap(instance.regionNom) case final value?) 'regions_ci': value,
     };
 
 const _$BuyOfferAudienceEnumMap = {

@@ -1,11 +1,17 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
+import '../../../../models/enums.dart';
+import '../../../../models/lot.dart';
 import '../../../../routing/route_names.dart';
+import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
+import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/vue_erreur.dart';
 
 // ─── Couleurs / radius locaux alignés sur la maquette ──────────────────
 const Color _kPrimarySoft = Color(0xFFE8F5E9);
@@ -13,146 +19,85 @@ const BorderRadius _kBrCard14 = BorderRadius.all(Radius.circular(14));
 const BorderRadius _kBrCard12 = BorderRadius.all(Radius.circular(12));
 const BorderRadius _kBrThumb = BorderRadius.all(Radius.circular(8));
 
-/// Modèle local d'un lot stocké (mock) — calqué sur la maquette HTML.
-class _LotMock {
-  final String produit;
-  final String farmer;
-  final String date;
-  final String qualite;
-  final String photoUrl;
-  const _LotMock({
-    required this.produit,
-    required this.farmer,
-    required this.date,
-    required this.qualite,
-    required this.photoUrl,
-  });
+/// Bundle entrepôt + lots stockés physiquement dans cet entrepôt.
+class _EntrepotBundle {
+  const _EntrepotBundle({required this.entrepot, required this.lots});
+  final Entrepot? entrepot;
+  final List<Lot> lots;
 }
 
-const List<_LotMock> _kLots = [
-  _LotMock(
-    produit: 'Maïs blanc · 500 kg',
-    farmer: 'Yao Konan',
-    date: '14 mai',
-    qualite: 'A',
-    photoUrl:
-        'https://images.unsplash.com/photo-1601493700631-2b16ec4b4716'
-        '?w=200&h=200&fit=crop&auto=format',
-  ),
-  _LotMock(
-    produit: 'Manioc · 800 kg',
-    farmer: "Aya N'Guessan",
-    date: '13 mai',
-    qualite: 'A',
-    photoUrl:
-        'https://images.unsplash.com/photo-1574484284002-952d92456975'
-        '?w=200&h=200&fit=crop&auto=format',
-  ),
-  _LotMock(
-    produit: 'Cacao · 350 kg',
-    farmer: 'Kouassi Bamba',
-    date: '12 mai',
-    qualite: 'B',
-    photoUrl:
-        'https://images.unsplash.com/photo-1488459716781-31db52582fe9'
-        '?w=200&h=200&fit=crop&auto=format',
-  ),
-  _LotMock(
-    produit: 'Maïs jaune · 1 200 kg',
-    farmer: 'Adjoua Koffi',
-    date: '11 mai',
-    qualite: 'A',
-    photoUrl:
-        'https://images.unsplash.com/photo-1601493700631-2b16ec4b4716'
-        '?w=200&h=200&fit=crop&auto=format',
-  ),
-  _LotMock(
-    produit: 'Manioc · 600 kg',
-    farmer: 'Moussa Diabaté',
-    date: '10 mai',
-    qualite: 'A',
-    photoUrl:
-        'https://images.unsplash.com/photo-1574484284002-952d92456975'
-        '?w=200&h=200&fit=crop&auto=format',
-  ),
-  _LotMock(
-    produit: 'Cacao · 2 550 kg',
-    farmer: 'Awa Touré',
-    date: '9 mai',
-    qualite: 'B',
-    photoUrl:
-        'https://images.unsplash.com/photo-1488459716781-31db52582fe9'
-        '?w=200&h=200&fit=crop&auto=format',
-  ),
-];
+final _entrepotBundleProvider = FutureProvider.autoDispose
+    .family<_EntrepotBundle, String>((ref, entrepotId) async {
+  final svc = ref.read(marketplaceServiceProvider);
+  // Charge la liste des entrepôts pour récupérer le détail (nom + capacité)
+  // et la liste des lots présents dans CET entrepôt (via table `stock`).
+  final results = await Future.wait<dynamic>([
+    svc.listEntrepots(),
+    svc.listLotsByEntrepot(entrepotId),
+  ]);
+  final entrepots = results[0] as List<Entrepot>;
+  final lots = results[1] as List<Lot>;
+  Entrepot? entrepot;
+  for (final e in entrepots) {
+    if (e.id == entrepotId) {
+      entrepot = e;
+      break;
+    }
+  }
+  return _EntrepotBundle(entrepot: entrepot, lots: lots);
+});
 
-/// Détail d'un entrepôt coopérative — capacité, lots stockés, action
-/// "Réceptionner un nouveau lot". Reproduction fidèle de
-/// `mockups/cooperative/stock_entrepot.html`.
-class StockEntrepotPage extends StatelessWidget {
+/// Détail d'un entrepôt coopérative — capacité + lots stockés.
+class StockEntrepotPage extends ConsumerWidget {
   const StockEntrepotPage({super.key, required this.entrepotId});
 
   final String entrepotId;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(_entrepotBundleProvider(entrepotId));
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         bottom: false,
         child: Column(
           children: [
-            const _Header(),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(
-                  AppDimens.pagePaddingH,
-                  0,
-                  AppDimens.pagePaddingH,
-                  AppDimens.space16,
-                ),
-                children: [
-                  // ── Hero photo ──────────────────────────────────────
-                  ClipRRect(
-                    borderRadius: _kBrCard12,
-                    child: Container(
-                      height: 140,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: AppColors.border,
-                          width: AppDimens.borderThin,
-                        ),
-                        borderRadius: _kBrCard12,
-                      ),
-                      child: const _HeroImage(
-                        url:
-                            'https://images.unsplash.com/photo-1488459716781-31db52582fe9'
-                            '?w=600&h=300&fit=crop&auto=format',
-                      ),
-                    ),
-                  ),
-                  AppDimens.vGap8,
-                  // ── KPI row ─────────────────────────────────────────
-                  const Padding(
-                    padding: EdgeInsets.only(top: 12, bottom: 8),
-                    child: _KpiRow(),
-                  ),
-                  AppDimens.vGap12,
-                  // ── Section "Lots dans cet entrepôt" ────────────────
-                  Text(
-                    'Lots dans cet entrepôt',
-                    style: AppTextStyles.titleSmall.copyWith(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  AppDimens.vGap12,
-                  _LotsList(lots: _kLots),
-                ],
+            _Header(
+              titre: async.maybeWhen(
+                data: (b) => b.entrepot?.nom ?? 'Entrepôt',
+                orElse: () => 'Entrepôt',
               ),
             ),
-            // ── Sticky bouton "Réceptionner un nouveau lot" ───────────
+            Expanded(
+              child: async.when(
+                loading: () => const Padding(
+                  padding: EdgeInsets.only(top: 48),
+                  child: Chargement(size: 22),
+                ),
+                error: (e, _) => Padding(
+                  padding: const EdgeInsets.all(AppDimens.pagePaddingH),
+                  child: VueErreur(
+                    message: 'Impossible de charger cet entrepôt. $e',
+                    onRetry: () =>
+                        ref.invalidate(_entrepotBundleProvider(entrepotId)),
+                  ),
+                ),
+                data: (bundle) {
+                  final entrepot = bundle.entrepot;
+                  if (entrepot == null) {
+                    return Padding(
+                      padding:
+                          const EdgeInsets.all(AppDimens.pagePaddingH),
+                      child: Text(
+                        'Entrepôt introuvable.',
+                        style: AppTextStyles.bodyMedium,
+                      ),
+                    );
+                  }
+                  return _Body(entrepot: entrepot, lots: bundle.lots);
+                },
+              ),
+            ),
             _StickyButton(
               onTap: () =>
                   context.push(RouteNames.cooperativeStockReceptionPath),
@@ -164,10 +109,68 @@ class StockEntrepotPage extends StatelessWidget {
   }
 }
 
+class _Body extends StatelessWidget {
+  const _Body({required this.entrepot, required this.lots});
+
+  final Entrepot entrepot;
+  final List<Lot> lots;
+
+  @override
+  Widget build(BuildContext context) {
+    final utilise =
+        lots.fold<double>(0, (acc, l) => acc + l.quantiteKg);
+    final capacite = entrepot.capaciteKg;
+    final dispoPct = capacite > 0
+        ? ((capacite - utilise).clamp(0, capacite) / capacite * 100).round()
+        : 0;
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(
+        AppDimens.pagePaddingH,
+        0,
+        AppDimens.pagePaddingH,
+        AppDimens.space16,
+      ),
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 12, bottom: 8),
+          child: _KpiRow(
+            capacite: capacite,
+            utilise: utilise,
+            dispoPct: dispoPct,
+          ),
+        ),
+        AppDimens.vGap12,
+        Text(
+          'Lots dans cet entrepôt',
+          style: AppTextStyles.titleSmall.copyWith(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        AppDimens.vGap12,
+        if (lots.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Text(
+              'Cet entrepôt est vide.',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          )
+        else
+          _LotsList(lots: lots),
+      ],
+    );
+  }
+}
+
 // ─── Header (back + titre) ──────────────────────────────────────────────
 
 class _Header extends StatelessWidget {
-  const _Header();
+  const _Header({required this.titre});
+
+  final String titre;
 
   @override
   Widget build(BuildContext context) {
@@ -197,7 +200,7 @@ class _Header extends StatelessWidget {
           ),
           Expanded(
             child: Text(
-              'Entrepôt Abidjan-Treichville',
+              titre,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: AppTextStyles.titleSmall.copyWith(
@@ -206,84 +209,8 @@ class _Header extends StatelessWidget {
               ),
             ),
           ),
-          _NotifsButton(
-            onTap: () =>
-                context.push(RouteNames.cooperativeNotificationsPath),
-          ),
         ],
       ),
-    );
-  }
-}
-
-class _NotifsButton extends StatelessWidget {
-  const _NotifsButton({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: SizedBox(
-        width: 40,
-        height: 40,
-        child: Stack(
-          children: [
-            const Center(
-              child: Icon(
-                Icons.notifications_none,
-                size: 22,
-                color: AppColors.text,
-              ),
-            ),
-            Positioned(
-              top: 6,
-              right: 6,
-              child: Container(
-                constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.error,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: AppColors.background,
-                    width: 1.5,
-                  ),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  '5',
-                  style: AppTextStyles.labelSmall.copyWith(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.onPrimary,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Hero photo ─────────────────────────────────────────────────────────
-
-class _HeroImage extends StatelessWidget {
-  const _HeroImage({required this.url});
-
-  final String url;
-
-  @override
-  Widget build(BuildContext context) {
-    return CachedNetworkImage(
-      imageUrl: url,
-      fit: BoxFit.cover,
-      placeholder: (_, __) => const ColoredBox(color: _kPrimarySoft),
-      errorWidget: (_, __, ___) => const ColoredBox(color: _kPrimarySoft),
     );
   }
 }
@@ -291,20 +218,35 @@ class _HeroImage extends StatelessWidget {
 // ─── KPI row ────────────────────────────────────────────────────────────
 
 class _KpiRow extends StatelessWidget {
-  const _KpiRow();
+  const _KpiRow({
+    required this.capacite,
+    required this.utilise,
+    required this.dispoPct,
+  });
+
+  final double capacite;
+  final double utilise;
+  final int dispoPct;
 
   @override
   Widget build(BuildContext context) {
     return Row(
-      children: const [
-        Expanded(child: _KpiCard(value: '10 t', label: 'Capacité')),
-        SizedBox(width: 8),
-        Expanded(child: _KpiCard(value: '6 t', label: 'Utilisée')),
-        SizedBox(width: 8),
-        Expanded(child: _KpiCard(value: '40%', label: 'Dispo')),
+      children: [
+        Expanded(child: _KpiCard(value: _formatT(capacite), label: 'Capacité')),
+        const SizedBox(width: 8),
+        Expanded(child: _KpiCard(value: _formatT(utilise), label: 'Utilisée')),
+        const SizedBox(width: 8),
+        Expanded(child: _KpiCard(value: '$dispoPct%', label: 'Dispo')),
       ],
     );
   }
+}
+
+String _formatT(double kg) {
+  if (kg < 1000) return '${kg.round()} kg';
+  final t = kg / 1000;
+  if (t >= 10) return '${t.toStringAsFixed(0)} t';
+  return '${t.toStringAsFixed(1)} t';
 }
 
 class _KpiCard extends StatelessWidget {
@@ -358,7 +300,7 @@ class _KpiCard extends StatelessWidget {
 class _LotsList extends StatelessWidget {
   const _LotsList({required this.lots});
 
-  final List<_LotMock> lots;
+  final List<Lot> lots;
 
   @override
   Widget build(BuildContext context) {
@@ -392,10 +334,14 @@ class _LotsList extends StatelessWidget {
 class _LotTile extends StatelessWidget {
   const _LotTile({required this.lot});
 
-  final _LotMock lot;
+  final Lot lot;
 
   @override
   Widget build(BuildContext context) {
+    final qteLabel = '${_fmtKg(lot.quantiteKg)} kg';
+    final dateLabel = lot.createdAt != null
+        ? DateFormat('dd/MM').format(lot.createdAt!.toLocal())
+        : '—';
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
@@ -406,18 +352,18 @@ class _LotTile extends StatelessWidget {
               width: 60,
               height: 60,
               decoration: BoxDecoration(
+                color: _kPrimarySoft,
                 border: Border.all(
                   color: AppColors.border,
                   width: AppDimens.borderThin,
                 ),
                 borderRadius: _kBrThumb,
               ),
-              child: CachedNetworkImage(
-                imageUrl: lot.photoUrl,
-                fit: BoxFit.cover,
-                placeholder: (_, __) => const ColoredBox(color: _kPrimarySoft),
-                errorWidget: (_, __, ___) =>
-                    const ColoredBox(color: _kPrimarySoft),
+              alignment: Alignment.center,
+              child: const Icon(
+                Icons.inventory_2_outlined,
+                color: AppColors.primary,
+                size: 22,
               ),
             ),
           ),
@@ -428,7 +374,7 @@ class _LotTile extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  lot.produit,
+                  '${lot.lotCode} · $qteLabel',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.titleSmall.copyWith(
@@ -438,7 +384,7 @@ class _LotTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${lot.farmer} · ${lot.date} · Qualité ${lot.qualite}',
+                  '$dateLabel · ${_qualiteLabel(lot.qualite)}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.bodySmall.copyWith(
@@ -451,7 +397,7 @@ class _LotTile extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Text(
-            lot.qualite,
+            _qualiteShort(lot.qualite),
             style: AppTextStyles.labelMedium.copyWith(
               fontFamily: 'Poppins',
               fontSize: 12,
@@ -463,6 +409,48 @@ class _LotTile extends StatelessWidget {
       ),
     );
   }
+}
+
+String _qualiteLabel(ProductQuality q) {
+  switch (q) {
+    case ProductQuality.standard:
+      return 'Standard';
+    case ProductQuality.premium:
+      return 'Premium';
+    case ProductQuality.bio:
+      return 'Bio';
+    case ProductQuality.equitable:
+      return 'Équitable';
+    case ProductQuality.unknown:
+      return '—';
+  }
+}
+
+String _qualiteShort(ProductQuality q) {
+  switch (q) {
+    case ProductQuality.premium:
+      return 'A';
+    case ProductQuality.standard:
+      return 'B';
+    case ProductQuality.bio:
+      return 'BIO';
+    case ProductQuality.equitable:
+      return 'EQ';
+    case ProductQuality.unknown:
+      return '—';
+  }
+}
+
+String _fmtKg(double kg) {
+  final i = kg.round();
+  if (i < 1000) return '$i';
+  final s = '$i';
+  final buf = StringBuffer();
+  for (var k = 0; k < s.length; k++) {
+    if (k > 0 && (s.length - k) % 3 == 0) buf.write(' ');
+    buf.write(s[k]);
+  }
+  return buf.toString();
 }
 
 // ─── Sticky bouton ──────────────────────────────────────────────────────
@@ -515,4 +503,3 @@ class _StickyButton extends StatelessWidget {
     );
   }
 }
-

@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../api_client/api_exception.dart';
 import '../../../../models/enums.dart';
+import '../../../../models/produit.dart';
 import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
@@ -32,13 +33,27 @@ class _ProduitOption {
   final String id;
   final String nom;
   final String photoUrl;
+
+  factory _ProduitOption.fromProduit(Produit p) {
+    final lower = p.nom.toLowerCase();
+    String photo;
+    if (lower.contains('manioc')) {
+      photo = _kManiocPhoto;
+    } else if (lower.contains('tomate')) {
+      photo = _kTomatePhoto;
+    } else {
+      photo = p.imageUrl ?? _kMaisPhoto;
+    }
+    return _ProduitOption(id: p.id, nom: p.nom, photoUrl: photo);
+  }
 }
 
-const List<_ProduitOption> _kProduits = [
-  _ProduitOption(id: 'mais', nom: 'Maïs grain blanc', photoUrl: _kMaisPhoto),
-  _ProduitOption(id: 'manioc', nom: 'Manioc frais', photoUrl: _kManiocPhoto),
-  _ProduitOption(id: 'tomate', nom: 'Tomate fraîche', photoUrl: _kTomatePhoto),
-];
+/// Charge le catalogue produits une seule fois.
+final _produitsOptionsProvider =
+    FutureProvider.autoDispose<List<_ProduitOption>>((ref) async {
+  final list = await ref.read(marketplaceServiceProvider).listProduits();
+  return list.map(_ProduitOption.fromProduit).toList(growable: false);
+});
 
 const List<String> _kQualites = ['Standard', 'Premium', 'Bio', 'Équitable'];
 
@@ -66,11 +81,11 @@ class PublierDemandePage extends ConsumerStatefulWidget {
 }
 
 class _PublierDemandePageState extends ConsumerState<PublierDemandePage> {
-  _ProduitOption _produit = _kProduits.first;
+  _ProduitOption? _produit;
   String _qualite = _kQualites.first;
   final _qteCtrl = TextEditingController(text: '500');
   final _prixCtrl = TextEditingController(text: '850');
-  DateTime _dateLimite = DateTime(2026, 5, 23);
+  DateTime _dateLimite = DateTime.now().add(const Duration(days: 14));
   _Cible _cible = _Cible.public;
   _CoopOption? _coopChoisie;
   bool _isSubmitting = false;
@@ -82,7 +97,11 @@ class _PublierDemandePageState extends ConsumerState<PublierDemandePage> {
     super.dispose();
   }
 
-  void _ouvrirSelectionProduit() {
+  void _ouvrirSelectionProduit(List<_ProduitOption> produits) {
+    if (produits.isEmpty) {
+      Snackbars.showInfo(context, 'Catalogue produit indisponible');
+      return;
+    }
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: AppColors.background,
@@ -92,16 +111,19 @@ class _PublierDemandePageState extends ConsumerState<PublierDemandePage> {
       builder: (ctx) {
         return SafeArea(
           top: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+          child: ListView(
+            shrinkWrap: true,
+            padding: const EdgeInsets.only(bottom: 8),
             children: [
               const SizedBox(height: 12),
-              Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(2),
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
               const SizedBox(height: 14),
@@ -115,7 +137,7 @@ class _PublierDemandePageState extends ConsumerState<PublierDemandePage> {
                 ),
               ),
               const SizedBox(height: 8),
-              for (final p in _kProduits)
+              for (final p in produits)
                 ListTile(
                   leading: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
@@ -137,7 +159,7 @@ class _PublierDemandePageState extends ConsumerState<PublierDemandePage> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  trailing: p.id == _produit.id
+                  trailing: p.id == _produit?.id
                       ? const Icon(Icons.check, color: AppColors.primary)
                       : null,
                   onTap: () {
@@ -145,7 +167,6 @@ class _PublierDemandePageState extends ConsumerState<PublierDemandePage> {
                     Navigator.of(ctx).pop();
                   },
                 ),
-              const SizedBox(height: 8),
             ],
           ),
         );
@@ -180,6 +201,10 @@ class _PublierDemandePageState extends ConsumerState<PublierDemandePage> {
 
   Future<void> _publier() async {
     if (_isSubmitting) return;
+    if (_produit == null) {
+      Snackbars.showErreur(context, 'Choisis un produit avant de publier.');
+      return;
+    }
     final qte = double.tryParse(_qteCtrl.text.trim().replaceAll(',', '.'));
     final prix = double.tryParse(_prixCtrl.text.trim().replaceAll(',', '.'));
     if (qte == null || qte <= 0 || prix == null || prix <= 0) {
@@ -192,10 +217,10 @@ class _PublierDemandePageState extends ConsumerState<PublierDemandePage> {
     setState(() => _isSubmitting = true);
     try {
       await ref.read(marketplaceServiceProvider).createAnnonceAchat(
-            produitId: _produit.id,
+            produitId: _produit!.id,
             quantiteKg: qte,
             prixMaxKg: prix,
-            titre: _produit.nom,
+            titre: _produit!.nom,
             audience: _audienceApi,
             targetCooperativeId:
                 _cible == _Cible.specificCoop ? _coopChoisie?.id : null,
@@ -207,10 +232,6 @@ class _PublierDemandePageState extends ConsumerState<PublierDemandePage> {
     } on ApiException catch (e) {
       if (!mounted) return;
       Snackbars.showErreur(context, e.message);
-    } catch (_) {
-      if (!mounted) return;
-      Snackbars.showSucces(context, 'Demande publiée — propositions à venir.');
-      Navigator.of(context).maybePop();
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -218,6 +239,13 @@ class _PublierDemandePageState extends ConsumerState<PublierDemandePage> {
 
   @override
   Widget build(BuildContext context) {
+    final asyncProduits = ref.watch(_produitsOptionsProvider);
+    final produits = asyncProduits.value ?? const <_ProduitOption>[];
+    // Initialise la sélection au premier produit dès qu'on a la liste.
+    if (_produit == null && produits.isNotEmpty) {
+      _produit = produits.first;
+    }
+    final produit = _produit;
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -233,12 +261,12 @@ class _PublierDemandePageState extends ConsumerState<PublierDemandePage> {
                   _SectionTitle(title: 'Que cherches-tu ?'),
                   AppDimens.vGap12,
                   _ProduitSelectTile(
-                    produit: _produit,
+                    produit: produit,
                     qualite: _qualite,
-                    onTap: _ouvrirSelectionProduit,
+                    onTap: () => _ouvrirSelectionProduit(produits),
                   ),
                   AppDimens.vGap12,
-                  _HeroPhoto(photoUrl: _produit.photoUrl),
+                  if (produit != null) _HeroPhoto(photoUrl: produit.photoUrl),
                   AppDimens.vGap12,
                   _SubLabel(label: 'Qualité'),
                   const SizedBox(height: 8),
@@ -427,12 +455,13 @@ class _ProduitSelectTile extends StatelessWidget {
     required this.onTap,
   });
 
-  final _ProduitOption produit;
+  final _ProduitOption? produit;
   final String qualite;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final p = produit;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -469,7 +498,7 @@ class _ProduitSelectTile extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    produit.nom,
+                    p?.nom ?? 'Choisir un produit',
                     style: AppTextStyles.bodyMedium.copyWith(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,

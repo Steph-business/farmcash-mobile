@@ -25,6 +25,52 @@ class ApiEndpoints {
   static const String authProfileTransporteur = '/auth/profile/transporteur';
   static const String authDeviceToken = '/auth/device-token';
 
+  // ─── KYC (justificatifs d'identité, parcelles, etc.) ─────────────────
+  static const String authKycMy = '/auth/kyc/my';
+  static const String authKycUpload = '/auth/kyc/upload';
+  static String authKycById(String id) => '/auth/kyc/$id';
+
+  // ─── BUYER ADRESSES de livraison ────────────────────────────────────
+  static const String buyerAddresses = '/buyer/addresses';
+  static String buyerAddressById(String id) => '/buyer/addresses/$id';
+
+  // ─── LOGISTIQUE — véhicules du transporteur ─────────────────────────
+  static const String vehiclesMy = '/logistics/vehicles/my';
+  static const String vehicles = '/logistics/vehicles';
+  static String vehicleById(String id) => '/logistics/vehicles/$id';
+
+  // ─── LOGISTIQUE — missions acceptées du transporteur ────────────────
+  static const String shipmentsMy = '/logistics/shipments/my';
+
+  // ─── RÉSERVATIONS prévisions (acheteur) ─────────────────────────────
+  static const String reservationsMy = '/marketplace/reservations/my';
+
+  // ─── STOCKS — lots par entrepôt (FARMER + COOP) ─────────────────────
+  static String entrepotLots(String entrepotId) =>
+      '/marketplace/stocks/entrepots/$entrepotId/lots';
+
+  // ─── SOLLICITATIONS — confirmation par la coop initiatrice ──────────
+  static String sollicitationRecipientConfirm(
+    String sollicitationId,
+    String recipientId,
+  ) =>
+      '/coop/sollicitations/$sollicitationId/recipients/$recipientId/confirm';
+
+  // ─── ÉVALUATION post-livraison (BUYER → TRANSPORTER) ───────────────
+  static String shipmentEvaluation(String shipmentId) =>
+      '/logistics/shipments/$shipmentId/evaluation';
+
+  // ─── LOGISTIQUE COOP — parc véhicules ───────────────────────────────
+  static const String coopVehicles = '/coop/logistics/vehicles';
+  static String coopVehicleById(String id) => '/coop/logistics/vehicles/$id';
+
+  // ─── LOGISTIQUE COOP — collectes internes ──────────────────────────
+  static const String coopCollections = '/coop/logistics/collections';
+  static String coopCollectionById(String id) =>
+      '/coop/logistics/collections/$id';
+  static String coopCollectionComplete(String id) =>
+      '/coop/logistics/collections/$id/complete';
+
   // ─── MARKETPLACE — catalogue public ──────────────────────────────────
   static const String produits = '/marketplace/produits';
   static const String categories = '/marketplace/categories';
@@ -78,6 +124,10 @@ class ApiEndpoints {
   static const String ordersMy = '/orders/my';
   static String orderById(String id) => '/orders/$id';
   static String orderStatus(String id) => '/orders/$id/status';
+  /// Paie une commande déjà créée (typiquement issue d'une candidature ou
+  /// proposition acceptée — la commande existe mais le payin n'a pas été
+  /// déclenché à la création).
+  static String orderPay(String id) => '/orders/$id/pay';
   static const String disputes = '/orders/disputes';
   static const String disputesMy = '/orders/disputes/my';
   static String disputeResolve(String id) => '/orders/disputes/$id/resolve';

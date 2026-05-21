@@ -5,23 +5,46 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../api_client/api_exception.dart';
+import '../../../../models/annonce_achat.dart';
+import '../../../../models/parcelle.dart';
 import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
+import '../../../widgets/communs/chargement.dart';
 import '../../../widgets/communs/snackbars.dart';
-
-// ─── Couleurs accent ─────────────────────────────────────────────────────
+import '../../../widgets/communs/vue_erreur.dart';
 
 const Color _kPrimarySoft = Color(0xFFE8F5E9);
 const Color _kWarn = Color(0xFFB45309);
 
-const String _kBuyerAvatar =
-    'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=120&h=120&fit=crop&auto=format';
-const String _kProductPhoto =
-    'https://images.unsplash.com/photo-1601493700631-2b16ec4b4716?w=600&h=300&fit=crop&auto=format';
+// ─── Provider ────────────────────────────────────────────────────────
 
-/// Réponse du producteur à une demande d'achat publique (proposition).
+class _RepondreBundle {
+  const _RepondreBundle({required this.demande, required this.parcelles});
+  final AnnonceAchat demande;
+  final List<Parcelle> parcelles;
+}
+
+final _repondreBundleProvider = FutureProvider.autoDispose
+    .family<_RepondreBundle, String>((ref, demandeId) async {
+  final svc = ref.read(marketplaceServiceProvider);
+  final results = await Future.wait<dynamic>([
+    svc.getAnnonceAchat(demandeId),
+    svc.listParcelles().then<Object?>((v) => v).catchError(
+          (_) => const <Parcelle>[],
+        ),
+  ]);
+  return _RepondreBundle(
+    demande: results[0] as AnnonceAchat,
+    parcelles: results[1] as List<Parcelle>,
+  );
+});
+
+/// Réponse du FARMER à une demande d'achat publique (AnnonceAchat). Le
+/// formulaire crée une `Proposition` côté backend (`POST /negotiation/
+/// propositions`). Le BUYER recevra ensuite l'offre dans son flux et
+/// pourra accepter / refuser / contre-offrir.
 class DemandeAchatRepondrePage extends ConsumerStatefulWidget {
   const DemandeAchatRepondrePage({required this.demandeId, super.key});
 
@@ -34,14 +57,12 @@ class DemandeAchatRepondrePage extends ConsumerStatefulWidget {
 
 class _DemandeAchatRepondrePageState
     extends ConsumerState<DemandeAchatRepondrePage> {
-  final _qteCtrl = TextEditingController(text: '100');
-  final _prixCtrl = TextEditingController(text: '820');
-  final _msgCtrl = TextEditingController(
-    text:
-        'Maïs séché 5 jours, récolté en pleine maturité. Livraison possible mercredi.',
-  );
-
+  final _qteCtrl = TextEditingController();
+  final _prixCtrl = TextEditingController();
+  final _msgCtrl = TextEditingController();
+  String? _parcelleId;
   bool _isSubmitting = false;
+  bool _initialised = false;
 
   @override
   void initState() {
@@ -60,6 +81,19 @@ class _DemandeAchatRepondrePageState
 
   void _onChange() {
     if (mounted) setState(() {});
+  }
+
+  /// Pré-remplit la quantité demandée (ou un peu moins) et un prix sous le
+  /// max accepté pour gagner l'enchère.
+  void _hydrateOnce(_RepondreBundle bundle) {
+    if (_initialised) return;
+    _initialised = true;
+    _qteCtrl.text = bundle.demande.quantiteKg.round().toString();
+    final prixCible = (bundle.demande.prixMaxKg * 0.95).round();
+    _prixCtrl.text = prixCible.toString();
+    if (bundle.parcelles.isNotEmpty) {
+      _parcelleId = bundle.parcelles.first.id;
+    }
   }
 
   double get _qte =>
@@ -90,10 +124,9 @@ class _DemandeAchatRepondrePageState
     } on ApiException catch (e) {
       if (!mounted) return;
       Snackbars.showErreur(context, e.message);
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
-      Snackbars.showSucces(context, 'Proposition envoyée à l\'acheteur.');
-      Navigator.of(context).pop(true);
+      Snackbars.showErreur(context, 'Erreur : $e');
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -105,84 +138,130 @@ class _DemandeAchatRepondrePageState
 
   @override
   Widget build(BuildContext context) {
+    final async = ref.watch(_repondreBundleProvider(widget.demandeId));
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         bottom: false,
-        child: Column(
-          children: [
-            const _Header(),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-                children: [
-                  const _RecapCard(),
-                  AppDimens.vGap16,
-                  _SectionTitle(title: 'Depuis quelle parcelle ?'),
-                  AppDimens.vGap8,
-                  const _ParcelleSelector(),
-                  AppDimens.vGap12,
-                  const _MatchCard(),
-                  AppDimens.vGap16,
-                  _SectionTitle(title: 'Quantité que je peux fournir'),
-                  AppDimens.vGap8,
-                  _InputUnit(
-                    controller: _qteCtrl,
-                    unit: 'kg',
-                    enabled: !_isSubmitting,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: false,
-                    ),
-                    formatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[0-9]')),
-                    ],
+        child: async.when(
+          loading: () => const Column(
+            children: [
+              _Header(),
+              Expanded(child: Chargement(size: 22)),
+            ],
+          ),
+          error: (e, _) => Column(
+            children: [
+              const _Header(),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppDimens.pagePaddingH),
+                  child: VueErreur(
+                    message: 'Impossible de charger la demande. $e',
+                    onRetry: () => ref
+                        .invalidate(_repondreBundleProvider(widget.demandeId)),
                   ),
-                  AppDimens.vGap8,
-                  _HelpText(text: 'Max disponible sur cette parcelle : 220 kg'),
-                  AppDimens.vGap16,
-                  _SectionTitle(title: 'Prix proposé'),
-                  AppDimens.vGap8,
-                  _InputUnit(
-                    controller: _prixCtrl,
-                    unit: 'F / kg',
-                    enabled: !_isSubmitting,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: false,
-                    ),
-                    formatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[0-9]')),
-                    ],
-                  ),
-                  AppDimens.vGap8,
-                  _HelpText(
-                    text:
-                        'L\'acheteur accepte jusqu\'à 850 F/kg. Tu peux baisser pour gagner l\'offre.',
-                  ),
-                  AppDimens.vGap16,
-                  _TotalCard(total: _total),
-                  AppDimens.vGap24,
-                  _SectionTitle(title: 'Message à l\'acheteur (optionnel)'),
-                  AppDimens.vGap8,
-                  _NoteField(
-                    controller: _msgCtrl,
-                    enabled: !_isSubmitting,
-                  ),
-                ],
+                ),
               ),
-            ),
-            _StickyActions(
-              isSubmitting: _isSubmitting,
-              onEnvoyer: _envoyer,
-              onRefuser: _refuser,
-            ),
-          ],
+            ],
+          ),
+          data: (bundle) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) _hydrateOnce(bundle);
+            });
+            return _build(bundle);
+          },
         ),
       ),
     );
   }
+
+  Widget _build(_RepondreBundle bundle) {
+    final d = bundle.demande;
+    final parcelles = bundle.parcelles;
+    double? maxDispo;
+    if (_parcelleId != null && parcelles.isNotEmpty) {
+      maxDispo = parcelles
+          .firstWhere(
+            (p) => p.id == _parcelleId,
+            orElse: () => parcelles.first,
+          )
+          .superficieHa;
+    }
+    return Column(
+      children: [
+        const _Header(),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+            children: [
+              _RecapCard(demande: d),
+              AppDimens.vGap16,
+              const _SectionTitle(title: 'Depuis quelle parcelle ?'),
+              AppDimens.vGap8,
+              _ParcelleSelector(
+                parcelles: parcelles,
+                selectedId: _parcelleId,
+                onChanged: (id) => setState(() => _parcelleId = id),
+                enabled: !_isSubmitting,
+              ),
+              AppDimens.vGap16,
+              const _SectionTitle(title: 'Quantité que je peux fournir'),
+              AppDimens.vGap8,
+              _InputUnit(
+                controller: _qteCtrl,
+                unit: 'kg',
+                enabled: !_isSubmitting,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: false),
+                formatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9]')),
+                ],
+              ),
+              AppDimens.vGap8,
+              if (maxDispo != null)
+                _HelpText(
+                  text:
+                      'Parcelle de ${_fmt(maxDispo)} ha — adapte la quantité selon ta récolte.',
+                ),
+              AppDimens.vGap16,
+              const _SectionTitle(title: 'Prix proposé'),
+              AppDimens.vGap8,
+              _InputUnit(
+                controller: _prixCtrl,
+                unit: 'F / kg',
+                enabled: !_isSubmitting,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: false),
+                formatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9]')),
+                ],
+              ),
+              AppDimens.vGap8,
+              _HelpText(
+                text:
+                    'L\'acheteur accepte jusqu\'à ${_fmt(d.prixMaxKg)} F/kg. Tu peux baisser pour gagner l\'offre.',
+              ),
+              AppDimens.vGap16,
+              _TotalCard(total: _total),
+              AppDimens.vGap24,
+              const _SectionTitle(title: 'Message à l\'acheteur (optionnel)'),
+              AppDimens.vGap8,
+              _NoteField(controller: _msgCtrl, enabled: !_isSubmitting),
+            ],
+          ),
+        ),
+        _StickyActions(
+          isSubmitting: _isSubmitting,
+          onEnvoyer: _envoyer,
+          onRefuser: _refuser,
+        ),
+      ],
+    );
+  }
 }
 
-// ─── Header ──────────────────────────────────────────────────────────────
+// ─── Header ───────────────────────────────────────────────────────
 
 class _Header extends StatelessWidget {
   const _Header();
@@ -235,13 +314,25 @@ class _Header extends StatelessWidget {
   }
 }
 
-// ─── Recap card (primary-soft + photo) ───────────────────────────────────
+// ─── Recap card (vraies données AnnonceAchat) ────────────────────
 
 class _RecapCard extends StatelessWidget {
-  const _RecapCard();
+  const _RecapCard({required this.demande});
+  final AnnonceAchat demande;
 
   @override
   Widget build(BuildContext context) {
+    final nomProduit = demande.produitLabel;
+    final qte = '${_fmt(demande.quantiteKg)} kg';
+    final prixMax = '${_fmt(demande.prixMaxKg)} F/kg';
+    final region = demande.regionNom;
+    final buyer = demande.buyerNom ?? 'Acheteur';
+    final photo = demande.buyer?.photoUrl;
+    final dateLimite = demande.dateLimiteLivraison;
+    final dateLabel = dateLimite != null
+        ? 'Livraison avant le ${DateFormat('d MMM y', 'fr_FR').format(dateLimite)}'
+        : 'Date de livraison à confirmer';
+
     return Container(
       decoration: BoxDecoration(
         color: _kPrimarySoft,
@@ -255,7 +346,6 @@ class _RecapCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Avatar + nom buyer + sub
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -272,14 +362,24 @@ class _RecapCard extends StatelessWidget {
                     shape: BoxShape.circle,
                   ),
                   clipBehavior: Clip.hardEdge,
-                  child: CachedNetworkImage(
-                    imageUrl: _kBuyerAvatar,
-                    fit: BoxFit.cover,
-                    placeholder: (_, _) =>
-                        Container(color: AppColors.surfaceSoft),
-                    errorWidget: (_, _, _) =>
-                        Container(color: AppColors.surfaceSoft),
-                  ),
+                  child: photo != null && photo.isNotEmpty
+                      ? CachedNetworkImage(
+                          imageUrl: photo,
+                          fit: BoxFit.cover,
+                          placeholder: (_, _) =>
+                              Container(color: AppColors.surfaceSoft),
+                          errorWidget: (_, _, _) =>
+                              Container(color: AppColors.surfaceSoft),
+                        )
+                      : Container(
+                          color: AppColors.background,
+                          alignment: Alignment.center,
+                          child: const Icon(
+                            Icons.person_outline,
+                            size: 22,
+                            color: AppColors.primary,
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -289,20 +389,22 @@ class _RecapCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'Aya — Restaurant Le B.',
+                      buyer,
                       style: AppTextStyles.bodyMedium.copyWith(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Cocody · à 12 km',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        fontSize: 11,
-                        color: AppColors.textSecondary,
+                    if (region != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        region,
+                        style: AppTextStyles.bodySmall.copyWith(
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
-                    ),
+                    ],
                     const SizedBox(height: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -331,37 +433,9 @@ class _RecapCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 10),
-
-          // Photo produit
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: Container(
-              width: double.infinity,
-              height: 100,
-              decoration: BoxDecoration(
-                color: AppColors.surfaceSoft,
-                border: Border.all(
-                  color: AppColors.border,
-                  width: AppDimens.borderThin,
-                ),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              clipBehavior: Clip.hardEdge,
-              child: CachedNetworkImage(
-                imageUrl: _kProductPhoto,
-                fit: BoxFit.cover,
-                placeholder: (_, _) =>
-                    Container(color: AppColors.surfaceSoft),
-                errorWidget: (_, _, _) =>
-                    Container(color: AppColors.surfaceSoft),
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-
+          const SizedBox(height: 12),
           Text(
-            '100 kg de Maïs blanc',
+            '$qte de $nomProduit',
             style: AppTextStyles.displayLarge.copyWith(
               fontSize: 14,
               fontWeight: FontWeight.w700,
@@ -370,7 +444,7 @@ class _RecapCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Prix max accepté : 850 F/kg',
+            'Prix max accepté : $prixMax',
             style: AppTextStyles.displayLarge.copyWith(
               fontSize: 12,
               fontWeight: FontWeight.w600,
@@ -379,26 +453,36 @@ class _RecapCard extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(
-            '⏱ Livraison sous 7 jours',
+            dateLabel,
             style: AppTextStyles.labelSmall.copyWith(
               fontSize: 11,
               fontWeight: FontWeight.w600,
               color: _kWarn,
             ),
           ),
+          if (demande.description != null &&
+              demande.description!.trim().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              demande.description!,
+              style: AppTextStyles.bodySmall.copyWith(
+                fontSize: 11,
+                color: AppColors.text,
+                height: 1.5,
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
-// ─── Section title (uppercase) ───────────────────────────────────────────
+// ─── Section title ────────────────────────────────────────────────
 
 class _SectionTitle extends StatelessWidget {
   const _SectionTitle({required this.title});
-
   final String title;
-
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -417,9 +501,7 @@ class _SectionTitle extends StatelessWidget {
 
 class _HelpText extends StatelessWidget {
   const _HelpText({required this.text});
-
   final String text;
-
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -436,138 +518,102 @@ class _HelpText extends StatelessWidget {
   }
 }
 
-// ─── Parcelle selector ───────────────────────────────────────────────────
+// ─── Parcelle selector (API parcelles) ─────────────────────────────
 
 class _ParcelleSelector extends StatelessWidget {
-  const _ParcelleSelector();
+  const _ParcelleSelector({
+    required this.parcelles,
+    required this.selectedId,
+    required this.onChanged,
+    required this.enabled,
+  });
+
+  final List<Parcelle> parcelles;
+  final String? selectedId;
+  final ValueChanged<String?> onChanged;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: AppColors.borderStrong,
-          width: AppDimens.borderThin,
+    if (parcelles.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceSoft,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: AppColors.border,
+            width: AppDimens.borderThin,
+          ),
         ),
-      ),
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-      child: Row(
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: _kPrimarySoft,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            alignment: Alignment.center,
-            child: const Icon(
-              Icons.home_outlined,
+        child: Row(
+          children: [
+            const Icon(
+              Icons.info_outline,
               size: 16,
-              color: AppColors.primary,
+              color: AppColors.textSubtle,
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Champ derrière la maison',
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Aucune parcelle déclarée — déclare-en une pour rattacher tes offres.',
+                style: AppTextStyles.bodySmall.copyWith(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  'Yopougon · Maïs blanc · 1.5 ha',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    fontSize: 11,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
+              ),
             ),
+          ],
+        ),
+      );
+    }
+    return DropdownButtonFormField<String>(
+      initialValue: selectedId,
+      isExpanded: true,
+      onChanged: enabled ? onChanged : null,
+      decoration: InputDecoration(
+        filled: true,
+        fillColor: AppColors.background,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 14,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(
+            color: AppColors.borderStrong,
+            width: AppDimens.borderThin,
           ),
-          const Icon(
-            Icons.chevron_right,
-            size: AppDimens.iconM,
-            color: AppColors.textSubtle,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(
+            color: AppColors.borderStrong,
+            width: AppDimens.borderThin,
           ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Match badge ─────────────────────────────────────────────────────────
-
-class _MatchCard extends StatelessWidget {
-  const _MatchCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surfaceSoft,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: AppColors.border,
-          width: AppDimens.borderThin,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(
+            color: AppColors.primary,
+            width: AppDimens.borderMedium,
+          ),
         ),
       ),
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-      child: Row(
-        children: [
-          Container(
-            width: 24,
-            height: 24,
-            decoration: const BoxDecoration(
-              color: AppColors.primary,
-              shape: BoxShape.circle,
-            ),
-            alignment: Alignment.center,
-            child: const Icon(
-              Icons.check,
-              size: 12,
-              color: Colors.white,
+      items: [
+        for (final p in parcelles)
+          DropdownMenuItem<String>(
+            value: p.id,
+            child: Text(
+              '${p.nom} · ${_fmt(p.superficieHa ?? 0)} ha',
             ),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Tu cultives bien ce produit',
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '220 kg dispo · récolte du 8 mai',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    fontSize: 11,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+      ],
     );
   }
 }
 
-// ─── Input avec unité ────────────────────────────────────────────────────
+// ─── Input avec unité ─────────────────────────────────────────────
 
 class _InputUnit extends StatelessWidget {
   const _InputUnit({
@@ -633,13 +679,11 @@ class _InputUnit extends StatelessWidget {
   }
 }
 
-// ─── Total card (primary border 1.5px) ───────────────────────────────────
+// ─── Total card ───────────────────────────────────────────────────
 
 class _TotalCard extends StatelessWidget {
   const _TotalCard({required this.total});
-
   final double total;
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -677,14 +721,12 @@ class _TotalCard extends StatelessWidget {
   }
 }
 
-// ─── Note (textarea 3 lignes) ────────────────────────────────────────────
+// ─── Note ─────────────────────────────────────────────────────────
 
 class _NoteField extends StatelessWidget {
   const _NoteField({required this.controller, required this.enabled});
-
   final TextEditingController controller;
   final bool enabled;
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -724,7 +766,7 @@ class _NoteField extends StatelessWidget {
   }
 }
 
-// ─── Sticky actions (2 boutons verticaux) ────────────────────────────────
+// ─── Sticky actions ───────────────────────────────────────────────
 
 class _StickyActions extends StatelessWidget {
   const _StickyActions({
@@ -732,7 +774,6 @@ class _StickyActions extends StatelessWidget {
     required this.onEnvoyer,
     required this.onRefuser,
   });
-
   final bool isSubmitting;
   final VoidCallback onEnvoyer;
   final VoidCallback onRefuser;
@@ -762,10 +803,6 @@ class _StickyActions extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: AppColors.primary,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: AppColors.primary,
-                    width: AppDimens.borderThin,
-                  ),
                 ),
                 alignment: Alignment.center,
                 child: isSubmitting
@@ -813,6 +850,6 @@ class _StickyActions extends StatelessWidget {
   }
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────
 
-String _fmt(double v) => NumberFormat('#,##0', 'fr_FR').format(v);
+String _fmt(double v) => NumberFormat('#,##0', 'fr_FR').format(v.round());

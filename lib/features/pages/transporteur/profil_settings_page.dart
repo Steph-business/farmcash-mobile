@@ -2,8 +2,12 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
+import '../../../models/utilisateur.dart';
+import '../../../models/vehicle.dart';
 import '../../../routing/route_names.dart';
+import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
 import '../../../theme/app_text_styles.dart';
@@ -12,40 +16,48 @@ import '../../state/auth_state.dart';
 // ─── COULEURS LOCALES ───────────────────────────────────────────────────
 
 const Color _kPrimarySoft = Color(0xFFE8F5E9);
-const Color _kWarnSoft = Color(0xFFFEF3C7);
-const Color _kWarn = Color(0xFFB45309);
 
 // Radius cards des groupes (12 — iOS Settings style).
 const BorderRadius _kBrGroup = BorderRadius.all(Radius.circular(12));
 
-// Avatar transporteur — portrait Unsplash conforme à la maquette.
-const String _kAvatarUrl =
-    'https://images.unsplash.com/photo-1531123897727-8f129e1688ce'
-    '?w=300&h=300&fit=crop&auto=format';
+/// Bundle léger pour le sous-titre du hero (solde wallet + nb véhicules).
+class _ProfilExtras {
+  const _ProfilExtras({required this.solde, required this.vehicules});
+  final double? solde;
+  final List<Vehicle> vehicules;
+}
 
-// Photo de la vignette du véhicule (Toyota Hilux).
-const String _kVehiculeThumbUrl =
-    'https://images.unsplash.com/photo-1599045118108-bf9954418b76'
-    '?w=200&h=200&fit=crop&auto=format';
-
-// Nom et identité — alignés sur la maquette (transporteur voit FULL ses
-// infos personnelles + son client final voit le nom complet conformément
-// à la règle 3 du chantier 3).
-const String _kNom = 'Yao Brou';
-const String _kMeta = 'Camion 3 tonnes · Toyota Hilux 2018 · 2345 AB 01';
+final _profilExtrasProvider =
+    FutureProvider.autoDispose<_ProfilExtras>((ref) async {
+  final logistics = ref.watch(logisticsServiceProvider);
+  final finance = ref.watch(financeServiceProvider);
+  final results = await Future.wait<dynamic>([
+    logistics
+        .listMyVehicles()
+        .then<Object?>((v) => v)
+        .catchError((_) => <Vehicle>[]),
+    finance.getWallet().then<Object?>((v) => v).catchError((_) => null),
+  ]);
+  final vehicules = (results[0] as List<Vehicle>?) ?? const <Vehicle>[];
+  final walletBundle = results[1];
+  final double? solde = walletBundle == null
+      ? null
+      : ((walletBundle as dynamic).wallet.balance as double);
+  return _ProfilExtras(solde: solde, vehicules: vehicules);
+});
 
 /// Page Profil & paramètres transporteur — distincte de l'onglet `profil_page`.
 ///
 /// Accessible via tap sur l'avatar du header (top-level push). Pattern
 /// iOS Settings : hero avatar + sections empilées + rows icône/label/chevron,
 /// bouton déconnexion rouge, footer version.
-///
-/// Reproduction fidèle de `mockups/transporteur/profil_settings.html`.
 class ProfilSettingsTransporteurPage extends ConsumerWidget {
   const ProfilSettingsTransporteurPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(currentUserProvider);
+    final extrasAsync = ref.watch(_profilExtrasProvider);
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -54,158 +66,94 @@ class ProfilSettingsTransporteurPage extends ConsumerWidget {
           children: [
             const _Header(),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(
-                  AppDimens.pagePaddingH,
-                  0,
-                  AppDimens.pagePaddingH,
-                  AppDimens.space24,
+              child: RefreshIndicator(
+                color: AppColors.primary,
+                onRefresh: () async => ref.invalidate(_profilExtrasProvider),
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppDimens.pagePaddingH,
+                    0,
+                    AppDimens.pagePaddingH,
+                    AppDimens.space24,
+                  ),
+                  children: [
+                    // 1. Hero — avatar + nom + meta + rating
+                    _Hero(user: user, extras: extrasAsync.value),
+
+                    // 2. Section "Mes véhicules" (liste compacte)
+                    const _SectionTitle('Mes véhicules'),
+                    _Group(rows: _vehiculesRows(context, extrasAsync.value)),
+                    AppDimens.vGap24,
+
+                    // 3. Section "Mon activité"
+                    const _SectionTitle('Mon activité'),
+                    _Group(rows: [
+                      _RowTile(
+                        icon: Icons.alt_route,
+                        label: 'Mes itinéraires',
+                        onTap: () => context.push(
+                          RouteNames.transporteurItinerairesPath,
+                        ),
+                      ),
+                      _RowTile(
+                        icon: Icons.history,
+                        label: 'Historique des missions',
+                        onTap: () => context.push(
+                          RouteNames.transporteurMissionsHistoriquePath,
+                        ),
+                      ),
+                    ]),
+                    AppDimens.vGap24,
+
+                    // 4. Section "Mon compte"
+                    const _SectionTitle('Mon compte'),
+                    _Group(rows: [
+                      _RowTile(
+                        icon: Icons.account_balance_wallet_outlined,
+                        iconGreen: true,
+                        label: extrasAsync.value?.solde != null
+                            ? 'Wallet · ${_nf.format(extrasAsync.value!.solde!.round())} F'
+                            : 'Wallet',
+                        onTap: () =>
+                            context.push(RouteNames.transporteurWalletPath),
+                      ),
+                      _RowTile(
+                        icon: Icons.receipt_long_outlined,
+                        label: 'Mes transactions',
+                        onTap: () => context.push(
+                          RouteNames.transporteurTransactionsPath,
+                        ),
+                      ),
+                    ]),
+                    AppDimens.vGap24,
+
+                    // 5. Section "Application"
+                    const _SectionTitle('Application'),
+                    _Group(rows: [
+                      _RowTile(
+                        icon: Icons.notifications_none,
+                        label: 'Notifications',
+                        onTap: () => context.push(
+                          RouteNames.transporteurNotificationsPath,
+                        ),
+                      ),
+                    ]),
+                    AppDimens.vGap24,
+
+                    // 6. Bouton "Se déconnecter"
+                    _LogoutButton(
+                      onTap: () async {
+                        await ref.read(authStateProvider.notifier).logout();
+                        if (context.mounted) {
+                          context.go(RouteNames.bienvenuePath);
+                        }
+                      },
+                    ),
+                    AppDimens.vGap16,
+
+                    const _FooterVersion(),
+                  ],
                 ),
-                children: [
-                  // 1. Hero — avatar + nom + meta + rating + bouton Modifier
-                  _Hero(
-                    onModifier: () =>
-                        _showSoon(context, 'Modifier le profil — à venir'),
-                  ),
-
-                  // 2. Section "Mes véhicules"
-                  const _SectionTitle('Mes véhicules'),
-                  _Group(rows: [
-                    _VehiculeRow(
-                      photoUrl: _kVehiculeThumbUrl,
-                      titre: 'Toyota Hilux',
-                      sous: '1 200 kg utiles · 2345 AB 01',
-                      onTap: () =>
-                          _showSoon(context, 'Détail véhicule — à venir'),
-                    ),
-                    _AddRow(
-                      label: 'Ajouter un véhicule',
-                      onTap: () => _showSoon(
-                        context,
-                        'Ajouter un véhicule — à venir',
-                      ),
-                    ),
-                  ]),
-                  AppDimens.vGap24,
-
-                  // 3. Section "Mes documents"
-                  const _SectionTitle('Mes documents'),
-                  _Group(rows: [
-                    _DocRow(
-                      icon: Icons.description_outlined,
-                      label: 'Carte grise',
-                      chipLabel: 'Validée',
-                      chipKind: _ChipKind.ok,
-                      onTap: () =>
-                          _showSoon(context, 'Carte grise — à venir'),
-                    ),
-                    _DocRow(
-                      icon: Icons.credit_card_outlined,
-                      label: 'Permis de conduire',
-                      chipLabel: 'Validée',
-                      chipKind: _ChipKind.ok,
-                      onTap: () =>
-                          _showSoon(context, 'Permis — à venir'),
-                    ),
-                    _DocRow(
-                      icon: Icons.shield_outlined,
-                      label: 'Assurance véhicule',
-                      chipLabel: 'Expire dans 23j',
-                      chipKind: _ChipKind.warn,
-                      onTap: () =>
-                          _showSoon(context, 'Assurance — à venir'),
-                    ),
-                  ]),
-                  AppDimens.vGap24,
-
-                  // 4. Section "Mon compte"
-                  const _SectionTitle('Mon compte'),
-                  _Group(rows: [
-                    _RowTile(
-                      icon: Icons.account_balance_wallet_outlined,
-                      iconGreen: true,
-                      label: 'Wallet',
-                      onTap: () =>
-                          _showSoon(context, 'Wallet — à venir'),
-                    ),
-                    _RowTile(
-                      icon: Icons.credit_card_outlined,
-                      label: 'Informations bancaires',
-                      onTap: () => _showSoon(
-                        context,
-                        'Informations bancaires — à venir',
-                      ),
-                    ),
-                    _RowTile(
-                      icon: Icons.place_outlined,
-                      label: 'Zones de couverture',
-                      onTap: () =>
-                          _showSoon(context, 'Zones de couverture — à venir'),
-                    ),
-                  ]),
-                  AppDimens.vGap24,
-
-                  // 5. Section "Application"
-                  const _SectionTitle('Application'),
-                  _Group(rows: [
-                    _RowTile(
-                      icon: Icons.notifications_none,
-                      label: 'Notifications',
-                      onTap: () => context.push(
-                        RouteNames.transporteurNotificationsPath,
-                      ),
-                    ),
-                    _RowTile(
-                      icon: Icons.language,
-                      label: 'Langue',
-                      onTap: () => _showSoon(context, 'Langue — à venir'),
-                    ),
-                    _RowTile(
-                      icon: Icons.dark_mode_outlined,
-                      label: 'Apparence',
-                      onTap: () =>
-                          _showSoon(context, 'Apparence — à venir'),
-                    ),
-                  ]),
-                  AppDimens.vGap24,
-
-                  // 6. Section "Support"
-                  const _SectionTitle('Support'),
-                  _Group(rows: [
-                    _RowTile(
-                      icon: Icons.help_outline,
-                      label: "Centre d'aide",
-                      onTap: () =>
-                          _showSoon(context, "Centre d'aide — à venir"),
-                    ),
-                    _RowTile(
-                      icon: Icons.chat_outlined,
-                      label: 'Contact',
-                      onTap: () =>
-                          _showSoon(context, 'Contact — à venir'),
-                    ),
-                    _RowTile(
-                      icon: Icons.description_outlined,
-                      label: 'CGU',
-                      onTap: () => _showSoon(context, 'CGU — à venir'),
-                    ),
-                  ]),
-                  AppDimens.vGap24,
-
-                  // 7. Bouton "Se déconnecter" (texte rouge centré)
-                  _LogoutButton(
-                    onTap: () async {
-                      await ref.read(authStateProvider.notifier).logout();
-                      if (context.mounted) {
-                        context.go(RouteNames.bienvenuePath);
-                      }
-                    },
-                  ),
-                  AppDimens.vGap16,
-
-                  // 8. Footer version
-                  const _FooterVersion(),
-                ],
               ),
             ),
           ],
@@ -214,15 +162,27 @@ class ProfilSettingsTransporteurPage extends ConsumerWidget {
     );
   }
 
-  static void _showSoon(BuildContext context, String msg) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(msg),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+  List<Widget> _vehiculesRows(BuildContext context, _ProfilExtras? extras) {
+    final vehicules = extras?.vehicules ?? const <Vehicle>[];
+    final rows = <Widget>[];
+    for (final v in vehicules.take(2)) {
+      rows.add(_VehiculeRow(
+        vehicule: v,
+        onTap: () =>
+            context.push(RouteNames.transporteurMesVehiculesPath),
+      ));
+    }
+    rows.add(_AddRow(
+      label: vehicules.isEmpty
+          ? 'Ajouter mon premier véhicule'
+          : 'Voir / ajouter un véhicule',
+      onTap: () => context.push(
+        vehicules.isEmpty
+            ? RouteNames.transporteurVehiculeCreerPath
+            : RouteNames.transporteurMesVehiculesPath,
+      ),
+    ));
+    return rows;
   }
 }
 
@@ -273,20 +233,36 @@ class _Header extends StatelessWidget {
   }
 }
 
-// ─── Hero : avatar + nom + meta + rating + bouton "Modifier" ────────────
+// ─── Hero : avatar + nom + meta + rating ────────────────────────────────
 
 class _Hero extends StatelessWidget {
-  const _Hero({required this.onModifier});
+  const _Hero({required this.user, required this.extras});
 
-  final VoidCallback onModifier;
+  final Utilisateur? user;
+  final _ProfilExtras? extras;
 
   @override
   Widget build(BuildContext context) {
+    final nom = user?.fullName?.trim().isNotEmpty == true
+        ? user!.fullName!.trim()
+        : (user?.phone ?? 'Transporteur');
+    final rating = user?.rating ?? 0;
+    final photoUrl = user?.photoUrl;
+    final vehicules = extras?.vehicules ?? const <Vehicle>[];
+    final meta = vehicules.isEmpty
+        ? 'Aucun véhicule enregistré'
+        : vehicules
+            .take(2)
+            .map((v) => v.marque?.trim().isNotEmpty == true
+                ? v.marque!.trim()
+                : (v.type.isNotEmpty ? v.type : 'Véhicule'))
+            .join(' · ');
+
     return Padding(
       padding: const EdgeInsets.only(top: AppDimens.space8, bottom: 20),
       child: Column(
         children: [
-          // Avatar rond 88 (portrait Unsplash).
+          // Avatar rond 88
           Container(
             width: 88,
             height: 88,
@@ -299,25 +275,19 @@ class _Hero extends StatelessWidget {
               ),
             ),
             clipBehavior: Clip.antiAlias,
-            child: CachedNetworkImage(
-              imageUrl: _kAvatarUrl,
-              fit: BoxFit.cover,
-              placeholder: (_, _) => const ColoredBox(color: _kPrimarySoft),
-              errorWidget: (_, _, _) => Center(
-                child: Text(
-                  'YB',
-                  style: AppTextStyles.titleLarge.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 24,
-                  ),
-                ),
-              ),
-            ),
+            child: photoUrl != null && photoUrl.isNotEmpty
+                ? CachedNetworkImage(
+                    imageUrl: photoUrl,
+                    fit: BoxFit.cover,
+                    placeholder: (_, _) =>
+                        const ColoredBox(color: _kPrimarySoft),
+                    errorWidget: (_, _, _) => _Initiales(nom: nom),
+                  )
+                : _Initiales(nom: nom),
           ),
           const SizedBox(height: 12),
           Text(
-            _kNom,
+            nom,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: AppTextStyles.displayLarge.copyWith(
@@ -328,74 +298,64 @@ class _Hero extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            _kMeta,
+            meta,
             textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: AppTextStyles.bodySmall.copyWith(
               fontSize: 12,
               color: AppColors.textSecondary,
               height: 1.5,
             ),
           ),
-          const SizedBox(height: 6),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                '★ 4.8',
-                style: AppTextStyles.labelMedium.copyWith(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFFF59E0B),
+          if (rating > 0) ...[
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  '★ ${rating.toStringAsFixed(1).replaceAll('.', ',')}',
+                  style: AppTextStyles.labelMedium.copyWith(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFFF59E0B),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                '·',
-                style: AppTextStyles.bodySmall.copyWith(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                '142 livraisons',
-                style: AppTextStyles.bodySmall.copyWith(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          InkWell(
-            onTap: onModifier,
-            borderRadius: BorderRadius.circular(10),
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 18,
-                vertical: 8,
-              ),
-              decoration: BoxDecoration(
-                color: AppColors.background,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: AppColors.primary,
-                  width: AppDimens.borderThin,
-                ),
-              ),
-              child: Text(
-                'Modifier',
-                style: AppTextStyles.labelMedium.copyWith(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primary,
-                ),
-              ),
+              ],
             ),
-          ),
+          ],
         ],
       ),
     );
+  }
+}
+
+class _Initiales extends StatelessWidget {
+  const _Initiales({required this.nom});
+  final String nom;
+  @override
+  Widget build(BuildContext context) {
+    final initiales = _toInitiales(nom);
+    return Center(
+      child: Text(
+        initiales,
+        style: AppTextStyles.titleLarge.copyWith(
+          color: AppColors.primary,
+          fontWeight: FontWeight.w700,
+          fontSize: 24,
+        ),
+      ),
+    );
+  }
+
+  String _toInitiales(String n) {
+    final parts = n.trim().split(RegExp(r'\s+'));
+    if (parts.isEmpty) return '?';
+    if (parts.length == 1) {
+      final first = parts.first;
+      return first.isEmpty ? '?' : first[0].toUpperCase();
+    }
+    return (parts.first[0] + parts.last[0]).toUpperCase();
   }
 }
 
@@ -427,7 +387,7 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
-// ─── Group (card englobante avec divider entre rows) ────────────────────
+// ─── Group ──────────────────────────────────────────────────────────────
 
 class _Group extends StatelessWidget {
   const _Group({required this.rows});
@@ -463,7 +423,7 @@ class _Group extends StatelessWidget {
   }
 }
 
-// ─── RowTile (iOS Settings style — icône carrée + label + sub + chevron) ─
+// ─── RowTile ────────────────────────────────────────────────────────────
 
 class _RowTile extends StatelessWidget {
   const _RowTile({
@@ -529,23 +489,26 @@ class _RowTile extends StatelessWidget {
   }
 }
 
-// ─── Vehicule row (photo 60×60 + texte + bouton "Voir") ─────────────────
+// ─── Vehicule row (vraies données du véhicule) ──────────────────────────
 
 class _VehiculeRow extends StatelessWidget {
-  const _VehiculeRow({
-    required this.photoUrl,
-    required this.titre,
-    required this.sous,
-    required this.onTap,
-  });
+  const _VehiculeRow({required this.vehicule, required this.onTap});
 
-  final String photoUrl;
-  final String titre;
-  final String sous;
+  final Vehicle vehicule;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final titre = vehicule.marque?.trim().isNotEmpty == true
+        ? vehicule.marque!.trim()
+        : (vehicule.type.isNotEmpty ? vehicule.type : 'Véhicule');
+    final sous = [
+      if (vehicule.chargeMaxKg > 0)
+        '${_nf.format(vehicule.chargeMaxKg.round())} kg utiles',
+      if (vehicule.immatriculation?.trim().isNotEmpty == true)
+        vehicule.immatriculation!.trim(),
+    ].join(' · ');
+    final photo = vehicule.photoUrl;
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -567,13 +530,23 @@ class _VehiculeRow extends StatelessWidget {
                 ),
               ),
               clipBehavior: Clip.antiAlias,
-              child: CachedNetworkImage(
-                imageUrl: photoUrl,
-                fit: BoxFit.cover,
-                placeholder: (_, _) => const ColoredBox(color: _kPrimarySoft),
-                errorWidget: (_, _, _) =>
-                    const ColoredBox(color: _kPrimarySoft),
-              ),
+              child: photo != null && photo.isNotEmpty
+                  ? CachedNetworkImage(
+                      imageUrl: photo,
+                      fit: BoxFit.cover,
+                      placeholder: (_, _) =>
+                          const ColoredBox(color: _kPrimarySoft),
+                      errorWidget: (_, _, _) => const Icon(
+                        Icons.local_shipping_outlined,
+                        size: 22,
+                        color: AppColors.primary,
+                      ),
+                    )
+                  : const Icon(
+                      Icons.local_shipping_outlined,
+                      size: 22,
+                      color: AppColors.primary,
+                    ),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -591,16 +564,18 @@ class _VehiculeRow extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    sous,
-                    style: AppTextStyles.bodySmall.copyWith(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
+                  if (sous.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      sous,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  ],
                 ],
               ),
             ),
@@ -619,7 +594,7 @@ class _VehiculeRow extends StatelessWidget {
   }
 }
 
-// ─── Add row (lien vert "+ Ajouter un véhicule") ────────────────────────
+// ─── Add row ────────────────────────────────────────────────────────────
 
 class _AddRow extends StatelessWidget {
   const _AddRow({required this.label, required this.onTap});
@@ -670,95 +645,7 @@ class _AddRow extends StatelessWidget {
   }
 }
 
-// ─── Doc row (icône + label + chip statut) ──────────────────────────────
-
-enum _ChipKind { ok, warn }
-
-class _DocRow extends StatelessWidget {
-  const _DocRow({
-    required this.icon,
-    required this.label,
-    required this.chipLabel,
-    required this.chipKind,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final String chipLabel;
-  final _ChipKind chipKind;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final (chipBg, chipFg) = switch (chipKind) {
-      _ChipKind.ok => (_kPrimarySoft, AppColors.primary),
-      _ChipKind.warn => (_kWarnSoft, _kWarn),
-    };
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppDimens.space16,
-          vertical: 14,
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: _kPrimarySoft,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              alignment: Alignment.center,
-              child: Icon(
-                icon,
-                size: 18,
-                color: AppColors.primary,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                label,
-                style: AppTextStyles.bodyMedium.copyWith(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.text,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 4,
-              ),
-              decoration: BoxDecoration(
-                color: chipBg,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: chipBg, width: AppDimens.borderThin),
-              ),
-              child: Text(
-                chipLabel,
-                style: AppTextStyles.labelSmall.copyWith(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: chipFg,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Bouton "Se déconnecter" (texte rouge centré, bordure rouge) ────────
+// ─── Bouton "Se déconnecter" ────────────────────────────────────────────
 
 class _LogoutButton extends StatelessWidget {
   const _LogoutButton({required this.onTap});
@@ -819,3 +706,4 @@ class _FooterVersion extends StatelessWidget {
   }
 }
 
+final _nf = NumberFormat('#,##0', 'fr_FR');

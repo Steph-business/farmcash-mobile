@@ -1,20 +1,26 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
+import '../../../../models/commande.dart';
 import '../../../../routing/route_names.dart';
+import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
+import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/vue_erreur.dart';
 
-// ─── Constantes ────────────────────────────────────────────────────────
+// ─── Provider ────────────────────────────────────────────────────────
 
-const String _kRecapThumb =
-    'https://images.unsplash.com/photo-1601493700631-2b16ec4b4716?w=200&h=200&fit=crop&auto=format';
+final _commandeSuccesProvider = FutureProvider.autoDispose
+    .family<Commande, String>((ref, id) async {
+  return ref.read(ordersServiceProvider).getOrder(id);
+});
 
-/// Confirmation de commande — hero check vert + récap + 3 étapes.
-/// Calque sur `mockups/acheteur/commande_succes.html`.
+/// Confirmation de commande après paiement réussi. Charge la commande
+/// depuis l'API pour afficher la référence et les montants réels.
 class CommandeSuccesPage extends ConsumerWidget {
   const CommandeSuccesPage({required this.commandeId, super.key});
 
@@ -22,48 +28,74 @@ class CommandeSuccesPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final ref0 = commandeId.startsWith('C-') ? commandeId : 'C-2026-0089';
+    final async = ref.watch(_commandeSuccesProvider(commandeId));
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         bottom: false,
-        child: Column(
-          children: [
-            _Header(onClose: () => context.go(RouteNames.accueilAcheteurPath)),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
-                children: [
-                  const _Hero(),
-                  const SizedBox(height: 4),
-                  _RecapCard(reference: ref0),
-                  const SizedBox(height: 18),
-                  Text(
-                    'Et maintenant ?',
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.text,
-                    ),
+        child: async.when(
+          loading: () => Column(
+            children: [
+              _Header(onClose: () => context.go(RouteNames.accueilAcheteurPath)),
+              const Expanded(child: Chargement(size: 22)),
+            ],
+          ),
+          error: (e, _) => Column(
+            children: [
+              _Header(onClose: () => context.go(RouteNames.accueilAcheteurPath)),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppDimens.pagePaddingH),
+                  child: VueErreur(
+                    message: 'Impossible de charger la commande. $e',
+                    onRetry: () =>
+                        ref.invalidate(_commandeSuccesProvider(commandeId)),
                   ),
-                  const SizedBox(height: 12),
-                  const _StepsList(),
-                ],
+                ),
               ),
-            ),
-            _StickyButtons(commandeId: ref0),
-          ],
+            ],
+          ),
+          data: (cmd) => _build(context, cmd),
         ),
       ),
     );
   }
+
+  Widget _build(BuildContext context, Commande cmd) {
+    return Column(
+      children: [
+        _Header(onClose: () => context.go(RouteNames.accueilAcheteurPath)),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+            children: [
+              const _Hero(),
+              const SizedBox(height: 4),
+              _RecapCard(commande: cmd),
+              const SizedBox(height: 18),
+              Text(
+                'Et maintenant ?',
+                style: AppTextStyles.bodyMedium.copyWith(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.text,
+                ),
+              ),
+              const SizedBox(height: 12),
+              const _StepsList(),
+            ],
+          ),
+        ),
+        _StickyButtons(commandeId: cmd.id),
+      ],
+    );
+  }
 }
 
-// ─── Header (titre centré + X à droite) ────────────────────────────────
+// ─── Header ───────────────────────────────────────────────────────────
 
 class _Header extends StatelessWidget {
   const _Header({required this.onClose});
-
   final VoidCallback onClose;
 
   @override
@@ -73,9 +105,7 @@ class _Header extends StatelessWidget {
         color: AppColors.background,
         border: Border(
           bottom: BorderSide(
-            color: AppColors.border,
-            width: AppDimens.borderThin,
-          ),
+              color: AppColors.border, width: AppDimens.borderThin),
         ),
       ),
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
@@ -112,7 +142,7 @@ class _Header extends StatelessWidget {
   }
 }
 
-// ─── Hero (check vert + titre + sous-titre) ────────────────────────────
+// ─── Hero ─────────────────────────────────────────────────────────────
 
 class _Hero extends StatelessWidget {
   const _Hero();
@@ -147,7 +177,7 @@ class _Hero extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
-              'Yao K. a été notifié. Tu seras alerté à chaque étape.',
+              'Le vendeur a été notifié. Tu seras alerté à chaque étape.',
               textAlign: TextAlign.center,
               style: AppTextStyles.bodySmall.copyWith(
                 fontSize: 13,
@@ -162,43 +192,43 @@ class _Hero extends StatelessWidget {
   }
 }
 
-// ─── Recap card (4 lignes) ─────────────────────────────────────────────
+// ─── Recap card ───────────────────────────────────────────────────────
 
 class _RecapCard extends StatelessWidget {
-  const _RecapCard({required this.reference});
-
-  final String reference;
+  const _RecapCard({required this.commande});
+  final Commande commande;
 
   @override
   Widget build(BuildContext context) {
+    final df = DateFormat('d MMM y', 'fr_FR');
+    final reference =
+        commande.reference.isNotEmpty ? commande.reference : commande.id;
+    final livraisonStr = commande.livraisonDate != null
+        ? df.format(commande.livraisonDate!)
+        : 'À planifier';
     return Container(
       decoration: BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: AppColors.border,
-          width: AppDimens.borderThin,
-        ),
+            color: AppColors.border, width: AppDimens.borderThin),
       ),
       clipBehavior: Clip.hardEdge,
       child: Column(
         children: [
+          _RecapRow(label: 'N° commande', value: '#$reference'),
           _RecapRow(
-            label: 'N° commande',
-            value: '#$reference',
+            label: 'Quantité',
+            value: '${_nf.format(commande.quantiteKg.round())} kg',
           ),
-          _RecapRowProduit(
-            label: 'Produit',
-            value: 'Maïs blanc · 500 kg',
-          ),
-          const _RecapRow(
+          _RecapRow(
             label: 'Montant',
-            value: '182 125 F',
+            value: '${_nf.format(commande.montantTotal.round())} F',
             valueGreen: true,
           ),
-          const _RecapRow(
+          _RecapRow(
             label: 'Livraison estimée',
-            value: '23 mai 2026',
+            value: livraisonStr,
             isLast: true,
           ),
         ],
@@ -214,7 +244,6 @@ class _RecapRow extends StatelessWidget {
     this.valueGreen = false,
     this.isLast = false,
   });
-
   final String label;
   final String value;
   final bool valueGreen;
@@ -268,101 +297,25 @@ class _RecapRow extends StatelessWidget {
   }
 }
 
-class _RecapRowProduit extends StatelessWidget {
-  const _RecapRowProduit({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-      decoration: const BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: AppColors.border,
-            width: AppDimens.borderThin,
-          ),
-        ),
-      ),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: AppColors.surfaceSoft,
-                border: Border.all(
-                  color: AppColors.border,
-                  width: AppDimens.borderThin,
-                ),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              clipBehavior: Clip.hardEdge,
-              child: CachedNetworkImage(
-                imageUrl: _kRecapThumb,
-                fit: BoxFit.cover,
-                placeholder: (_, _) => Container(color: AppColors.surfaceSoft),
-                errorWidget: (_, _, _) =>
-                    Container(color: AppColors.surfaceSoft),
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              label,
-              style: AppTextStyles.bodySmall.copyWith(
-                fontSize: 13,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ),
-          Flexible(
-            child: Text(
-              value,
-              textAlign: TextAlign.right,
-              style: AppTextStyles.bodyMedium.copyWith(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.text,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Steps list (3 mini steps numérotés) ───────────────────────────────
+// ─── Steps list ───────────────────────────────────────────────────────
 
 class _StepsList extends StatelessWidget {
   const _StepsList();
-
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: const [
-        _StepTile(
-          num: '1',
-          text: 'Le vendeur prépare ton colis',
-        ),
+    return const Column(
+      children: [
+        _StepTile(num: '1', text: 'Le vendeur prépare ton colis'),
         SizedBox(height: 10),
         _StepTile(
           num: '2',
           text:
-              'Le transporteur prend le colis (tu paies à ce moment via escrow auto)',
+              'Le transporteur prend le colis (paiement libéré au vendeur via escrow auto)',
         ),
         SizedBox(height: 10),
         _StepTile(
           num: '3',
-          text:
-              'Tu reçois et tu montres ton QR pour valider la livraison',
+          text: 'Tu reçois et tu montres ton QR pour valider la livraison',
         ),
       ],
     );
@@ -371,10 +324,8 @@ class _StepsList extends StatelessWidget {
 
 class _StepTile extends StatelessWidget {
   const _StepTile({required this.num, required this.text});
-
   final String num;
   final String text;
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -382,9 +333,7 @@ class _StepTile extends StatelessWidget {
         color: AppColors.background,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: AppColors.border,
-          width: AppDimens.borderThin,
-        ),
+            color: AppColors.border, width: AppDimens.borderThin),
       ),
       padding: const EdgeInsets.all(12),
       child: Row(
@@ -424,11 +373,8 @@ class _StepTile extends StatelessWidget {
   }
 }
 
-// ─── Sticky buttons (verticaux) ────────────────────────────────────────
-
 class _StickyButtons extends StatelessWidget {
   const _StickyButtons({required this.commandeId});
-
   final String commandeId;
 
   @override
@@ -438,9 +384,7 @@ class _StickyButtons extends StatelessWidget {
         color: AppColors.background,
         border: Border(
           top: BorderSide(
-            color: AppColors.border,
-            width: AppDimens.borderThin,
-          ),
+              color: AppColors.border, width: AppDimens.borderThin),
         ),
       ),
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
@@ -449,7 +393,7 @@ class _StickyButtons extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: InkWell(
-              onTap: () => context.push(
+              onTap: () => context.go(
                 RouteNames.acheteurCommandeDetailPathFor(commandeId),
               ),
               borderRadius: BorderRadius.circular(12),
@@ -459,10 +403,6 @@ class _StickyButtons extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: AppColors.primary,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppColors.primary,
-                    width: AppDimens.borderThin,
-                  ),
                 ),
                 child: Text(
                   'Suivre ma commande',
@@ -480,10 +420,7 @@ class _StickyButtons extends StatelessWidget {
             onTap: () => context.go(RouteNames.acheteurMarchePath),
             borderRadius: BorderRadius.circular(6),
             child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 8,
-                vertical: 6,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               child: Text(
                 'Retour au marché',
                 style: AppTextStyles.bodyMedium.copyWith(
@@ -500,3 +437,4 @@ class _StickyButtons extends StatelessWidget {
   }
 }
 
+final _nf = NumberFormat('#,##0', 'fr_FR');

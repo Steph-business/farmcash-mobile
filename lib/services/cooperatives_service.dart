@@ -492,6 +492,20 @@ class CooperativesService {
     );
   }
 
+  /// COOP initiatrice confirme la réponse d'un destinataire (le destinataire
+  /// a accepté la sollicitation, la coop scelle l'engagement).
+  ///
+  /// Effets : `sollicitation_recipients.response_action = 'CONFIRMED_BY_COOP'`
+  /// + `confirmed_by_coop_at = now()`, notification envoyée au destinataire.
+  Future<Map<String, dynamic>> confirmRecipientResponse({
+    required String sollicitationId,
+    required String recipientId,
+  }) async {
+    return _api.put<Map<String, dynamic>>(
+      ApiEndpoints.sollicitationRecipientConfirm(sollicitationId, recipientId),
+    );
+  }
+
   // ─── Helper ──────────────────────────────────────────────────────────
 
   List<T> _asList<T>(dynamic raw, T Function(Map<String, dynamic>) from) {

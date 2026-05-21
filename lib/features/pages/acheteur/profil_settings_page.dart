@@ -2,8 +2,12 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
+import '../../../models/utilisateur.dart';
+import '../../../models/wallet_with_transactions.dart';
 import '../../../routing/route_names.dart';
+import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
 import '../../../theme/app_text_styles.dart';
@@ -16,13 +20,16 @@ const Color _kPrimarySoft = Color(0xFFE8F5E9);
 // Radius cards des groupes (12 — iOS Settings style).
 const BorderRadius _kBrGroup = BorderRadius.all(Radius.circular(12));
 
-// Avatar acheteur (portrait Unsplash conforme à la maquette).
-const String _kAvatarUrl =
-    'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2'
-    '?w=300&h=300&fit=crop&auto=format';
-
-// Nom acheteur — TRONQUÉ « Marie Y. » partout (anti-contournement spec).
-const String _kNom = 'Marie Y.';
+/// Charge le wallet (solde + escrow) en arrière-plan pour l'afficher dans
+/// la section "Mon compte" sans bloquer la page si l'endpoint échoue.
+final _walletInfoProvider =
+    FutureProvider.autoDispose<WalletWithTransactions?>((ref) async {
+  try {
+    return await ref.read(financeServiceProvider).getWallet(limit: 1);
+  } catch (_) {
+    return null;
+  }
+});
 
 /// Page Profil & paramètres acheteur — distincte de l'onglet `profil_page`.
 ///
@@ -36,6 +43,17 @@ class ProfilSettingsAcheteurPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(currentUserProvider);
+    final walletAsync = ref.watch(_walletInfoProvider);
+    final walletSub = walletAsync.maybeWhen(
+      data: (w) {
+        if (w == null) return 'Solde, transactions, escrow';
+        final solde = _nf.format(w.wallet.balance.round());
+        final escrow = _nf.format(w.wallet.balanceEscrow.round());
+        return '$solde F · $escrow F en escrow';
+      },
+      orElse: () => 'Solde, transactions, escrow',
+    );
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -52,8 +70,9 @@ class ProfilSettingsAcheteurPage extends ConsumerWidget {
                   AppDimens.space24,
                 ),
                 children: [
-                  // 1. Hero — avatar + nom tronqué + meta + bouton Modifier
+                  // 1. Hero — avatar + nom + meta + bouton Modifier
                   _Hero(
+                    user: user,
                     onModifier: () =>
                         _showSoon(context, 'Modifier le profil — à venir'),
                   ),
@@ -75,15 +94,15 @@ class ProfilSettingsAcheteurPage extends ConsumerWidget {
                       icon: Icons.location_on_outlined,
                       iconGreen: true,
                       label: 'Adresses de livraison',
-                      sub: '2 adresses enregistrées',
-                      onTap: () =>
-                          _showSoon(context, 'Adresses — à venir'),
+                      sub: 'Gérer mes adresses',
+                      onTap: () => context
+                          .push(RouteNames.acheteurAdressesLivraisonPath),
                     ),
                     _RowTile(
                       icon: Icons.account_balance_wallet_outlined,
                       iconGreen: true,
                       label: 'Wallet',
-                      sub: '245 800 F · 175 000 F en escrow',
+                      sub: walletSub,
                       onTap: () =>
                           context.push(RouteNames.acheteurWalletPath),
                     ),
@@ -221,17 +240,28 @@ class _Header extends StatelessWidget {
 // ─── Hero : avatar + nom + meta + bouton "Modifier le profil" ───────────
 
 class _Hero extends StatelessWidget {
-  const _Hero({required this.onModifier});
+  const _Hero({required this.user, required this.onModifier});
 
+  final Utilisateur? user;
   final VoidCallback onModifier;
 
   @override
   Widget build(BuildContext context) {
+    final nom = user?.fullName?.trim();
+    final nomAffiche = (nom != null && nom.isNotEmpty) ? nom : 'Acheteur';
+    final initiales = _initiales(nomAffiche);
+    final photoUrl = user?.photoUrl;
+    final membreDepuis = user?.createdAt != null
+        ? 'membre depuis ${DateFormat('MMM y', 'fr_FR').format(user!.createdAt!)}'
+        : null;
+    final sousTitre = [
+      if (user?.phone != null) user!.phone,
+      if (membreDepuis != null) membreDepuis,
+    ].whereType<String>().join(' · ');
     return Padding(
       padding: const EdgeInsets.only(top: AppDimens.space8, bottom: 20),
       child: Column(
         children: [
-          // Avatar rond 88 (portrait Unsplash).
           Container(
             width: 88,
             height: 88,
@@ -244,25 +274,37 @@ class _Hero extends StatelessWidget {
               ),
             ),
             clipBehavior: Clip.antiAlias,
-            child: CachedNetworkImage(
-              imageUrl: _kAvatarUrl,
-              fit: BoxFit.cover,
-              placeholder: (_, __) => const ColoredBox(color: _kPrimarySoft),
-              errorWidget: (_, __, ___) => Center(
-                child: Text(
-                  'MY',
-                  style: AppTextStyles.titleLarge.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 24,
+            child: photoUrl != null && photoUrl.isNotEmpty
+                ? CachedNetworkImage(
+                    imageUrl: photoUrl,
+                    fit: BoxFit.cover,
+                    placeholder: (_, _) =>
+                        const ColoredBox(color: _kPrimarySoft),
+                    errorWidget: (_, _, _) => Center(
+                      child: Text(
+                        initiales,
+                        style: AppTextStyles.titleLarge.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 24,
+                        ),
+                      ),
+                    ),
+                  )
+                : Center(
+                    child: Text(
+                      initiales,
+                      style: AppTextStyles.titleLarge.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 24,
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            ),
           ),
           const SizedBox(height: 12),
           Text(
-            _kNom,
+            nomAffiche,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: AppTextStyles.displayLarge.copyWith(
@@ -271,26 +313,18 @@ class _Hero extends StatelessWidget {
               color: AppColors.text,
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            'Restaurant Le Baoulé · Cocody',
-            textAlign: TextAlign.center,
-            style: AppTextStyles.bodySmall.copyWith(
-              fontSize: 13,
-              color: AppColors.textSecondary,
-              height: 1.4,
+          if (sousTitre.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              sousTitre,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.bodySmall.copyWith(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+                height: 1.4,
+              ),
             ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            'membre depuis fév 2026',
-            textAlign: TextAlign.center,
-            style: AppTextStyles.bodySmall.copyWith(
-              fontSize: 13,
-              color: AppColors.textSecondary,
-              height: 1.4,
-            ),
-          ),
+          ],
           const SizedBox(height: 14),
           InkWell(
             onTap: onModifier,
@@ -533,5 +567,23 @@ class _FooterVersion extends StatelessWidget {
       ),
     );
   }
+}
+
+// ─── Helpers ────────────────────────────────────────────────────────────
+
+final _nf = NumberFormat('#,##0', 'fr_FR');
+
+/// Deux lettres dérivées du nom (pour fallback avatar texte).
+String _initiales(String nom) {
+  final parts = nom.trim().split(RegExp(r'\s+'));
+  if (parts.length >= 2 && parts.first.isNotEmpty && parts[1].isNotEmpty) {
+    return (parts.first[0] + parts[1][0]).toUpperCase();
+  }
+  if (parts.first.isNotEmpty) {
+    return parts.first
+        .substring(0, parts.first.length >= 2 ? 2 : 1)
+        .toUpperCase();
+  }
+  return '?';
 }
 

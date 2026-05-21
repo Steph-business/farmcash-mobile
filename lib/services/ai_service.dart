@@ -100,12 +100,36 @@ class AiService {
 
   // ─── Traçabilité (public, scan QR) ───────────────────────────────────
 
+  /// Historique brut d'un lot (legacy, kept for compatibility with the
+  /// public scan QR flow). Préférer `getLotTraceability` qui renvoie
+  /// aussi les infos du lot (produit, code, date de récolte).
   Future<List<TraceabilityEvent>> getTraceability(String lotId) async {
     final raw = await _api.get<dynamic>(
       ApiEndpoints.traceability(lotId),
       options: Options(extra: {'skipAuth': true}),
     );
+    // Le backend renvoie `{ lot, events: [...] }` — on extrait `events`
+    // pour conserver la signature historique de cette méthode.
+    if (raw is Map && raw['events'] is List) {
+      return (raw['events'] as List)
+          .whereType<Map>()
+          .map((m) => TraceabilityEvent.fromJson(m.cast<String, dynamic>()))
+          .toList();
+    }
     return _asList(raw, TraceabilityEvent.fromJson);
+  }
+
+  /// Parcours complet d'un lot pour la vue "from-farm-to-fork" côté acheteur.
+  /// Renvoie le payload brut `{ lot, events }` car la coquille est riche
+  /// (voir `lot.produit`, `lot.lot_code`, `lot.date_recolte`, …).
+  /// Endpoint public — pas besoin de JWT (scan QR consommateur).
+  Future<Map<String, dynamic>> getLotTraceability(String lotId) async {
+    final raw = await _api.get<dynamic>(
+      ApiEndpoints.traceability(lotId),
+      options: Options(extra: {'skipAuth': true}),
+    );
+    if (raw is Map) return raw.cast<String, dynamic>();
+    return const <String, dynamic>{};
   }
 
   // ─── Assistant conversationnel ───────────────────────────────────────

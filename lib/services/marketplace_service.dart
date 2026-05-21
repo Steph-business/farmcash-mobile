@@ -7,8 +7,9 @@ import '../api_client/api_client.dart';
 import '../api_client/api_endpoints.dart';
 import '../models/models.dart';
 
-/// Cible d'un upload de média : annonce de vente, publication coop, ou lot.
-enum MediaTargetType { annonceVente, publicationCoop, lot }
+/// Cible d'un upload de média : annonce de vente, publication coop, lot
+/// ou parcelle agronomique.
+enum MediaTargetType { annonceVente, publicationCoop, lot, parcelle }
 
 extension on MediaTargetType {
   String get apiValue {
@@ -19,6 +20,8 @@ extension on MediaTargetType {
         return 'PUBLICATION_COOP';
       case MediaTargetType.lot:
         return 'LOT';
+      case MediaTargetType.parcelle:
+        return 'PARCELLE';
     }
   }
 }
@@ -72,6 +75,7 @@ class MarketplaceService {
   Future<Paginated<AnnonceVente>> listAnnoncesVente({
     String? produitId,
     String? regionId,
+    String? farmerId,
     ProductQuality? qualite,
     double? prixMin,
     double? prixMax,
@@ -84,6 +88,7 @@ class MarketplaceService {
       query: {
         if (produitId != null) 'produit_id': produitId,
         if (regionId != null) 'region_id': regionId,
+        if (farmerId != null) 'farmer_id': farmerId,
         if (qualite != null) 'qualite': qualite.apiValue,
         if (prixMin != null) 'prix_min': prixMin,
         if (prixMax != null) 'prix_max': prixMax,
@@ -131,6 +136,14 @@ class MarketplaceService {
     double? quantiteMinKg,
     String? assignedToCooperativeId,
     DateTime? disponibleJusqu,
+    /// Traçabilité : traitements appliqués sur le lot.
+    ///
+    /// Chaque entrée doit fournir SOIT `produit_traitement_id` (UUID
+    /// catalogue) SOIT `produit_traitement_nom` (matching insensible
+    /// à la casse côté backend). Champs optionnels : `dosage_utilise`,
+    /// `date_application` (YYYY-MM-DD), `delai_carence_respecte`,
+    /// `notes`.
+    List<Map<String, dynamic>>? traitements,
   }) async {
     final json = await _api.post<Map<String, dynamic>>(
       ApiEndpoints.annoncesVente,
@@ -153,6 +166,8 @@ class MarketplaceService {
               disponibleJusqu.toIso8601String().split('T').first,
         if (assignedToCooperativeId != null)
           'assigned_to_cooperative_id': assignedToCooperativeId,
+        if (traitements != null && traitements.isNotEmpty)
+          'traitements': traitements,
       },
     );
     return AnnonceVente.fromJson(json);
@@ -463,6 +478,29 @@ class MarketplaceService {
     return _asList(raw, Lot.fromJson);
   }
 
+  /// Lots présents physiquement dans un entrepôt (via la table `stock`).
+  /// Le backend retourne un tableau d'objets `{ stock_id, quantite_kg,
+  /// date_entree, date_sortie_prev, notes, lot: {...} }`.
+  ///
+  /// On extrait le `lot` imbriqué pour rester compatible avec l'UI qui
+  /// attend une `List<Lot>`. La quantité dans CET entrepôt est portée par
+  /// la ligne stock — si besoin, faire un override côté presenter.
+  Future<List<Lot>> listLotsByEntrepot(String entrepotId) async {
+    final raw = await _api.get<dynamic>(ApiEndpoints.entrepotLots(entrepotId));
+    if (raw is! List) return const <Lot>[];
+    return raw
+        .whereType<Map>()
+        .map((m) {
+          final lotRaw = m['lot'];
+          if (lotRaw is Map) {
+            return Lot.fromJson(lotRaw.cast<String, dynamic>());
+          }
+          return null;
+        })
+        .whereType<Lot>()
+        .toList();
+  }
+
   Future<Lot> createLot({
     required String type,
     required String produitId,
@@ -644,6 +682,14 @@ class MarketplaceService {
       body: {'prevision_id': previsionId, 'quantite_kg': quantiteKg},
     );
     return Reservation.fromJson(json);
+  }
+
+  /// Liste les réservations de prévisions du BUYER connecté.
+  ///
+  /// Endpoint `GET /marketplace/reservations/my`.
+  Future<List<Reservation>> listMyReservations() async {
+    final raw = await _api.get<dynamic>(ApiEndpoints.reservationsMy);
+    return _asList(raw, Reservation.fromJson);
   }
 
   Future<AnnonceVente> convertPrevision(

@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../models/annonce_achat.dart';
@@ -9,6 +10,7 @@ import '../../../models/pagination.dart';
 import '../../../models/portefeuille.dart';
 import '../../../models/utilisateur.dart';
 import '../../../models/wallet_with_transactions.dart';
+import '../../../routing/route_names.dart';
 import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
@@ -123,7 +125,8 @@ class ProfilAcheteurPage extends ConsumerWidget {
         child: Column(
           children: [
             _AppBar(
-              onSettings: () => _showSoon(context, 'Paramètres — à venir'),
+              onSettings: () =>
+                  context.push(RouteNames.acheteurProfilSettingsPath),
             ),
             Expanded(
               child: asyncData.when(
@@ -152,15 +155,6 @@ class ProfilAcheteurPage extends ConsumerWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  static void _showSoon(BuildContext context, String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        behavior: SnackBarBehavior.floating,
       ),
     );
   }
@@ -265,7 +259,8 @@ class _ProfilContent extends StatelessWidget {
           // 2. Carte d'identité
           _CarteIdentite(
             user: user,
-            onModifier: () => _showSoon(context, 'Modifier profil — à venir'),
+            onModifier: () =>
+                context.push(RouteNames.acheteurProfilSettingsPath),
             onEditPhoto: () => _showSoon(context, 'Changer la photo — à venir'),
           ),
           AppDimens.vGap24,
@@ -297,7 +292,7 @@ class _ProfilContent extends StatelessWidget {
                 iconGreen: true,
                 label: "Mes demandes d'achat",
                 subtitle: sousDemandes,
-                onTap: () => _showSoon(context, 'Mes demandes — à venir'),
+                onTap: () => context.push(RouteNames.acheteurDemandesPath),
               ),
             ],
           ),
@@ -312,7 +307,7 @@ class _ProfilContent extends StatelessWidget {
                 iconGreen: true,
                 label: 'Mon wallet',
                 trailing: walletTrailing,
-                onTap: () => _showSoon(context, 'Wallet — à venir'),
+                onTap: () => context.push(RouteNames.acheteurWalletPath),
               ),
               _RowTile(
                 icon: Icons.credit_card_outlined,
@@ -337,12 +332,13 @@ class _ProfilContent extends StatelessWidget {
                 icon: Icons.favorite_border,
                 label: 'Mes favoris',
                 subtitle: sousFavoris,
-                onTap: () => _showSoon(context, 'Favoris — à venir'),
+                onTap: () => context.push(RouteNames.acheteurFavorisPath),
               ),
               _RowTile(
                 icon: Icons.location_on_outlined,
                 label: 'Adresses de livraison',
-                onTap: () => _showSoon(context, 'Adresses — à venir'),
+                onTap: () => context
+                    .push(RouteNames.acheteurAdressesLivraisonPath),
               ),
             ],
           ),
@@ -360,12 +356,14 @@ class _ProfilContent extends StatelessWidget {
               _RowTile(
                 icon: Icons.notifications_none,
                 label: 'Notifications',
-                onTap: () => _showSoon(context, 'Notifications — à venir'),
+                onTap: () =>
+                    context.push(RouteNames.acheteurNotificationsPath),
               ),
               _RowTile(
                 icon: Icons.lock_outline,
                 label: 'Sécurité (PIN, sessions)',
-                onTap: () => _showSoon(context, 'Sécurité — à venir'),
+                onTap: () =>
+                    context.push(RouteNames.acheteurProfilSettingsPath),
               ),
             ],
           ),

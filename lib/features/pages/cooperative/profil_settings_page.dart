@@ -2,8 +2,11 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
+import '../../../models/cooperative.dart';
 import '../../../routing/route_names.dart';
+import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
 import '../../../theme/app_text_styles.dart';
@@ -16,14 +19,14 @@ const Color _kPrimarySoft = Color(0xFFE8F5E9);
 // Radius cards des groupes (12 — iOS Settings style).
 const BorderRadius _kBrGroup = BorderRadius.all(Radius.circular(12));
 
-// Logo coopérative (Unsplash neutre — alignée maquette HTML).
-const String _kLogoUrl =
-    'https://images.unsplash.com/photo-1625246333195-78d9c38ad449'
-    '?w=300&h=300&fit=crop&auto=format';
-
-// Nom coop — la coopérative voit toujours son identité COMPLÈTE.
-const String _kNomCoop = 'COOP-AGRI Lagunes';
-const String _kMetaCoop = '47 membres · Abidjan · Créée mars 2026';
+/// Provider qui charge le profil public de la coop courante.
+/// Pas d'endpoint "ma coop" — on passe par `getPublic(cooperativeId)`.
+final _myCoopProvider = FutureProvider.autoDispose<Cooperative?>((ref) async {
+  final user = ref.watch(currentUserProvider);
+  final coopId = user?.cooperativeId;
+  if (coopId == null || coopId.isEmpty) return null;
+  return ref.read(cooperativesServiceProvider).getPublic(coopId);
+});
 
 /// Page Profil & paramètres coopérative — pattern iOS Settings.
 ///
@@ -54,6 +57,7 @@ class ProfilSettingsCooperativePage extends ConsumerWidget {
                 children: [
                   // 1. Hero — logo + nom coop + meta + bouton Modifier
                   _Hero(
+                    coopAsync: ref.watch(_myCoopProvider),
                     onModifier: () =>
                         _showSoon(context, 'Modifier le profil — à venir'),
                   ),
@@ -217,17 +221,32 @@ class _Header extends StatelessWidget {
 // ─── Hero : logo coop + nom + meta + bouton "Modifier le profil" ───────
 
 class _Hero extends StatelessWidget {
-  const _Hero({required this.onModifier});
+  const _Hero({required this.coopAsync, required this.onModifier});
 
+  final AsyncValue<Cooperative?> coopAsync;
   final VoidCallback onModifier;
 
   @override
   Widget build(BuildContext context) {
+    final coop = coopAsync.maybeWhen(data: (c) => c, orElse: () => null);
+    final loading = coopAsync.isLoading;
+    final nomCoop = coop?.nom ??
+        (loading ? 'Chargement…' : 'Coopérative inconnue');
+    final metaParts = <String>[
+      if (coop != null && coop.nbMembres > 0)
+        '${coop.nbMembres} membre${coop.nbMembres > 1 ? 's' : ''}',
+      if (coop?.numeroAgrement != null && coop!.numeroAgrement!.isNotEmpty)
+        'Agrément ${coop.numeroAgrement}',
+      if (coop?.createdAt != null)
+        'Créée ${DateFormat('MM/yyyy').format(coop!.createdAt!.toLocal())}',
+    ];
+    final metaLabel = metaParts.isEmpty ? '' : metaParts.join(' · ');
+    final logoUrl = coop?.logoUrl;
+
     return Padding(
       padding: const EdgeInsets.only(top: AppDimens.space8, bottom: 20),
       child: Column(
         children: [
-          // Logo coop rond 88 (Unsplash).
           Container(
             width: 88,
             height: 88,
@@ -240,25 +259,19 @@ class _Hero extends StatelessWidget {
               ),
             ),
             clipBehavior: Clip.antiAlias,
-            child: CachedNetworkImage(
-              imageUrl: _kLogoUrl,
-              fit: BoxFit.cover,
-              placeholder: (_, __) => const ColoredBox(color: _kPrimarySoft),
-              errorWidget: (_, __, ___) => Center(
-                child: Text(
-                  'CA',
-                  style: AppTextStyles.titleLarge.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 24,
-                  ),
-                ),
-              ),
-            ),
+            child: (logoUrl != null && logoUrl.isNotEmpty)
+                ? CachedNetworkImage(
+                    imageUrl: logoUrl,
+                    fit: BoxFit.cover,
+                    placeholder: (_, _) =>
+                        const ColoredBox(color: _kPrimarySoft),
+                    errorWidget: (_, _, _) => _logoFallback(nomCoop),
+                  )
+                : _logoFallback(nomCoop),
           ),
           const SizedBox(height: 12),
           Text(
-            _kNomCoop,
+            nomCoop,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: AppTextStyles.displayLarge.copyWith(
@@ -267,16 +280,18 @@ class _Hero extends StatelessWidget {
               color: AppColors.text,
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            _kMetaCoop,
-            textAlign: TextAlign.center,
-            style: AppTextStyles.bodySmall.copyWith(
-              fontSize: 13,
-              color: AppColors.textSecondary,
-              height: 1.4,
+          if (metaLabel.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              metaLabel,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.bodySmall.copyWith(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+                height: 1.4,
+              ),
             ),
-          ),
+          ],
           const SizedBox(height: 14),
           InkWell(
             onTap: onModifier,
@@ -308,6 +323,33 @@ class _Hero extends StatelessWidget {
       ),
     );
   }
+}
+
+Widget _logoFallback(String nom) {
+  final t = nom.trim();
+  String label = 'CA';
+  if (t.isNotEmpty) {
+    final parts = t.split(RegExp(r'[\s\-_]+'))
+      ..removeWhere((p) => p.isEmpty);
+    if (parts.length >= 2) {
+      label = (parts[0].substring(0, 1) + parts[1].substring(0, 1))
+          .toUpperCase();
+    } else if (t.length >= 2) {
+      label = t.substring(0, 2).toUpperCase();
+    } else {
+      label = t.toUpperCase();
+    }
+  }
+  return Center(
+    child: Text(
+      label,
+      style: AppTextStyles.titleLarge.copyWith(
+        color: AppColors.primary,
+        fontWeight: FontWeight.w700,
+        fontSize: 24,
+      ),
+    ),
+  );
 }
 
 // ─── Section title ───────────────────────────────────────────────────────

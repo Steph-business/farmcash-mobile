@@ -1,98 +1,144 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
+import '../../../api_client/api_exception.dart';
+import '../../../models/annonce_achat.dart';
 import '../../../routing/route_names.dart';
 import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
 import '../../../theme/app_text_styles.dart';
+import '../../widgets/communs/chargement.dart';
 import '../../widgets/communs/snackbars.dart';
-
-// ─── Couleurs accent ─────────────────────────────────────────────────────
+import '../../widgets/communs/vue_erreur.dart';
 
 const Color _kPrimarySoft = Color(0xFFE8F5E9);
 const Color _kOrangeSoft = Color(0xFFFFF3E0);
 const Color _kOrange = Color(0xFFE65100);
 
-const String _kBuyer1Avatar =
-    'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=120&h=120&fit=crop&auto=format';
-const String _kBuyer2Avatar =
-    'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=120&h=120&fit=crop&auto=format';
-
-/// Modèle d'affichage local — la maquette HTML montre des offres acheteurs
-/// avec des informations riches que le modèle plat `AnnonceAchat`
-/// n'embarque pas. Mock-first pour rester aligné pixel à pixel.
-class _MockOffre {
-  final String id;
-  final String buyerNom; // anonymisé : "Restaurant Le B.", "Industries A."
-  final String buyerAvatar;
-  final String timing;
-  final bool isPublic;
-  final String chipLabel;
-  final String demande;
-
-  const _MockOffre({
-    required this.id,
-    required this.buyerNom,
-    required this.buyerAvatar,
-    required this.timing,
-    required this.isPublic,
-    required this.chipLabel,
-    required this.demande,
-  });
-}
-
-/// 2 offres mock alignées 1:1 avec `mockups/cooperative/offres_recues.html`.
-const List<_MockOffre> _kMockOffres = [
-  _MockOffre(
-    id: 'offre-1',
-    buyerNom: 'Restaurant Le B.',
-    buyerAvatar: _kBuyer1Avatar,
-    timing: 'Reçue il y a 4h',
-    isPublic: true,
-    chipLabel: 'Public',
-    demande: 'Maïs blanc 500 kg @ max 1 000 F/kg',
-  ),
-  _MockOffre(
-    id: 'offre-2',
-    buyerNom: 'Industries A.',
-    buyerAvatar: _kBuyer2Avatar,
-    timing: 'Reçue hier',
-    isPublic: false,
-    chipLabel: 'Coop ciblée',
-    demande: 'Manioc 1 tonne @ max 380 F/kg',
-  ),
-];
-
-/// Tente de récupérer les offres depuis le backend (annonces d'achat
-/// publiques + ciblées), sinon tombe sur les mocks de maquette.
-final _offresProvider = FutureProvider.autoDispose<List<_MockOffre>>((
-  ref,
-) async {
-  try {
-    final paginated =
-        await ref.watch(marketplaceServiceProvider).listAnnoncesAchat();
-    if (paginated.data.isEmpty) return _kMockOffres;
-    // L'API ne renvoie pas les champs riches de la maquette ; on retombe
-    // sur les mocks pour préserver l'identité visuelle stricte.
-    return _kMockOffres;
-  } catch (_) {
-    return _kMockOffres;
-  }
+/// Charge les offres d'achat qui arrivent vers la coopérative (publiques OU
+/// ciblées sur cette coop). Endpoint dédié `/coop/annonces-achat/incoming`.
+final _offresProvider =
+    FutureProvider.autoDispose<List<AnnonceAchat>>((ref) async {
+  return ref.read(cooperativesServiceProvider).listIncomingAnnoncesAchat();
 });
 
-/// Liste des offres d'achat reçues par la coopérative (acheteurs B2B,
-/// industriels, restaurants). Acheteurs **anonymisés** (anti-contournement
-/// du modèle), seules les coordonnées du transporteur sont partagées.
-class OffresRecuesPage extends ConsumerWidget {
+/// Liste des offres d'achat reçues par la coopérative. Buyer **anonymisé**
+/// dans l'UI (anti-contournement), seules les coordonnées du transporteur
+/// seront partagées lors d'un éventuel accord.
+class OffresRecuesPage extends ConsumerStatefulWidget {
   const OffresRecuesPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(_offresProvider);
+  ConsumerState<OffresRecuesPage> createState() => _OffresRecuesPageState();
+}
 
+class _OffresRecuesPageState extends ConsumerState<OffresRecuesPage> {
+  String? _busyId;
+
+  Future<void> _refresh() async {
+    ref.invalidate(_offresProvider);
+    await ref.read(_offresProvider.future);
+  }
+
+  Future<void> _proposer(AnnonceAchat o) async {
+    if (_busyId != null) return;
+    // V1 : on saisit prix + quantité via un dialog simple. Le COOP envoie
+    // une `Proposition` (le buyer recevra alors une notif).
+    final qteCtrl = TextEditingController(text: o.quantiteKg.round().toString());
+    final prixCtrl = TextEditingController(
+      text: (o.prixMaxKg * 0.95).round().toString(),
+    );
+    final msgCtrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Proposer'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: qteCtrl,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Quantité (kg)'),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: prixCtrl,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Prix proposé (F/kg)'),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: msgCtrl,
+              maxLines: 2,
+              decoration: const InputDecoration(labelText: 'Message (optionnel)'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Envoyer'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    if (!mounted) return;
+    final qte = double.tryParse(qteCtrl.text.replaceAll(',', '.'));
+    final prix = double.tryParse(prixCtrl.text.replaceAll(',', '.'));
+    if (qte == null || qte <= 0 || prix == null || prix <= 0) {
+      Snackbars.showErreur(context, 'Quantité et prix requis.');
+      return;
+    }
+    setState(() => _busyId = o.id);
+    try {
+      await ref.read(negotiationServiceProvider).createProposition(
+            annonceAchatId: o.id,
+            quantiteKg: qte,
+            prixProposeKg: prix,
+            message:
+                msgCtrl.text.trim().isEmpty ? null : msgCtrl.text.trim(),
+          );
+      if (!mounted) return;
+      Snackbars.showSucces(context, 'Proposition envoyée à l\'acheteur.');
+      await _refresh();
+    } on ApiException catch (e) {
+      if (mounted) Snackbars.showErreur(context, e.message);
+    } catch (e) {
+      if (mounted) Snackbars.showErreur(context, 'Erreur : $e');
+    } finally {
+      if (mounted) setState(() => _busyId = null);
+    }
+  }
+
+  void _refuser(AnnonceAchat o) {
+    // Pas d'endpoint pour refuser une demande publique côté coop —
+    // on cache localement (no-op back). Pour V2, ajouter
+    // dismissAnnonceAchat ou marquer ignored côté UI persistant.
+    Snackbars.showInfo(context, 'Offre masquée.');
+  }
+
+  void _solliciter(AnnonceAchat o) {
+    // Le sollicitation_creer_page attend un offreId réel : on le passe
+    // ici en argument de route pour que la sollicitation soit attachée
+    // à cette annonce d'achat.
+    context.push(
+      RouteNames.cooperativeSollicitationCreerPath,
+      extra: {'offreId': o.id},
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final async = ref.watch(_offresProvider);
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -108,15 +154,40 @@ class OffresRecuesPage extends ConsumerWidget {
               child: async.when(
                 loading: () => const Padding(
                   padding: EdgeInsets.only(top: AppDimens.space32),
-                  child: Center(
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.2,
-                      color: AppColors.primary,
-                    ),
+                  child: Chargement(size: 22),
+                ),
+                error: (e, _) => Padding(
+                  padding: const EdgeInsets.all(AppDimens.pagePaddingH),
+                  child: VueErreur(
+                    message: 'Impossible de charger les offres. $e',
+                    onRetry: _refresh,
                   ),
                 ),
-                error: (_, _) => const _Body(items: _kMockOffres),
-                data: (items) => _Body(items: items),
+                data: (items) => RefreshIndicator(
+                  color: AppColors.primary,
+                  onRefresh: _refresh,
+                  child: items.isEmpty
+                      ? const _EmptyState()
+                      : ListView.builder(
+                          padding: const EdgeInsets.fromLTRB(
+                            AppDimens.pagePaddingH,
+                            0,
+                            AppDimens.pagePaddingH,
+                            AppDimens.space16,
+                          ),
+                          itemCount: items.length,
+                          itemBuilder: (_, i) => Padding(
+                            padding: const EdgeInsets.only(bottom: 14),
+                            child: _OffreCard(
+                              offre: items[i],
+                              busy: _busyId == items[i].id,
+                              onRefuser: () => _refuser(items[i]),
+                              onProposer: () => _proposer(items[i]),
+                              onSolliciter: () => _solliciter(items[i]),
+                            ),
+                          ),
+                        ),
+                ),
               ),
             ),
           ],
@@ -126,11 +197,10 @@ class OffresRecuesPage extends ConsumerWidget {
   }
 }
 
-// ─── Header ──────────────────────────────────────────────────────────────
+// ─── Header ──────────────────────────────────────────────────────
 
 class _Header extends StatelessWidget {
   const _Header({required this.count});
-
   final int count;
 
   @override
@@ -159,7 +229,9 @@ class _Header extends StatelessWidget {
           ),
           Expanded(
             child: Text(
-              "Offres d'achat reçues ($count)",
+              count > 0
+                  ? "Offres d'achat reçues ($count)"
+                  : "Offres d'achat reçues",
               style: AppTextStyles.titleSmall.copyWith(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -172,52 +244,36 @@ class _Header extends StatelessWidget {
   }
 }
 
-// ─── Body (liste de cards) ───────────────────────────────────────────────
-
-class _Body extends StatelessWidget {
-  const _Body({required this.items});
-
-  final List<_MockOffre> items;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(
-        AppDimens.pagePaddingH,
-        0,
-        AppDimens.pagePaddingH,
-        AppDimens.space16,
-      ),
-      itemCount: items.length,
-      itemBuilder: (_, i) => Padding(
-        padding: const EdgeInsets.only(bottom: 14),
-        child: _OffreCard(offre: items[i]),
-      ),
-    );
-  }
-}
-
-// ─── Card offre ──────────────────────────────────────────────────────────
+// ─── Card offre ───────────────────────────────────────────────────
 
 class _OffreCard extends StatelessWidget {
-  const _OffreCard({required this.offre});
+  const _OffreCard({
+    required this.offre,
+    required this.busy,
+    required this.onRefuser,
+    required this.onProposer,
+    required this.onSolliciter,
+  });
 
-  final _MockOffre offre;
-
-  void _onRefuser(BuildContext context) {
-    Snackbars.showInfo(context, 'Offre refusée');
-  }
-
-  void _onProposer(BuildContext context) {
-    Snackbars.showInfo(context, 'Faire une proposition — à venir');
-  }
-
-  void _onSolliciter(BuildContext context) {
-    context.push(RouteNames.cooperativeSollicitationCreerPath);
-  }
+  final AnnonceAchat offre;
+  final bool busy;
+  final VoidCallback onRefuser;
+  final VoidCallback onProposer;
+  final VoidCallback onSolliciter;
 
   @override
   Widget build(BuildContext context) {
+    final df = DateFormat('d MMM', 'fr_FR');
+    final timing = offre.createdAt != null
+        ? 'Reçue le ${df.format(offre.createdAt!)}'
+        : 'Reçue récemment';
+    final isPublic = offre.targetCooperativeId == null;
+    final chipLabel = isPublic ? 'Public' : 'Coop ciblée';
+    final demande = '${offre.produitLabel} · '
+        '${_nf.format(offre.quantiteKg.round())} kg @ '
+        'max ${_nf.format(offre.prixMaxKg.round())} F/kg';
+    final buyerLabel = offre.buyerNom ?? 'Acheteur';
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.background,
@@ -231,31 +287,21 @@ class _OffreCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header : avatar + nom buyer + chip
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ClipOval(
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceSoft,
-                    border: Border.all(
-                      color: AppColors.border,
-                      width: AppDimens.borderThin,
-                    ),
-                    shape: BoxShape.circle,
-                  ),
-                  clipBehavior: Clip.hardEdge,
-                  child: CachedNetworkImage(
-                    imageUrl: offre.buyerAvatar,
-                    fit: BoxFit.cover,
-                    placeholder: (_, _) =>
-                        Container(color: AppColors.surfaceSoft),
-                    errorWidget: (_, _, _) =>
-                        Container(color: AppColors.surfaceSoft),
-                  ),
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: _kPrimarySoft,
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.business_outlined,
+                  size: 20,
+                  color: AppColors.primary,
                 ),
               ),
               const SizedBox(width: 12),
@@ -265,7 +311,7 @@ class _OffreCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      offre.buyerNom,
+                      buyerLabel,
                       style: AppTextStyles.bodyMedium.copyWith(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -275,48 +321,20 @@ class _OffreCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      offre.timing,
+                      timing,
                       style: AppTextStyles.bodySmall.copyWith(
                         fontSize: 11,
                         color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceSoft,
-                        border: Border.all(
-                          color: AppColors.border,
-                          width: AppDimens.borderThin,
-                        ),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        'Coordonnées partagées avec le transporteur uniquement',
-                        style: AppTextStyles.labelSmall.copyWith(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textSecondary,
-                        ),
                       ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(width: 8),
-              _ChipBadge(
-                label: offre.chipLabel,
-                isPublic: offre.isPublic,
-              ),
+              _ChipBadge(label: chipLabel, isPublic: isPublic),
             ],
           ),
           const SizedBox(height: 12),
-
-          // Demande (boîte bg-soft)
           Container(
             decoration: BoxDecoration(
               color: AppColors.surfaceSoft,
@@ -340,7 +358,7 @@ class _OffreCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  offre.demande,
+                  demande,
                   style: AppTextStyles.titleLarge.copyWith(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -350,17 +368,24 @@ class _OffreCard extends StatelessWidget {
               ],
             ),
           ),
-
+          if (offre.dateLimiteLivraison != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Livraison avant le ${DateFormat('d MMM y', 'fr_FR').format(offre.dateLimiteLivraison!)}',
+              style: AppTextStyles.labelSmall.copyWith(
+                fontSize: 11,
+                color: AppColors.textSubtle,
+              ),
+            ),
+          ],
           const SizedBox(height: 14),
-
-          // Actions : Refuser / Proposer
           Row(
             children: [
               Expanded(
                 child: _Button(
                   label: 'Refuser',
                   primary: false,
-                  onTap: () => _onRefuser(context),
+                  onTap: busy ? null : onRefuser,
                 ),
               ),
               const SizedBox(width: 10),
@@ -368,21 +393,17 @@ class _OffreCard extends StatelessWidget {
                 child: _Button(
                   label: 'Proposer',
                   primary: true,
-                  onTap: () => _onProposer(context),
+                  busy: busy,
+                  onTap: busy ? null : onProposer,
                 ),
               ),
             ],
           ),
-
-          // Séparateur + lien sollicitation
           const SizedBox(height: 12),
-          Container(
-            height: 1,
-            color: AppColors.border,
-          ),
+          Container(height: 1, color: AppColors.border),
           const SizedBox(height: 12),
           InkWell(
-            onTap: () => _onSolliciter(context),
+            onTap: busy ? null : onSolliciter,
             borderRadius: BorderRadius.circular(6),
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
@@ -403,11 +424,8 @@ class _OffreCard extends StatelessWidget {
   }
 }
 
-// ─── Chip badge (Public / Coop ciblée) ───────────────────────────────────
-
 class _ChipBadge extends StatelessWidget {
   const _ChipBadge({required this.label, required this.isPublic});
-
   final String label;
   final bool isPublic;
 
@@ -433,18 +451,18 @@ class _ChipBadge extends StatelessWidget {
   }
 }
 
-// ─── Boutons (Refuser secondaire / Proposer primary) ─────────────────────
-
 class _Button extends StatelessWidget {
   const _Button({
     required this.label,
     required this.primary,
     required this.onTap,
+    this.busy = false,
   });
 
   final String label;
   final bool primary;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+  final bool busy;
 
   @override
   Widget build(BuildContext context) {
@@ -462,16 +480,63 @@ class _Button extends StatelessWidget {
           ),
         ),
         alignment: Alignment.center,
-        child: Text(
-          label,
-          style: AppTextStyles.button.copyWith(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: primary ? Colors.white : AppColors.text,
-          ),
-        ),
+        child: busy
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            : Text(
+                label,
+                style: AppTextStyles.button.copyWith(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: primary ? Colors.white : AppColors.text,
+                ),
+              ),
       ),
     );
   }
 }
 
+class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.inbox_outlined,
+            size: 40,
+            color: AppColors.textSubtle.withValues(alpha: 0.9),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Aucune offre pour le moment',
+            style: AppTextStyles.titleSmall,
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: Text(
+              'Les demandes d\'achat ciblées sur ta coop apparaîtront ici.',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textSecondary,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+final _nf = NumberFormat('#,##0', 'fr_FR');

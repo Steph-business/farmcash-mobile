@@ -1,11 +1,13 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../models/enums.dart';
 import '../../../models/livraison.dart';
 import '../../../models/portefeuille.dart';
+import '../../../routing/route_names.dart';
 import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
@@ -52,17 +54,17 @@ class _ProfilTransporteurData {
   int get nbItinerairesActifs =>
       routes.where((r) => r.isActive).length;
 
-  /// Nombre de zones uniques couvertes (union des villes d'origine et
+  /// Nombre de zones uniques couvertes (union des zones d'origine et
   /// de destination de toutes les routes).
   int get nbZonesUniques {
-    final ids = <String>{};
+    final zones = <String>{};
     for (final r in routes) {
-      final o = r.origineVilleId.trim();
-      final d = r.destinationVilleId.trim();
-      if (o.isNotEmpty) ids.add(o);
-      if (d.isNotEmpty) ids.add(d);
+      final o = r.origineZone.trim();
+      final d = r.destinationZone.trim();
+      if (o.isNotEmpty) zones.add(o);
+      if (d.isNotEmpty) zones.add(d);
     }
-    return ids.length;
+    return zones.length;
   }
 }
 
@@ -173,7 +175,8 @@ class _AppBarProfil extends StatelessWidget {
           ),
           InkWell(
             borderRadius: BorderRadius.circular(18),
-            onTap: () => _snack(context, 'Paramètres — à venir'),
+            onTap: () =>
+                context.push(RouteNames.transporteurProfilSettingsPath),
             child: Container(
               width: 36,
               height: 36,
@@ -229,7 +232,7 @@ class _ContenuProfil extends ConsumerWidget {
         ),
         AppDimens.vGap24,
 
-        // 3. Mon véhicule
+        // 3. Mon véhicule — chacune des 4 entrées ouvre la liste "Mes véhicules"
         _SectionGroup(
           titre: 'Mon véhicule',
           rows: [
@@ -237,25 +240,30 @@ class _ContenuProfil extends ConsumerWidget {
               icon: Icons.local_shipping_outlined,
               iconAccent: true,
               label: 'Type de véhicule',
-              onTap: () => _snack(context, 'Type de véhicule — à venir'),
+              onTap: () =>
+                  context.push(RouteNames.transporteurMesVehiculesPath),
             ),
             _RowTile(
               icon: Icons.confirmation_number_outlined,
               iconAccent: true,
               label: 'Immatriculation',
-              onTap: () => _snack(context, 'Immatriculation — à venir'),
+              onTap: () =>
+                  context.push(RouteNames.transporteurMesVehiculesPath),
             ),
             _RowTile(
               icon: Icons.inventory_2_outlined,
               iconAccent: true,
               label: 'Capacité & volume',
-              onTap: () => _snack(context, 'Capacité & volume — à venir'),
+              onTap: () =>
+                  context.push(RouteNames.transporteurMesVehiculesPath),
             ),
             _RowTile(
               icon: Icons.badge_outlined,
               iconAccent: true,
               label: 'Numéro de permis',
-              onTap: () => _snack(context, 'Numéro de permis — à venir'),
+              onTap: () => context.push(
+                RouteNames.transporteurProfilSettingsPath,
+              ),
             ),
           ],
         ),
@@ -289,7 +297,8 @@ class _ContenuProfil extends ConsumerWidget {
               sub: nbItineraires > 0
                   ? '$nbItineraires actif${nbItineraires > 1 ? 's' : ''}'
                   : null,
-              onTap: () => _snack(context, 'Mes itinéraires — à venir'),
+              onTap: () =>
+                  context.push(RouteNames.transporteurItinerairesPath),
             ),
           ],
         ),
@@ -334,17 +343,18 @@ class _ContenuProfil extends ConsumerWidget {
                   ),
                 ),
               ),
-              onTap: () => _snack(context, 'Mon wallet — à venir'),
+              onTap: () => context.push(RouteNames.transporteurWalletPath),
             ),
             _RowTile(
               icon: Icons.credit_card_outlined,
               label: 'Moyens de paiement',
-              onTap: () => _snack(context, 'Moyens de paiement — à venir'),
+              onTap: () =>
+                  context.push(RouteNames.transporteurWalletRechargerPath),
             ),
             _RowTile(
               icon: Icons.show_chart,
               label: 'Mes transactions',
-              onTap: () => _snack(context, 'Mes transactions — à venir'),
+              onTap: () => context.push(RouteNames.transporteurWalletPath),
             ),
           ],
         ),
@@ -362,7 +372,8 @@ class _ContenuProfil extends ConsumerWidget {
             _RowTile(
               icon: Icons.notifications_none,
               label: 'Notifications',
-              onTap: () => _snack(context, 'Notifications — à venir'),
+              onTap: () =>
+                  context.push(RouteNames.transporteurNotificationsPath),
             ),
             _RowTile(
               icon: Icons.lock_outline,

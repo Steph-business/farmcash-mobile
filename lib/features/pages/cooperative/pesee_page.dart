@@ -1,49 +1,60 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
+import '../../../api_client/api_exception.dart';
+import '../../../models/annonce_vente.dart';
+import '../../../models/enums.dart';
 import '../../../routing/route_names.dart';
+import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
 import '../../../theme/app_text_styles.dart';
+import '../../widgets/communs/chargement.dart';
 import '../../widgets/communs/snackbars.dart';
+import '../../widgets/communs/vue_erreur.dart';
 
-// ─── Constantes locales ─────────────────────────────────────────────────
 const Color _kPrimarySoft = Color(0xFFE8F5E9);
 const Color _kWarn = Color(0xFFB45309);
-const Color _kErrorSoftBg = Color(0xFFFEF2F2);
-const Color _kErrorSoftBorder = Color(0xFFFEE2E2);
-
 const BorderRadius _kBrCard12 = BorderRadius.all(Radius.circular(12));
-const BorderRadius _kBrCard14 = BorderRadius.all(Radius.circular(14));
 const BorderRadius _kBrChip = BorderRadius.all(Radius.circular(14));
 
-const List<String> _kQualites = ['Standard', 'Premium', 'Bio', 'Équitable'];
+/// Provider qui récupère l'annonce de vente attachée à la coopérative
+/// (paramètre `livraisonId` == `annonce_vente_id`). Côté backend, la coop
+/// peut valider/rejeter une annonce qui lui a été assignée.
+final _peseeAnnonceProvider = FutureProvider.autoDispose
+    .family<AnnonceVente, String>((ref, id) async {
+  return ref.read(marketplaceServiceProvider).getAnnonceVente(id);
+});
 
-// Poids "annoncé" — pour calculer l'écart.
-const double _kPoidsAnnonce = 250;
-
-/// Page de pesée d'une livraison farmer arrivée à la coopérative.
-/// Reproduction fidèle de `mockups/cooperative/pesee.html`.
-class PeseePage extends StatefulWidget {
+/// Pesée d'une livraison farmer arrivée à la coopérative.
+/// `validateAnnonceVente` → propage la quantité/qualité validées à
+/// l'annonce, change son statut côté back et notifie le farmer.
+class PeseePage extends ConsumerStatefulWidget {
   const PeseePage({super.key, required this.livraisonId});
 
   final String livraisonId;
 
   @override
-  State<PeseePage> createState() => _PeseePageState();
+  ConsumerState<PeseePage> createState() => _PeseePageState();
 }
 
-class _PeseePageState extends State<PeseePage> {
-  final TextEditingController _poidsCtrl = TextEditingController(text: '245');
-  final TextEditingController _noteCtrl = TextEditingController();
-  int _qualiteIndex = 0;
+class _PeseePageState extends ConsumerState<PeseePage> {
+  final _poidsCtrl = TextEditingController();
+  final _noteCtrl = TextEditingController();
+  ProductQuality _qualite = ProductQuality.standard;
+  bool _hydrated = false;
+  bool _busy = false;
 
   @override
   void initState() {
     super.initState();
-    _poidsCtrl.addListener(() => setState(() {}));
+    _poidsCtrl.addListener(() {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -53,116 +64,247 @@ class _PeseePageState extends State<PeseePage> {
     super.dispose();
   }
 
+  void _hydrateOnce(AnnonceVente a) {
+    if (_hydrated) return;
+    _hydrated = true;
+    _poidsCtrl.text = a.quantiteKg.round().toString();
+    _qualite = a.qualite == ProductQuality.unknown
+        ? ProductQuality.standard
+        : a.qualite;
+  }
+
   double? get _poidsMesure {
     final raw = _poidsCtrl.text.trim().replaceAll(',', '.');
     if (raw.isEmpty) return null;
     return double.tryParse(raw);
   }
 
-  double? get _ecart {
-    final p = _poidsMesure;
-    if (p == null) return null;
-    return p - _kPoidsAnnonce;
+  double _ecartContre(double annonce) {
+    final p = _poidsMesure ?? 0;
+    return p - annonce;
   }
 
-  String get _ecartLabel {
-    final e = _ecart;
-    if (e == null) return 'Écart annoncé / mesuré : —';
+  String _ecartLabel(double annonce) {
+    final e = _ecartContre(annonce);
     final signe = e >= 0 ? '+' : '−';
-    final abs = e.abs();
-    final fmt = abs == abs.roundToDouble()
-        ? abs.toStringAsFixed(0)
-        : abs.toStringAsFixed(1);
-    return 'Écart annoncé / mesuré : $signe$fmt kg';
+    return 'Écart annoncé / mesuré : $signe${e.abs().toStringAsFixed(0)} kg';
   }
 
-  /// Vert si écart > -10kg (perte tolérée), sinon orange.
-  Color get _ecartColor {
-    final e = _ecart;
-    if (e == null) return AppColors.textSecondary;
-    return e > -10 ? AppColors.primary : _kWarn;
+  Color _ecartColor(double annonce) {
+    return _ecartContre(annonce) > -10 ? AppColors.primary : _kWarn;
   }
 
-  void _rejeter() {
-    Snackbars.showInfo(context, 'Livraison rejetée');
-    if (context.canPop()) context.pop();
+  Future<void> _valider(AnnonceVente a) async {
+    if (_busy) return;
+    final poids = _poidsMesure;
+    if (poids == null || poids <= 0) {
+      Snackbars.showErreur(context, 'Saisis un poids mesuré valide.');
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      await ref.read(cooperativesServiceProvider).validateAnnonceVente(
+            id: a.id,
+            quantiteValideeKg: poids,
+            qualiteValidee: _qualite,
+            notes: _noteCtrl.text.trim().isEmpty
+                ? null
+                : _noteCtrl.text.trim(),
+          );
+      if (!mounted) return;
+      Snackbars.showSucces(
+        context,
+        'Pesée validée. Le producteur est notifié.',
+      );
+      ref.invalidate(_peseeAnnonceProvider(widget.livraisonId));
+      if (context.canPop()) {
+        context.pop(true);
+      } else {
+        context.go(RouteNames.cooperativeCollectePath);
+      }
+    } on ApiException catch (e) {
+      if (mounted) Snackbars.showErreur(context, e.message);
+    } catch (e) {
+      if (mounted) Snackbars.showErreur(context, 'Erreur : $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
-  void _valider() {
-    Snackbars.showSucces(context, 'Pesée validée. Notification envoyée.');
-    if (context.canPop()) context.pop();
+  Future<void> _rejeter(AnnonceVente a) async {
+    if (_busy) return;
+    final motif = await _demanderMotif();
+    if (motif == null || motif.trim().isEmpty) return;
+    setState(() => _busy = true);
+    try {
+      await ref.read(cooperativesServiceProvider).rejectAnnonceVente(
+            id: a.id,
+            motif: motif.trim(),
+          );
+      if (!mounted) return;
+      Snackbars.showInfo(context, 'Livraison rejetée. Producteur notifié.');
+      ref.invalidate(_peseeAnnonceProvider(widget.livraisonId));
+      if (context.canPop()) {
+        context.pop(true);
+      } else {
+        context.go(RouteNames.cooperativeCollectePath);
+      }
+    } on ApiException catch (e) {
+      if (mounted) Snackbars.showErreur(context, e.message);
+    } catch (e) {
+      if (mounted) Snackbars.showErreur(context, 'Erreur : $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<String?> _demanderMotif() async {
+    final ctrl = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Motif de rejet'),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            hintText: 'Ex : marchandise dégradée, poids très en-dessous…',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(ctrl.text),
+            child: const Text('Rejeter'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final async = ref.watch(_peseeAnnonceProvider(widget.livraisonId));
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         bottom: false,
-        child: Column(
-          children: [
-            const _Header(),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(
-                  AppDimens.pagePaddingH,
-                  0,
-                  AppDimens.pagePaddingH,
-                  AppDimens.space16,
+        child: async.when(
+          loading: () => const Column(
+            children: [
+              _Header(),
+              Expanded(child: Chargement(size: 22)),
+            ],
+          ),
+          error: (e, _) => Column(
+            children: [
+              const _Header(),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppDimens.pagePaddingH),
+                  child: VueErreur(
+                    message: 'Impossible de charger la livraison. $e',
+                    onRetry: () => ref
+                        .invalidate(_peseeAnnonceProvider(widget.livraisonId)),
+                  ),
                 ),
-                children: [
-                  const _HeroCard(),
-                  const SizedBox(height: 20),
-                  // ── Section poids réel ──────────────────────────────
-                  _Label('Poids réel mesuré'),
-                  const SizedBox(height: 10),
-                  _WeightBox(
-                    controller: _poidsCtrl,
-                    ecartLabel: _ecartLabel,
-                    ecartColor: _ecartColor,
-                  ),
-                  const SizedBox(height: 22),
-                  // ── Section qualité ─────────────────────────────────
-                  _Label('Qualité observée'),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (int i = 0; i < _kQualites.length; i++)
-                        _Chip(
-                          label: _kQualites[i],
-                          active: _qualiteIndex == i,
-                          onTap: () => setState(() => _qualiteIndex = i),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 22),
-                  // ── Section photo ───────────────────────────────────
-                  _Label('Photo de la livraison (optionnel)'),
-                  const SizedBox(height: 10),
-                  _PhotoSlot(onTap: () {}),
-                  const SizedBox(height: 22),
-                  // ── Section note ────────────────────────────────────
-                  _Label('Note interne (optionnel)'),
-                  const SizedBox(height: 10),
-                  _NoteField(controller: _noteCtrl),
-                ],
               ),
-            ),
-            _StickyButtons(onRejeter: _rejeter, onValider: _valider),
-          ],
+            ],
+          ),
+          data: (a) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) _hydrateOnce(a);
+            });
+            return _build(a);
+          },
         ),
       ),
     );
   }
+
+  Widget _build(AnnonceVente a) {
+    final annonceQte = a.quantiteKg;
+    return Column(
+      children: [
+        const _Header(),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(
+              AppDimens.pagePaddingH,
+              0,
+              AppDimens.pagePaddingH,
+              AppDimens.space16,
+            ),
+            children: [
+              _HeroCard(annonce: a),
+              const SizedBox(height: 20),
+              const _Label('Poids réel mesuré'),
+              const SizedBox(height: 10),
+              _WeightBox(
+                controller: _poidsCtrl,
+                ecartLabel: _ecartLabel(annonceQte),
+                ecartColor: _ecartColor(annonceQte),
+              ),
+              const SizedBox(height: 22),
+              const _Label('Qualité observée'),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final q in const [
+                    ProductQuality.standard,
+                    ProductQuality.premium,
+                    ProductQuality.bio,
+                    ProductQuality.equitable,
+                  ])
+                    _QualityChip(
+                      label: _qualiteLabel(q),
+                      active: _qualite == q,
+                      onTap: () => setState(() => _qualite = q),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 22),
+              const _Label('Note interne (optionnel)'),
+              const SizedBox(height: 10),
+              _NoteField(controller: _noteCtrl, enabled: !_busy),
+            ],
+          ),
+        ),
+        _StickyButtons(
+          busy: _busy,
+          onRejeter: () => _rejeter(a),
+          onValider: () => _valider(a),
+        ),
+      ],
+    );
+  }
 }
 
-// ─── Header ─────────────────────────────────────────────────────────────
+String _qualiteLabel(ProductQuality q) {
+  switch (q) {
+    case ProductQuality.standard:
+      return 'Standard';
+    case ProductQuality.premium:
+      return 'Premium';
+    case ProductQuality.bio:
+      return 'Bio';
+    case ProductQuality.equitable:
+      return 'Équitable';
+    case ProductQuality.unknown:
+      return 'Standard';
+  }
+}
+
+// ─── Header ───────────────────────────────────────────────────────
 
 class _Header extends StatelessWidget {
   const _Header();
-
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -206,13 +348,20 @@ class _Header extends StatelessWidget {
   }
 }
 
-// ─── Hero card avec photo full-width 140px ──────────────────────────────
+// ─── Hero card ────────────────────────────────────────────────────
 
 class _HeroCard extends StatelessWidget {
-  const _HeroCard();
+  const _HeroCard({required this.annonce});
+  final AnnonceVente annonce;
 
   @override
   Widget build(BuildContext context) {
+    final farmerNom = annonce.vendeurNom ?? 'Producteur';
+    final qteAnnonce =
+        '${NumberFormat('#,##0', 'fr_FR').format(annonce.quantiteKg.round())} kg';
+    final qualite = _qualiteLabel(annonce.qualite);
+    final photo =
+        annonce.photos.isNotEmpty ? annonce.photos.first : null;
     return ClipRRect(
       borderRadius: _kBrCard12,
       child: Container(
@@ -228,21 +377,28 @@ class _HeroCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Cover photo 140px
             SizedBox(
               height: 140,
               width: double.infinity,
-              child: CachedNetworkImage(
-                imageUrl:
-                    'https://images.unsplash.com/photo-1601493700631-2b16ec4b4716'
-                    '?w=600&h=300&fit=crop&auto=format',
-                fit: BoxFit.cover,
-                placeholder: (_, __) => const ColoredBox(color: _kPrimarySoft),
-                errorWidget: (_, __, ___) =>
-                    const ColoredBox(color: _kPrimarySoft),
-              ),
+              child: photo != null
+                  ? CachedNetworkImage(
+                      imageUrl: photo,
+                      fit: BoxFit.cover,
+                      placeholder: (_, _) =>
+                          const ColoredBox(color: _kPrimarySoft),
+                      errorWidget: (_, _, _) =>
+                          const ColoredBox(color: _kPrimarySoft),
+                    )
+                  : Container(
+                      color: _kPrimarySoft,
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.shopping_basket_outlined,
+                        size: 48,
+                        color: AppColors.primary,
+                      ),
+                    ),
             ),
-            // Body
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
               child: Column(
@@ -250,7 +406,7 @@ class _HeroCard extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Yao Konan',
+                    farmerNom,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppTextStyles.titleSmall.copyWith(
@@ -260,7 +416,7 @@ class _HeroCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    'Annoncé : 250 kg · Qualité Standard',
+                    'Annoncé : $qteAnnonce · Qualité $qualite',
                     style: AppTextStyles.bodySmall.copyWith(
                       fontSize: 12,
                       color: AppColors.textSecondary,
@@ -268,8 +424,10 @@ class _HeroCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
@@ -296,26 +454,25 @@ class _HeroCard extends StatelessWidget {
   }
 }
 
-// ─── Label de section ───────────────────────────────────────────────────
+// ─── Label ─────────────────────────────────────────────────────────
 
 class _Label extends StatelessWidget {
-  const _Label(this.label);
-
-  final String label;
-
+  const _Label(this.text);
+  final String text;
   @override
   Widget build(BuildContext context) {
     return Text(
-      label,
-      style: AppTextStyles.titleSmall.copyWith(
-        fontSize: 13,
+      text,
+      style: AppTextStyles.labelMedium.copyWith(
+        fontSize: 12,
         fontWeight: FontWeight.w600,
+        color: AppColors.text,
       ),
     );
   }
 }
 
-// ─── WeightBox : input grand centré + écart ─────────────────────────────
+// ─── Weight box ──────────────────────────────────────────────────
 
 class _WeightBox extends StatelessWidget {
   const _WeightBox({
@@ -323,7 +480,6 @@ class _WeightBox extends StatelessWidget {
     required this.ecartLabel,
     required this.ecartColor,
   });
-
   final TextEditingController controller;
   final String ecartLabel;
   final Color ecartColor;
@@ -331,65 +487,47 @@ class _WeightBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: AppColors.background,
-        borderRadius: _kBrCard14,
+        borderRadius: _kBrCard12,
         border: Border.all(
-          color: AppColors.border,
+          color: AppColors.borderStrong,
           width: AppDimens.borderThin,
         ),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              SizedBox(
-                width: 130,
-                child: TextField(
-                  controller: controller,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-                  ],
-                  textAlign: TextAlign.right,
-                  decoration: const InputDecoration(
-                    border: InputBorder.none,
-                    isDense: true,
-                    contentPadding: EdgeInsets.zero,
-                    hintText: '0',
-                  ),
-                  style: AppTextStyles.displaySmall.copyWith(
-                    fontFamily: 'Poppins',
-                    fontSize: 36,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -1,
-                    height: 1,
-                    color: AppColors.text,
-                  ),
-                ),
+          TextField(
+            controller: controller,
+            keyboardType:
+                const TextInputType.numberWithOptions(decimal: false),
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            style: AppTextStyles.displayLarge.copyWith(
+              fontSize: 28,
+              fontWeight: FontWeight.w700,
+              color: AppColors.text,
+              letterSpacing: -0.5,
+            ),
+            decoration: const InputDecoration(
+              border: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              isDense: true,
+              suffixText: 'kg',
+              suffixStyle: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
               ),
-              const SizedBox(width: 8),
-              Text(
-                'kg',
-                style: AppTextStyles.titleSmall.copyWith(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
+            ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
           Text(
             ecartLabel,
-            style: AppTextStyles.labelMedium.copyWith(
+            style: AppTextStyles.bodySmall.copyWith(
               fontSize: 12,
               fontWeight: FontWeight.w600,
               color: ecartColor,
@@ -401,15 +539,14 @@ class _WeightBox extends StatelessWidget {
   }
 }
 
-// ─── Chip qualité ───────────────────────────────────────────────────────
+// ─── Quality chip ─────────────────────────────────────────────────
 
-class _Chip extends StatelessWidget {
-  const _Chip({
+class _QualityChip extends StatelessWidget {
+  const _QualityChip({
     required this.label,
     required this.active,
     required this.onTap,
   });
-
   final String label;
   final bool active;
   final VoidCallback onTap;
@@ -420,12 +557,12 @@ class _Chip extends StatelessWidget {
       onTap: onTap,
       borderRadius: _kBrChip,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: active ? AppColors.primary : AppColors.background,
           borderRadius: _kBrChip,
           border: Border.all(
-            color: active ? AppColors.primary : AppColors.border,
+            color: active ? AppColors.primary : AppColors.borderStrong,
             width: AppDimens.borderThin,
           ),
         ),
@@ -434,7 +571,7 @@ class _Chip extends StatelessWidget {
           style: AppTextStyles.labelMedium.copyWith(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: active ? AppColors.onPrimary : AppColors.textSecondary,
+            color: active ? AppColors.onPrimary : AppColors.text,
           ),
         ),
       ),
@@ -442,55 +579,18 @@ class _Chip extends StatelessWidget {
   }
 }
 
-// ─── Photo slot 80×80 ───────────────────────────────────────────────────
-
-class _PhotoSlot extends StatelessWidget {
-  const _PhotoSlot({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: _kBrCard12,
-      child: Container(
-        width: 80,
-        height: 80,
-        decoration: BoxDecoration(
-          color: AppColors.surfaceSoft,
-          borderRadius: _kBrCard12,
-          border: Border.all(
-            color: AppColors.borderStrong,
-            width: AppDimens.borderThin,
-          ),
-        ),
-        child: const Center(
-          child: Icon(
-            Icons.add,
-            size: 22,
-            color: AppColors.textSubtle,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Note ───────────────────────────────────────────────────────────────
+// ─── Note ─────────────────────────────────────────────────────────
 
 class _NoteField extends StatelessWidget {
-  const _NoteField({required this.controller});
-
+  const _NoteField({required this.controller, required this.enabled});
   final TextEditingController controller;
-
+  final bool enabled;
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: AppColors.background,
-        borderRadius: _kBrCard12,
+        borderRadius: AppDimens.brInput,
         border: Border.all(
           color: AppColors.border,
           width: AppDimens.borderThin,
@@ -498,44 +598,40 @@ class _NoteField extends StatelessWidget {
       ),
       child: TextField(
         controller: controller,
-        minLines: 2,
-        maxLines: 2,
+        enabled: enabled,
+        minLines: 3,
+        maxLines: 5,
+        textCapitalization: TextCapitalization.sentences,
         decoration: InputDecoration(
           hintText: 'Observations sur la livraison…',
           border: InputBorder.none,
           isDense: true,
-          contentPadding: EdgeInsets.zero,
-          hintStyle: AppTextStyles.bodySmall.copyWith(
-            fontSize: 13,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          hintStyle: AppTextStyles.bodyMedium.copyWith(
             color: AppColors.textSubtle,
           ),
-        ),
-        style: AppTextStyles.bodySmall.copyWith(
-          fontSize: 13,
-          color: AppColors.text,
         ),
       ),
     );
   }
 }
 
-// ─── Sticky bouton bas : Rejeter / Valider + note info ──────────────────
+// ─── Sticky bottom ────────────────────────────────────────────────
 
 class _StickyButtons extends StatelessWidget {
-  const _StickyButtons({required this.onRejeter, required this.onValider});
-
+  const _StickyButtons({
+    required this.busy,
+    required this.onRejeter,
+    required this.onValider,
+  });
+  final bool busy;
   final VoidCallback onRejeter;
   final VoidCallback onValider;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(
-        AppDimens.pagePaddingH,
-        14,
-        AppDimens.pagePaddingH,
-        12,
-      ),
       decoration: const BoxDecoration(
         color: AppColors.background,
         border: Border(
@@ -545,72 +641,65 @@ class _StickyButtons extends StatelessWidget {
           ),
         ),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+      child: Row(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: 48,
-                  child: OutlinedButton(
-                    onPressed: onRejeter,
-                    style: OutlinedButton.styleFrom(
-                      backgroundColor: _kErrorSoftBg,
-                      foregroundColor: AppColors.error,
-                      side: const BorderSide(
-                        color: _kErrorSoftBorder,
-                        width: AppDimens.borderThin,
-                      ),
-                      shape: const RoundedRectangleBorder(
-                        borderRadius: _kBrCard12,
-                      ),
-                    ),
-                    child: Text(
-                      'Rejeter',
-                      style: AppTextStyles.labelLarge.copyWith(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.error,
-                      ),
-                    ),
+          Expanded(
+            child: InkWell(
+              onTap: busy ? null : onRejeter,
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 13),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: AppColors.borderStrong,
+                    width: AppDimens.borderThin,
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  'Rejeter',
+                  style: AppTextStyles.button.copyWith(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.error,
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: SizedBox(
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed: onValider,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: AppColors.onPrimary,
-                      elevation: 0,
-                      shape: const RoundedRectangleBorder(
-                        borderRadius: _kBrCard12,
-                      ),
-                    ),
-                    child: Text(
-                      'Valider la pesée',
-                      style: AppTextStyles.labelLarge.copyWith(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.onPrimary,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
-          const SizedBox(height: 10),
-          Text(
-            'Le farmer recevra une notification dès validation.',
-            textAlign: TextAlign.center,
-            style: AppTextStyles.labelSmall.copyWith(
-              fontSize: 11,
-              color: AppColors.textSecondary,
+          const SizedBox(width: 10),
+          Expanded(
+            child: InkWell(
+              onTap: busy ? null : onValider,
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 13),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                alignment: Alignment.center,
+                child: busy
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text(
+                        'Valider',
+                        style: AppTextStyles.button.copyWith(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.onPrimary,
+                        ),
+                      ),
+              ),
             ),
           ),
         ],
@@ -618,4 +707,3 @@ class _StickyButtons extends StatelessWidget {
     );
   }
 }
-

@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../../../models/sollicitation.dart';
 import '../../../../routing/route_names.dart';
@@ -9,109 +10,26 @@ import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
+import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/vue_erreur.dart';
 
 // ─── Couleurs accent (warn-soft pour chip urgent) ────────────────────────
 
 const Color _kWarnSoft = Color(0xFFFFF8E1);
 const Color _kWarn = Color(0xFFB26A00);
 
-const String _kCoopAvatar =
-    'https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=120&h=120&fit=crop&auto=format';
-const String _kMaisThumb =
+const String _kFallbackThumb =
     'https://images.unsplash.com/photo-1601493700631-2b16ec4b4716?w=200&h=200&fit=crop&auto=format';
-const String _kManiocThumb =
-    'https://images.unsplash.com/photo-1574484284002-952d92456975?w=200&h=200&fit=crop&auto=format';
 
-/// Modèle d'affichage local — calque la maquette HTML qui montre une coop
-/// initiatrice + un produit + des compteurs de progression. Le modèle
-/// backend `Sollicitation` n'embarque pas ces champs riches (il faut un
-/// 2e appel `getSollicitation(id)` qui renvoie une Map). Mock-first pour
-/// rester aligné pixel à pixel sur la maquette.
-class _MockSollicitation {
-  final String id;
-  final String coopNom;
-  final String coopAvatar;
-  final String timing;
-  final bool urgent;
-  final String besoin;
-  final String produitThumb;
-  final String progression;
-
-  const _MockSollicitation({
-    required this.id,
-    required this.coopNom,
-    required this.coopAvatar,
-    required this.timing,
-    required this.urgent,
-    required this.besoin,
-    required this.produitThumb,
-    required this.progression,
-  });
-}
-
-/// Liste mock alignée 1:1 avec `mockups/producteur/sollicitations_recues.html`.
-const List<_MockSollicitation> _kMockSollicitations = [
-  _MockSollicitation(
-    id: 'sol-1',
-    coopNom: 'COOP-AGRI Lagunes',
-    coopAvatar: _kCoopAvatar,
-    timing: 'Sollicitation reçue · il y a 2 h',
-    urgent: true,
-    besoin: 'Besoin de 500 kg de maïs blanc · max 7 jours · prix ≥ 800 F/kg',
-    produitThumb: _kMaisThumb,
-    progression:
-        '3 / 8 farmers ont déjà répondu (1 200 kg engagés sur 5 000 kg)',
-  ),
-  _MockSollicitation(
-    id: 'sol-2',
-    coopNom: 'COOP-AGRI Lagunes',
-    coopAvatar: _kCoopAvatar,
-    timing: 'Sollicitation reçue · hier',
-    urgent: false,
-    besoin: 'Besoin de 300 kg de manioc · max 14 jours · prix ≥ 380 F/kg',
-    produitThumb: _kManiocThumb,
-    progression:
-        '5 / 12 farmers ont déjà répondu (800 kg engagés sur 3 000 kg)',
-  ),
-];
-
-/// Tente de récupérer les sollicitations depuis le backend, sinon
-/// tombe sur les mocks (endpoint non encore branché côté producteur).
+/// Récupère la liste des sollicitations actives ciblant le producteur courant
+/// via `CooperativesService.listSollicitations`.
 final _sollicitationsProvider =
-    FutureProvider.autoDispose<List<_MockSollicitation>>((ref) async {
-  try {
-    final paginated =
-        await ref.watch(cooperativesServiceProvider).listSollicitations();
-    if (paginated.data.isEmpty) return _kMockSollicitations;
-    return paginated.data.map(_sollicitationToMock).toList(growable: false);
-  } catch (_) {
-    return _kMockSollicitations;
-  }
+    FutureProvider.autoDispose<List<Sollicitation>>((ref) async {
+  final paginated = await ref
+      .watch(cooperativesServiceProvider)
+      .listSollicitations(status: 'OPEN', limit: 50);
+  return paginated.data;
 });
-
-/// Convertit un `Sollicitation` backend en mock d'affichage. Les champs
-/// riches non présents dans le modèle plat retombent sur des valeurs
-/// neutres — l'UI reste cohérente, juste moins détaillée.
-_MockSollicitation _sollicitationToMock(Sollicitation s) {
-  final dejaRepondu = s.totalResponses;
-  final total = s.totalRecipients;
-  final quantite = s.quantiteCibleKg ?? 0;
-  final offerte = s.totalQuantiteOfferte;
-  return _MockSollicitation(
-    id: s.id,
-    coopNom: 'Ma coopérative',
-    coopAvatar: _kCoopAvatar,
-    timing: 'Sollicitation reçue',
-    urgent: false,
-    besoin: s.message ??
-        'Besoin de ${quantite.toStringAsFixed(0)} kg · à honorer',
-    produitThumb: _kMaisThumb,
-    progression:
-        '$dejaRepondu / $total farmers ont déjà répondu '
-        '(${offerte.toStringAsFixed(0)} kg engagés sur '
-        '${quantite.toStringAsFixed(0)} kg)',
-  );
-}
 
 /// Liste des sollicitations reçues par le producteur de sa coopérative.
 class SollicitationsRecuesPage extends ConsumerWidget {
@@ -136,15 +54,37 @@ class SollicitationsRecuesPage extends ConsumerWidget {
               child: async.when(
                 loading: () => const Padding(
                   padding: EdgeInsets.only(top: AppDimens.space32),
-                  child: Center(
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.2,
-                      color: AppColors.primary,
-                    ),
+                  child: Chargement(size: 22),
+                ),
+                error: (_, _) => Padding(
+                  padding: const EdgeInsets.all(AppDimens.pagePaddingH),
+                  child: VueErreur(
+                    message:
+                        'Impossible de charger les sollicitations de ta coop.',
+                    onRetry: () => ref.invalidate(_sollicitationsProvider),
                   ),
                 ),
-                error: (_, _) => _Body(items: _kMockSollicitations),
-                data: (items) => _Body(items: items),
+                data: (items) => RefreshIndicator(
+                  color: AppColors.primary,
+                  onRefresh: () async =>
+                      ref.invalidate(_sollicitationsProvider),
+                  child: items.isEmpty
+                      ? ListView(
+                          padding: const EdgeInsets.symmetric(vertical: 48),
+                          children: [
+                            Center(
+                              child: Text(
+                                'Aucune sollicitation active pour l\'instant.',
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ],
+                        )
+                      : _Body(items: items),
+                ),
               ),
             ),
           ],
@@ -220,7 +160,7 @@ class _Header extends StatelessWidget {
 class _Body extends StatelessWidget {
   const _Body({required this.items});
 
-  final List<_MockSollicitation> items;
+  final List<Sollicitation> items;
 
   @override
   Widget build(BuildContext context) {
@@ -245,10 +185,28 @@ class _Body extends StatelessWidget {
 class _SolCard extends StatelessWidget {
   const _SolCard({required this.sol});
 
-  final _MockSollicitation sol;
+  final Sollicitation sol;
 
   @override
   Widget build(BuildContext context) {
+    final quantite = sol.quantiteCibleKg ?? 0;
+    final offerte = sol.totalQuantiteOfferte;
+    final dejaRepondu = sol.totalResponses;
+    final total = sol.totalRecipients;
+
+    final besoin = sol.message?.isNotEmpty == true
+        ? sol.message!
+        : 'Besoin de ${quantite.toStringAsFixed(0)} kg';
+
+    final timing = _formatTiming(sol.createdAt);
+
+    final urgent = _isUrgent(sol.expiresAt);
+
+    final progression =
+        '$dejaRepondu / $total farmers ont répondu '
+        '(${offerte.toStringAsFixed(0)} kg engagés sur '
+        '${quantite.toStringAsFixed(0)} kg)';
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.background,
@@ -266,28 +224,18 @@ class _SolCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceSoft,
-                    border: Border.all(
-                      color: AppColors.border,
-                      width: AppDimens.borderThin,
-                    ),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  clipBehavior: Clip.hardEdge,
-                  child: CachedNetworkImage(
-                    imageUrl: sol.coopAvatar,
-                    fit: BoxFit.cover,
-                    placeholder: (_, _) =>
-                        Container(color: AppColors.surfaceSoft),
-                    errorWidget: (_, _, _) =>
-                        Container(color: AppColors.surfaceSoft),
-                  ),
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8F5E9),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.groups_outlined,
+                  size: 18,
+                  color: AppColors.primary,
                 ),
               ),
               const SizedBox(width: 10),
@@ -297,7 +245,7 @@ class _SolCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      sol.coopNom,
+                      'Ma coopérative',
                       style: AppTextStyles.bodyMedium.copyWith(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -307,7 +255,7 @@ class _SolCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      sol.timing,
+                      timing,
                       style: AppTextStyles.bodySmall.copyWith(
                         fontSize: 11,
                         color: AppColors.textSecondary,
@@ -316,7 +264,7 @@ class _SolCard extends StatelessWidget {
                   ],
                 ),
               ),
-              if (sol.urgent) ...[
+              if (urgent) ...[
                 const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -347,7 +295,7 @@ class _SolCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  sol.besoin,
+                  besoin,
                   style: AppTextStyles.bodyMedium.copyWith(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -371,7 +319,7 @@ class _SolCard extends StatelessWidget {
                   ),
                   clipBehavior: Clip.hardEdge,
                   child: CachedNetworkImage(
-                    imageUrl: sol.produitThumb,
+                    imageUrl: _kFallbackThumb,
                     fit: BoxFit.cover,
                     placeholder: (_, _) =>
                         Container(color: AppColors.surfaceSoft),
@@ -386,7 +334,7 @@ class _SolCard extends StatelessWidget {
 
           // Progression
           Text(
-            sol.progression,
+            progression,
             style: AppTextStyles.bodySmall.copyWith(
               fontSize: 12,
               color: AppColors.textSecondary,
@@ -395,7 +343,6 @@ class _SolCard extends StatelessWidget {
           ),
           const SizedBox(height: 14),
 
-          // Bouton mini primary à droite-bas
           Align(
             alignment: Alignment.centerRight,
             child: InkWell(
@@ -431,5 +378,21 @@ class _SolCard extends StatelessWidget {
       ),
     );
   }
-}
 
+  String _formatTiming(DateTime? createdAt) {
+    if (createdAt == null) return 'Sollicitation reçue';
+    final now = DateTime.now();
+    final diff = now.difference(createdAt);
+    if (diff.inMinutes < 60) return 'Reçue il y a ${diff.inMinutes} min';
+    if (diff.inHours < 24) return 'Reçue il y a ${diff.inHours} h';
+    if (diff.inDays == 1) return 'Reçue hier';
+    if (diff.inDays < 7) return 'Reçue il y a ${diff.inDays} j';
+    return 'Reçue le ${DateFormat('d MMM', 'fr_FR').format(createdAt)}';
+  }
+
+  bool _isUrgent(DateTime? expiresAt) {
+    if (expiresAt == null) return false;
+    final remaining = expiresAt.difference(DateTime.now());
+    return remaining.inHours <= 48 && remaining.inSeconds > 0;
+  }
+}

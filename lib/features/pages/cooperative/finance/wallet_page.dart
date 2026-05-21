@@ -11,6 +11,7 @@ import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/vue_erreur.dart';
 
 // ─── Couleurs accent (conformes au mockup) ───────────────────────────────
 
@@ -45,65 +46,6 @@ class _MockTx {
   });
 }
 
-const List<_MockTx> _kMockTxs = [
-  _MockTx(
-    icon: Icons.arrow_downward,
-    isIn: true,
-    titre: 'Vente Maïs 500 kg',
-    sousTitre: '14/05 · Restaurant Le Baoulé',
-    montant: '+175 000 F',
-  ),
-  _MockTx(
-    icon: Icons.arrow_upward,
-    isIn: false,
-    titre: 'Avance Yao K.',
-    sousTitre: '13/05 · Membre actif',
-    montant: '-50 000 F',
-  ),
-  _MockTx(
-    icon: Icons.arrow_upward,
-    isIn: false,
-    titre: 'Commission plateforme',
-    sousTitre: '12/05 · 3% vente Maïs',
-    montant: '-5 250 F',
-  ),
-  _MockTx(
-    icon: Icons.arrow_downward,
-    isIn: true,
-    titre: 'Vente Manioc 320 kg',
-    sousTitre: '11/05 · Industries Agricoles SA',
-    montant: '+115 200 F',
-  ),
-  _MockTx(
-    icon: Icons.arrow_upward,
-    isIn: false,
-    titre: 'Avance Aya D.',
-    sousTitre: '10/05 · Achat intrants',
-    montant: '-25 000 F',
-  ),
-  _MockTx(
-    icon: Icons.arrow_downward,
-    isIn: true,
-    titre: 'Recharge Mobile Money',
-    sousTitre: '09/05 · Orange Money',
-    montant: '+100 000 F',
-  ),
-  _MockTx(
-    icon: Icons.arrow_upward,
-    isIn: false,
-    titre: 'Retrait coopérative',
-    sousTitre: '08/05 · Frais transport',
-    montant: '-18 000 F',
-  ),
-  _MockTx(
-    icon: Icons.arrow_downward,
-    isIn: true,
-    titre: 'Vente Riz 200 kg',
-    sousTitre: '07/05 · Grossiste local',
-    montant: '+72 000 F',
-  ),
-];
-
 /// Page Wallet coopérative — solde, actions Retirer / Recharger, filtres
 /// et liste de transactions. Mock fallback si endpoint indisponible.
 /// Reproduction fidèle de `mockups/cooperative/wallet.html`.
@@ -135,21 +77,26 @@ class _WalletCooperativePageState extends ConsumerState<WalletCooperativePage> {
                   padding: EdgeInsets.only(top: AppDimens.space32),
                   child: Chargement(size: 22),
                 ),
-                // Même en cas d'erreur, on affiche les mocks pour rester
-                // aligné sur la maquette HTML.
-                error: (e, _) => _Body(
-                  balance: 84500,
-                  weekDelta: '+12 500 F cette semaine',
-                  transactions: const [],
-                  filter: _filter,
-                  onFilter: (f) => setState(() => _filter = f),
+                error: (e, _) => Padding(
+                  padding: const EdgeInsets.all(AppDimens.pagePaddingH),
+                  child: VueErreur(
+                    message: 'Impossible de charger le wallet. $e',
+                    onRetry: () => ref.invalidate(_walletProvider),
+                  ),
                 ),
-                data: (bundle) => _Body(
-                  balance: bundle.wallet.balance,
-                  weekDelta: '+12 500 F cette semaine',
-                  transactions: bundle.transactions.data,
-                  filter: _filter,
-                  onFilter: (f) => setState(() => _filter = f),
+                data: (bundle) => RefreshIndicator(
+                  color: AppColors.primary,
+                  onRefresh: () async {
+                    ref.invalidate(_walletProvider);
+                    await ref.read(_walletProvider.future);
+                  },
+                  child: _Body(
+                    balance: bundle.wallet.balance,
+                    escrow: bundle.wallet.balanceEscrow,
+                    transactions: bundle.transactions.data,
+                    filter: _filter,
+                    onFilter: (f) => setState(() => _filter = f),
+                  ),
                 ),
               ),
             ),
@@ -273,21 +220,21 @@ class _NotifsButton extends StatelessWidget {
 class _Body extends StatelessWidget {
   const _Body({
     required this.balance,
-    required this.weekDelta,
+    required this.escrow,
     required this.transactions,
     required this.filter,
     required this.onFilter,
   });
 
   final double balance;
-  final String weekDelta;
+  final double escrow;
   final List<Transaction> transactions;
   final _FilterChip filter;
   final ValueChanged<_FilterChip> onFilter;
 
   @override
   Widget build(BuildContext context) {
-    final txItems = _buildItems();
+    final txItems = transactions.map(_mapTx).toList();
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(
@@ -297,23 +244,13 @@ class _Body extends StatelessWidget {
         AppDimens.space16,
       ),
       children: [
-        _Hero(balance: balance, weekDelta: weekDelta),
+        _Hero(balance: balance, escrow: escrow),
         AppDimens.vGap16,
         _Chips(filter: filter, onChange: onFilter),
         const _SectionHead(titre: 'Transactions récentes'),
         _ListCard(items: txItems),
       ],
     );
-  }
-
-  /// Construit la liste à afficher : si on a des transactions backend, on
-  /// les mappe ; sinon on retombe sur les mocks fidèles à la maquette.
-  List<_MockTx> _buildItems() {
-    final base = transactions.isNotEmpty
-        ? transactions.map(_mapTx).toList()
-        : _kMockTxs;
-    if (base.length > 8) return base.take(8).toList();
-    return base;
   }
 
   static _MockTx _mapTx(Transaction t) {
@@ -341,14 +278,15 @@ class _Body extends StatelessWidget {
 // ─── Hero (solde + 2 boutons) ────────────────────────────────────────────
 
 class _Hero extends StatelessWidget {
-  const _Hero({required this.balance, required this.weekDelta});
+  const _Hero({required this.balance, required this.escrow});
 
   final double balance;
-  final String weekDelta;
+  final double escrow;
 
   @override
   Widget build(BuildContext context) {
     final formatted = NumberFormat('#,##0', 'fr_FR').format(balance);
+    final formattedEscrow = NumberFormat('#,##0', 'fr_FR').format(escrow);
     return Container(
       decoration: BoxDecoration(
         color: AppColors.background,
@@ -382,7 +320,7 @@ class _Hero extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            weekDelta,
+            'En escrow : $formattedEscrow F',
             style: AppTextStyles.bodySmall.copyWith(
               fontSize: 12,
               color: AppColors.textSecondary,

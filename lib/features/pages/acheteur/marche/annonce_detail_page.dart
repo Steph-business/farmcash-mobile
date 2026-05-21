@@ -1,9 +1,13 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../api_client/api_exception.dart';
 import '../../../../models/annonce_vente.dart';
+import '../../../../models/enums.dart';
+import '../../../../routing/route_names.dart';
 import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
@@ -17,69 +21,15 @@ import '../../../widgets/communs/vue_erreur.dart';
 const Color _kPrimarySoft = Color(0xFFE8F5E9);
 const Color _kWarn = Color(0xFFF9A825);
 
-const String _kHeroPhotoFallback =
-    'https://images.unsplash.com/photo-1601493700631-2b16ec4b4716?w=800&h=450&fit=crop&auto=format';
-
-// ─── Mock avis acheteurs ──────────────────────────────────────────────
-
-class _MockAvis {
-  const _MockAvis({
-    required this.nom,
-    required this.note,
-    required this.commentaire,
-    required this.avatarUrl,
-  });
-  final String nom;
-  final int note;
-  final String commentaire;
-  final String avatarUrl;
-}
-
-const List<_MockAvis> _kAvis = [
-  _MockAvis(
-    nom: 'Marie Y.',
-    note: 5,
-    commentaire: 'Qualité top, livraison rapide, je recommande.',
-    avatarUrl:
-        'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200&h=200&fit=crop&auto=format',
-  ),
-  _MockAvis(
-    nom: 'Restaurant Akwaba',
-    note: 5,
-    commentaire: 'Maïs très propre. Sera mon fournisseur régulier.',
-    avatarUrl:
-        'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&h=200&fit=crop&auto=format',
-  ),
-  _MockAvis(
-    nom: 'Coop Saveurs',
-    note: 4,
-    commentaire: 'Bon produit, juste un petit retard sur la livraison.',
-    avatarUrl:
-        'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop&auto=format',
-  ),
-];
-
-const List<String> _kCaracs = [
-  'Standard',
-  'Bio',
-  'Sans traitement',
-  'Séché 5 jours',
-];
-
 // ─── Provider ────────────────────────────────────────────────────────
 
 final _annonceAcheteurDetailProvider = FutureProvider.autoDispose
-    .family<AnnonceVente?, String>((ref, id) async {
-  try {
-    return await ref.read(marketplaceServiceProvider).getAnnonceVente(id);
-  } catch (_) {
-    return null;
-  }
+    .family<AnnonceVente, String>((ref, id) async {
+  return ref.read(marketplaceServiceProvider).getAnnonceVente(id);
 });
 
-/// Détail d'une annonce de vente côté ACHETEUR — hero + carousel dots,
-/// titre/prix, vendeur (bouton Message seul), origine, caracs, avis,
-/// sticky qty + commander.
+/// Détail d'une annonce de vente côté ACHETEUR. Toutes les données
+/// proviennent de `GET /marketplace/annonces/vente/:id`.
 class AnnonceDetailAcheteurPage extends ConsumerStatefulWidget {
   const AnnonceDetailAcheteurPage({required this.annonceId, super.key});
 
@@ -92,8 +42,12 @@ class AnnonceDetailAcheteurPage extends ConsumerStatefulWidget {
 
 class _AnnonceDetailAcheteurPageState
     extends ConsumerState<AnnonceDetailAcheteurPage> {
-  int _qte = 500;
-  final int _prixUnitaire = 350;
+  /// Quantité courante. Initialisée à la quantité minimale (ou à 1 si pas
+  /// défini) à la première reception du détail.
+  int? _qte;
+
+  /// État du bouton "Ajouter au panier".
+  bool _busy = false;
 
   @override
   Widget build(BuildContext context) {
@@ -117,7 +71,7 @@ class _AnnonceDetailAcheteurPageState
                 child: Padding(
                   padding: const EdgeInsets.all(AppDimens.pagePaddingH),
                   child: VueErreur(
-                    message: 'Impossible de charger l\'annonce.',
+                    message: 'Impossible de charger l\'annonce. $e',
                     onRetry: () => ref.invalidate(
                       _annonceAcheteurDetailProvider(widget.annonceId),
                     ),
@@ -132,52 +86,92 @@ class _AnnonceDetailAcheteurPageState
     );
   }
 
-  Widget _buildContent(AnnonceVente? annonce) {
-    final nom = annonce?.titre ?? 'Maïs blanc';
-    final qteDispo = annonce?.quantiteKg.round() ?? 500;
-    final prix =
-        annonce?.prixParKg.round() ?? _prixUnitaire;
-    final photo = (annonce?.photos.isNotEmpty ?? false)
-        ? annonce!.photos.first
-        : _kHeroPhotoFallback;
+  Widget _buildContent(AnnonceVente annonce) {
+    final qteDispo = annonce.quantiteKg.round();
+    final qteMin = (annonce.quantiteMinKg ?? 1).round().clamp(1, qteDispo);
+    _qte ??= qteMin;
+    final qte = _qte!.clamp(qteMin, qteDispo);
+    final prix = annonce.prixParKg.round();
+    final montant = qte * prix;
+
+    final nom = annonce.produitLabel;
     final titreHeader = '$nom · ${_formatKg(qteDispo.toDouble())}';
-    final montant = _qte * prix;
 
     return Column(
       children: [
         _Header(title: titreHeader),
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.only(bottom: 100),
+            padding: const EdgeInsets.only(bottom: 120),
             children: [
-              _Hero(photoUrl: photo),
-              _TitleCard(nom: nom, prixParKg: prix, qteDispo: qteDispo),
-              const _SectionVendeur(),
-              const _SectionOrigine(),
-              const _SectionCaracteristiques(),
-              const _SectionAvis(),
+              _Hero(photos: annonce.photos),
+              _TitleCard(
+                nom: nom,
+                prixParKg: prix,
+                qteDispo: qteDispo,
+                qualite: annonce.qualite,
+              ),
+              _SectionVendeur(annonce: annonce),
+              _SectionOrigine(annonce: annonce),
+              // Section traçabilité : argument premium "from-farm-to-fork".
+              // Affichée systématiquement — y compris quand aucun traitement
+              // n'est déclaré (= signal positif "production naturelle").
+              _SectionTracabilite(traitements: annonce.traitements),
+              if (annonce.description != null &&
+                  annonce.description!.trim().isNotEmpty)
+                _SectionDescription(description: annonce.description!),
+              _SectionInfos(annonce: annonce, qteMinKg: qteMin),
+              if (annonce.certifications.isNotEmpty)
+                _SectionCertifications(certifications: annonce.certifications),
             ],
           ),
         ),
         _StickyBottom(
-          qte: _qte,
+          qte: qte,
           montant: montant,
           maxQte: qteDispo,
-          onMinus: () {
-            if (_qte > 1) setState(() => _qte--);
-          },
-          onPlus: () {
-            if (_qte < qteDispo) setState(() => _qte++);
-          },
-          onCommander: () {
-            Snackbars.showInfo(
-              context,
-              'Commande à payer — ${_formatF(montant)}',
-            );
-            Navigator.of(context).maybePop();
-          },
+          minQte: qteMin,
+          busy: _busy,
+          onMinus: () => setState(() {
+            if (_qte != null && _qte! > qteMin) _qte = _qte! - 1;
+          }),
+          onPlus: () => setState(() {
+            if (_qte != null && _qte! < qteDispo) _qte = _qte! + 1;
+          }),
+          onAjouterPanier: () => _ajouterAuPanier(annonce, qte),
+          onCommander: () => _commander(annonce, qte),
         ),
       ],
+    );
+  }
+
+  Future<void> _ajouterAuPanier(AnnonceVente annonce, int qte) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    final svc = ref.read(marketplaceServiceProvider);
+    try {
+      await svc.addToPanier(
+        annonceId: annonce.id,
+        quantiteKg: qte.toDouble(),
+      );
+      if (!mounted) return;
+      Snackbars.showSucces(context, '$qte kg ajouté au panier');
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      Snackbars.showErreur(context, e.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _commander(AnnonceVente annonce, int qte) async {
+    // Le paiement reprend l'annonce + la quantité courante via le contexte
+    // de la page paiement (qui re-fetch l'annonce + recalcule). Pour cette
+    // V1, on passe par `acheteurPaiementCommandePathFor(annonceId)` et la
+    // page paiement saura quoi faire.
+    context.push(
+      RouteNames.acheteurPaiementCommandePathFor(annonce.id),
+      extra: {'quantiteKg': qte},
     );
   }
 }
@@ -193,9 +187,7 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(8, 8, 16, 8),
-      decoration: const BoxDecoration(
-        color: AppColors.background,
-      ),
+      decoration: const BoxDecoration(color: AppColors.background),
       child: Row(
         children: [
           InkWell(
@@ -237,69 +229,102 @@ class _Header extends StatelessWidget {
   }
 }
 
-// ─── Hero photo + carousel dots ───────────────────────────────────────
+// ─── Hero photo + carrousel ───────────────────────────────────────────
 
-class _Hero extends StatelessWidget {
-  const _Hero({required this.photoUrl});
+class _Hero extends StatefulWidget {
+  const _Hero({required this.photos});
+  final List<String> photos;
 
-  final String photoUrl;
+  @override
+  State<_Hero> createState() => _HeroState();
+}
+
+class _HeroState extends State<_Hero> {
+  final _pageCtrl = PageController();
+  int _index = 0;
+
+  @override
+  void dispose() {
+    _pageCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        AspectRatio(
-          aspectRatio: 16 / 9,
-          child: CachedNetworkImage(
-            imageUrl: photoUrl,
-            fit: BoxFit.cover,
-            placeholder: (_, _) => Container(color: AppColors.surfaceSoft),
-            errorWidget: (_, _, _) => Container(color: AppColors.surfaceSoft),
+    final photos = widget.photos;
+    if (photos.isEmpty) {
+      return AspectRatio(
+        aspectRatio: 16 / 9,
+        child: Container(
+          color: AppColors.surfaceSoft,
+          alignment: Alignment.center,
+          child: const Icon(
+            Icons.image_outlined,
+            size: 48,
+            color: AppColors.textSubtle,
           ),
         ),
-        Positioned(
-          top: 12,
-          right: 12,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.55),
-              borderRadius: BorderRadius.circular(14),
+      );
+    }
+    return AspectRatio(
+      aspectRatio: 16 / 9,
+      child: Stack(
+        children: [
+          PageView.builder(
+            controller: _pageCtrl,
+            itemCount: photos.length,
+            onPageChanged: (i) => setState(() => _index = i),
+            itemBuilder: (_, i) => CachedNetworkImage(
+              imageUrl: photos[i],
+              fit: BoxFit.cover,
+              placeholder: (_, _) => Container(color: AppColors.surfaceSoft),
+              errorWidget: (_, _, _) => Container(color: AppColors.surfaceSoft),
             ),
-            child: Text(
-              '1/3',
-              style: AppTextStyles.labelSmall.copyWith(
-                color: Colors.white,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
+          ),
+          Positioned(
+            top: 12,
+            right: 12,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.55),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Text(
+                '${_index + 1}/${photos.length}',
+                style: AppTextStyles.labelSmall.copyWith(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ),
-        ),
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: 10,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              for (var i = 0; i < 3; i++) ...[
-                Container(
-                  width: 7,
-                  height: 7,
-                  margin: const EdgeInsets.symmetric(horizontal: 3),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: i == 0
-                        ? Colors.white
-                        : Colors.white.withValues(alpha: 0.5),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ],
+          if (photos.length > 1)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 10,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  for (var i = 0; i < photos.length; i++)
+                    Container(
+                      width: 7,
+                      height: 7,
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: i == _index
+                            ? Colors.white
+                            : Colors.white.withValues(alpha: 0.5),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -311,11 +336,13 @@ class _TitleCard extends StatelessWidget {
     required this.nom,
     required this.prixParKg,
     required this.qteDispo,
+    required this.qualite,
   });
 
   final String nom;
   final int prixParKg;
   final int qteDispo;
+  final ProductQuality qualite;
 
   @override
   Widget build(BuildContext context) {
@@ -323,7 +350,8 @@ class _TitleCard extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 14),
       decoration: const BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: AppColors.border, width: AppDimens.borderThin),
+          bottom: BorderSide(
+              color: AppColors.border, width: AppDimens.borderThin),
         ),
       ),
       child: Column(
@@ -350,7 +378,7 @@ class _TitleCard extends StatelessWidget {
                   border: Border.all(color: _kPrimarySoft),
                 ),
                 child: Text(
-                  'Standard',
+                  _qualiteLabel(qualite),
                   style: AppTextStyles.labelSmall.copyWith(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
@@ -385,13 +413,19 @@ class _TitleCard extends StatelessWidget {
   }
 }
 
-// ─── Section vendeur (Yao K. + chip Coop + rating + bouton Message) ───
+// ─── Section vendeur ────────────────────────────────────────────────
 
 class _SectionVendeur extends StatelessWidget {
-  const _SectionVendeur();
+  const _SectionVendeur({required this.annonce});
+  final AnnonceVente annonce;
 
   @override
   Widget build(BuildContext context) {
+    final nom = annonce.vendeurNom ?? 'Vendeur';
+    final rating = annonce.vendeur?.rating;
+    final photo = annonce.vendeur?.photoUrl;
+    final farmerId = annonce.vendeur?.id ?? annonce.farmerId;
+
     return _Section(
       title: 'Vendeur',
       child: Row(
@@ -407,14 +441,24 @@ class _SectionVendeur extends StatelessWidget {
               ),
             ),
             clipBehavior: Clip.hardEdge,
-            child: CachedNetworkImage(
-              imageUrl:
-                  'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=200&h=200&fit=crop&auto=format',
-              fit: BoxFit.cover,
-              placeholder: (_, _) => Container(color: AppColors.surfaceSoft),
-              errorWidget: (_, _, _) =>
-                  Container(color: AppColors.surfaceSoft),
-            ),
+            child: photo != null && photo.isNotEmpty
+                ? CachedNetworkImage(
+                    imageUrl: photo,
+                    fit: BoxFit.cover,
+                    placeholder: (_, _) =>
+                        Container(color: AppColors.surfaceSoft),
+                    errorWidget: (_, _, _) =>
+                        Container(color: AppColors.surfaceSoft),
+                  )
+                : Container(
+                    color: _kPrimarySoft,
+                    alignment: Alignment.center,
+                    child: const Icon(
+                      Icons.person_outline,
+                      size: 24,
+                      color: AppColors.primary,
+                    ),
+                  ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -422,60 +466,39 @@ class _SectionVendeur extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Row(
-                  children: [
-                    Text(
-                      'Yao K.',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
+                Text(
+                  nom,
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (rating != null) ...[
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      const Text(
+                        '★',
+                        style: TextStyle(color: _kWarn, fontSize: 12),
                       ),
-                    ),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _kPrimarySoft,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        'Coop',
+                      const SizedBox(width: 4),
+                      Text(
+                        rating.toStringAsFixed(1),
                         style: AppTextStyles.labelSmall.copyWith(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.primary,
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 3),
-                Row(
-                  children: [
-                    Text(
-                      '★',
-                      style: TextStyle(color: _kWarn, fontSize: 12),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '4.8 · 47 ventes',
-                      style: AppTextStyles.labelSmall.copyWith(
-                        fontSize: 11,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
           const SizedBox(width: 8),
           InkWell(
-            onTap: () =>
-                Snackbars.showInfo(context, 'Messagerie — à venir'),
+            onTap: () => context.push(
+                RouteNames.acheteurVendeurDetailPathFor(farmerId)),
             borderRadius: BorderRadius.circular(10),
             child: Container(
               padding:
@@ -489,7 +512,7 @@ class _SectionVendeur extends StatelessWidget {
                 ),
               ),
               child: Text(
-                'Message',
+                'Voir profil',
                 style: AppTextStyles.labelMedium.copyWith(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
@@ -504,187 +527,34 @@ class _SectionVendeur extends StatelessWidget {
   }
 }
 
-// ─── Section origine ──────────────────────────────────────────────────
+// ─── Section origine (localisation) ─────────────────────────────────
 
 class _SectionOrigine extends StatelessWidget {
-  const _SectionOrigine();
+  const _SectionOrigine({required this.annonce});
+  final AnnonceVente annonce;
 
   @override
   Widget build(BuildContext context) {
+    final loc = annonce.localisationLabel ?? 'Localisation non précisée';
+    final adresse = annonce.adresseDetail;
+
     return _Section(
       title: 'Origine',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: _kPrimarySoft,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                alignment: Alignment.center,
-                child: const Icon(
-                  Icons.location_on_outlined,
-                  size: 18,
-                  color: AppColors.primary,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Parcelle Yopougon',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Maïs blanc · Récolté le 8 mai',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Container(
-            height: 80,
-            decoration: BoxDecoration(
-              color: _kPrimarySoft,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: AppColors.border,
-                width: AppDimens.borderThin,
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.location_on_outlined,
-                  size: 16,
-                  color: AppColors.primary,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  'Voir sur la carte',
-                  style: AppTextStyles.labelMedium.copyWith(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Section caractéristiques ─────────────────────────────────────────
-
-class _SectionCaracteristiques extends StatelessWidget {
-  const _SectionCaracteristiques();
-
-  @override
-  Widget build(BuildContext context) {
-    return _Section(
-      title: 'Caractéristiques',
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          for (final c in _kCaracs)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceSoft,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: AppColors.border,
-                  width: AppDimens.borderThin,
-                ),
-              ),
-              child: Text(
-                c,
-                style: AppTextStyles.labelMedium.copyWith(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.text,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Section avis ─────────────────────────────────────────────────────
-
-class _SectionAvis extends StatelessWidget {
-  const _SectionAvis();
-
-  @override
-  Widget build(BuildContext context) {
-    return _Section(
-      title: 'Avis (47)',
-      child: Column(
-        children: [
-          for (var i = 0; i < _kAvis.length; i++)
-            _AvisRow(avis: _kAvis[i], isLast: i == _kAvis.length - 1),
-        ],
-      ),
-    );
-  }
-}
-
-class _AvisRow extends StatelessWidget {
-  const _AvisRow({required this.avis, required this.isLast});
-
-  final _MockAvis avis;
-  final bool isLast;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: isLast ? Colors.transparent : AppColors.border,
-            width: AppDimens.borderThin,
-          ),
-        ),
-      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: 36,
             height: 36,
-            decoration: const BoxDecoration(shape: BoxShape.circle),
-            clipBehavior: Clip.hardEdge,
-            child: CachedNetworkImage(
-              imageUrl: avis.avatarUrl,
-              fit: BoxFit.cover,
-              placeholder: (_, _) => Container(color: AppColors.surfaceSoft),
-              errorWidget: (_, _, _) =>
-                  Container(color: AppColors.surfaceSoft),
+            decoration: BoxDecoration(
+              color: _kPrimarySoft,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            alignment: Alignment.center,
+            child: const Icon(
+              Icons.location_on_outlined,
+              size: 18,
+              color: AppColors.primary,
             ),
           ),
           const SizedBox(width: 10),
@@ -693,34 +563,20 @@ class _AvisRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        avis.nom,
-                        style: AppTextStyles.bodyMedium.copyWith(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Text(
-                      '★' * avis.note + '☆' * (5 - avis.note),
-                      style: TextStyle(color: _kWarn, fontSize: 11),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 3),
                 Text(
-                  avis.commentaire,
-                  style: AppTextStyles.bodySmall.copyWith(
-                    fontSize: 12,
-                    height: 1.4,
+                  loc,
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
+                if (adresse != null && adresse.trim().isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    adresse,
+                    style: AppTextStyles.bodySmall.copyWith(fontSize: 12),
+                  ),
+                ],
               ],
             ),
           ),
@@ -730,124 +586,349 @@ class _AvisRow extends StatelessWidget {
   }
 }
 
-// ─── Sticky bottom (qty + commander) ──────────────────────────────────
+// ─── Section traçabilité (origine + traitements) ────────────────────
 
-class _StickyBottom extends StatelessWidget {
-  const _StickyBottom({
-    required this.qte,
-    required this.montant,
-    required this.maxQte,
-    required this.onMinus,
-    required this.onPlus,
-    required this.onCommander,
-  });
-
-  final int qte;
-  final int montant;
-  final int maxQte;
-  final VoidCallback onMinus;
-  final VoidCallback onPlus;
-  final VoidCallback onCommander;
+/// Liste les traitements phytosanitaires déclarés par le producteur.
+/// Toujours visible : si la liste est vide, on affiche un message positif
+/// "Aucun traitement déclaré — production naturelle" (signal pour l'acheteur).
+class _SectionTracabilite extends StatelessWidget {
+  const _SectionTracabilite({required this.traitements});
+  final List<AnnonceTraitement> traitements;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-      decoration: const BoxDecoration(
-        color: AppColors.background,
-        border: Border(
-          top: BorderSide(color: AppColors.border, width: AppDimens.borderThin),
-        ),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Row(
-          children: [
+    return _Section(
+      title: 'Traçabilité',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Origine et traitements appliqués',
+            style: AppTextStyles.bodySmall.copyWith(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (traitements.isEmpty)
+            // Empty state honnête : pas de mock, pas de bla-bla. Le manque
+            // d'info devient une info en soi pour l'acheteur.
             Container(
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
+                color: _kPrimarySoft,
+                borderRadius: BorderRadius.circular(10),
                 border: Border.all(
                   color: AppColors.border,
                   width: AppDimens.borderThin,
                 ),
-                borderRadius: BorderRadius.circular(10),
               ),
-              clipBehavior: Clip.antiAlias,
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  InkWell(
-                    onTap: onMinus,
-                    child: Container(
-                      width: 36,
-                      height: 44,
-                      color: AppColors.surfaceSoft,
-                      alignment: Alignment.center,
-                      child: const Text(
-                        '−',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.text,
-                        ),
-                      ),
-                    ),
+                  const Icon(
+                    Icons.eco_outlined,
+                    size: 18,
+                    color: AppColors.primary,
                   ),
-                  Container(
-                    width: 54,
-                    height: 44,
-                    alignment: Alignment.center,
+                  const SizedBox(width: 10),
+                  Expanded(
                     child: Text(
-                      '$qte',
-                      style: AppTextStyles.titleSmall.copyWith(
-                        fontFamily: 'Poppins',
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  InkWell(
-                    onTap: onPlus,
-                    child: Container(
-                      width: 36,
-                      height: 44,
-                      color: AppColors.surfaceSoft,
-                      alignment: Alignment.center,
-                      child: const Text(
-                        '+',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.text,
-                        ),
+                      'Aucun traitement déclaré — production naturelle',
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        fontSize: 13,
+                        color: AppColors.text,
                       ),
                     ),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: InkWell(
-                onTap: onCommander,
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  height: 44,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(10),
+            )
+          else
+            Column(
+              children: [
+                for (var i = 0; i < traitements.length; i++)
+                  Padding(
+                    padding: EdgeInsets.only(
+                      bottom: i == traitements.length - 1 ? 0 : 10,
+                    ),
+                    child: _TraitementTile(t: traitements[i]),
                   ),
-                  child: Text(
-                    'Commander (${_formatF(montant)})',
-                    style: AppTextStyles.button.copyWith(
-                      fontSize: 14,
-                      color: AppColors.onPrimary,
+              ],
+            ),
+          const SizedBox(height: 10),
+          Text(
+            'Données fournies par le producteur',
+            style: AppTextStyles.labelSmall.copyWith(
+              fontSize: 10,
+              color: AppColors.textSubtle,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Tuile pour un traitement : icône selon type, nom, méta (type · dosage ·
+/// date) et chip "Délai carence" si respecté.
+class _TraitementTile extends StatelessWidget {
+  const _TraitementTile({required this.t});
+  final AnnonceTraitement t;
+
+  @override
+  Widget build(BuildContext context) {
+    final isBio = _isBio(t.type);
+    final df = DateFormat('d MMM y', 'fr_FR');
+    final nom = t.produitTraitementNom?.trim().isNotEmpty == true
+        ? t.produitTraitementNom!
+        : 'Traitement';
+
+    // Métadonnées concaténées par "·" (omises si vides) pour rester sobre.
+    final metaParts = <String>[
+      if (t.type != null && t.type!.trim().isNotEmpty) _typeLabel(t.type!),
+      if (t.dosageUtilise != null && t.dosageUtilise!.trim().isNotEmpty)
+        t.dosageUtilise!,
+      if (t.dateApplication != null) df.format(t.dateApplication!),
+    ];
+    final meta = metaParts.join(' · ');
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: AppColors.border,
+          width: AppDimens.borderThin,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: _kPrimarySoft,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            alignment: Alignment.center,
+            child: Icon(
+              isBio ? Icons.eco_outlined : Icons.science_outlined,
+              size: 16,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  nom,
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.text,
+                  ),
+                ),
+                if (meta.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    meta,
+                    style: AppTextStyles.bodySmall.copyWith(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
                     ),
                   ),
+                ],
+                if (t.delaiCarenceRespecte == true) ...[
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _kPrimarySoft,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'Délai carence respecté',
+                      style: AppTextStyles.labelSmall.copyWith(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  bool _isBio(String? type) {
+    if (type == null) return false;
+    final t = type.toUpperCase();
+    return t == 'BIO' || t == 'NATUREL' || t == 'ORGANIC';
+  }
+
+  String _typeLabel(String type) {
+    switch (type.toUpperCase()) {
+      case 'BIO':
+        return 'Bio';
+      case 'CHIMIQUE':
+        return 'Chimique';
+      case 'NATUREL':
+        return 'Naturel';
+      case 'ORGANIQUE':
+      case 'ORGANIC':
+        return 'Organique';
+      default:
+        return type;
+    }
+  }
+}
+
+// ─── Section description ─────────────────────────────────────────────
+
+class _SectionDescription extends StatelessWidget {
+  const _SectionDescription({required this.description});
+  final String description;
+
+  @override
+  Widget build(BuildContext context) {
+    return _Section(
+      title: 'Description',
+      child: Text(
+        description,
+        style: AppTextStyles.bodyMedium.copyWith(
+          fontSize: 13,
+          color: AppColors.text,
+          height: 1.5,
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Section infos (dates, quantités) ───────────────────────────────
+
+class _SectionInfos extends StatelessWidget {
+  const _SectionInfos({required this.annonce, required this.qteMinKg});
+  final AnnonceVente annonce;
+  final int qteMinKg;
+
+  @override
+  Widget build(BuildContext context) {
+    final df = DateFormat('d MMMM y', 'fr_FR');
+    final publie = annonce.createdAt;
+    final dispo = annonce.disponibleJusqu;
+
+    return _Section(
+      title: 'Informations',
+      child: Column(
+        children: [
+          _InfoRow(
+            label: 'Quantité min. à commander',
+            value: '${_nf.format(qteMinKg)} kg',
+          ),
+          if (publie != null)
+            _InfoRow(
+              label: 'Publié le',
+              value: df.format(publie),
+            ),
+          if (dispo != null)
+            _InfoRow(
+              label: 'Disponible jusqu\'au',
+              value: df.format(dispo),
+            ),
+          _InfoRow(
+            label: 'Vues',
+            value: '${annonce.viewsCount}',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({required this.label, required this.value});
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: AppTextStyles.bodySmall.copyWith(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            value,
+            style: AppTextStyles.bodyMedium.copyWith(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppColors.text,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Section certifications ─────────────────────────────────────────
+
+class _SectionCertifications extends StatelessWidget {
+  const _SectionCertifications({required this.certifications});
+  final List<String> certifications;
+
+  @override
+  Widget build(BuildContext context) {
+    return _Section(
+      title: 'Certifications',
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final c in certifications)
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 6,
+              ),
+              decoration: BoxDecoration(
+                color: _kPrimarySoft,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                c,
+                style: AppTextStyles.labelMedium.copyWith(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
                 ),
               ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -867,7 +948,8 @@ class _Section extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
       decoration: const BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: AppColors.border, width: AppDimens.borderThin),
+          bottom: BorderSide(
+              color: AppColors.border, width: AppDimens.borderThin),
         ),
       ),
       child: Column(
@@ -892,10 +974,212 @@ class _Section extends StatelessWidget {
   }
 }
 
+// ─── Sticky bottom : quantité + ajouter / commander ───────────────────
+
+class _StickyBottom extends StatelessWidget {
+  const _StickyBottom({
+    required this.qte,
+    required this.montant,
+    required this.maxQte,
+    required this.minQte,
+    required this.busy,
+    required this.onMinus,
+    required this.onPlus,
+    required this.onAjouterPanier,
+    required this.onCommander,
+  });
+
+  final int qte;
+  final int montant;
+  final int maxQte;
+  final int minQte;
+  final bool busy;
+  final VoidCallback onMinus;
+  final VoidCallback onPlus;
+  final VoidCallback onAjouterPanier;
+  final VoidCallback onCommander;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+      decoration: const BoxDecoration(
+        color: AppColors.background,
+        border: Border(
+          top: BorderSide(color: AppColors.border, width: AppDimens.borderThin),
+        ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Text(
+                  'Quantité : ',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: AppColors.border,
+                      width: AppDimens.borderThin,
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Row(
+                    children: [
+                      _StepBtn(
+                          label: '−', onTap: qte > minQte ? onMinus : null),
+                      Container(
+                        width: 60,
+                        alignment: Alignment.center,
+                        child: Text(
+                          '$qte kg',
+                          style: AppTextStyles.titleSmall.copyWith(
+                            fontFamily: 'Poppins',
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      _StepBtn(
+                          label: '+', onTap: qte < maxQte ? onPlus : null),
+                    ],
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '${_nf.format(montant)} F',
+                  style: AppTextStyles.titleSmall.copyWith(
+                    fontFamily: 'Poppins',
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: busy ? null : onAjouterPanier,
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      height: 44,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: AppColors.background,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: AppColors.primary,
+                          width: AppDimens.borderThin,
+                        ),
+                      ),
+                      child: busy
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.primary,
+                              ),
+                            )
+                          : Text(
+                              'Ajouter au panier',
+                              style: AppTextStyles.button.copyWith(
+                                fontSize: 13,
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: InkWell(
+                    onTap: onCommander,
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      height: 44,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        'Commander',
+                        style: AppTextStyles.button.copyWith(
+                          fontSize: 13,
+                          color: AppColors.onPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StepBtn extends StatelessWidget {
+  const _StepBtn({required this.label, required this.onTap});
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onTap != null;
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        width: 36,
+        height: 36,
+        color: AppColors.surfaceSoft,
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: enabled ? AppColors.text : AppColors.textSubtle,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 // ─── Helpers ───────────────────────────────────────────────────────────
 
 final _nf = NumberFormat('#,##0', 'fr_FR');
 
 String _formatKg(double kg) => '${_nf.format(kg.round())} kg';
 
-String _formatF(int n) => '${_nf.format(n)} F';
+String _qualiteLabel(ProductQuality q) {
+  switch (q) {
+    case ProductQuality.standard:
+      return 'Standard';
+    case ProductQuality.premium:
+      return 'Premium';
+    case ProductQuality.bio:
+      return 'Bio';
+    case ProductQuality.equitable:
+      return 'Équitable';
+    case ProductQuality.unknown:
+      return '—';
+  }
+}

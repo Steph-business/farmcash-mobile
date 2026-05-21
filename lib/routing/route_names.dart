@@ -124,6 +124,60 @@ class RouteNames {
       '/producteur/demandes-achat/:id/repondre';
   static String producteurDemandeAchatRepondrePathFor(String id) =>
       '/producteur/demandes-achat/$id/repondre';
+  // Offres reçues sur mes annonces (propositions pending)
+  static const producteurOffresRecues = 'producteur-offres-recues';
+  static const producteurOffresRecuesPath = '/producteur/offres-recues';
+  // Aperçu de ma coopérative (vue côté membre)
+  static const producteurCooperative = 'producteur-cooperative';
+  static const producteurCooperativePath = '/producteur/cooperative';
+  // Détail d'une publication coop (publication agrégée par la coop)
+  static const producteurPublicationCoopDetail =
+      'producteur-publication-coop-detail';
+  static const producteurPublicationCoopDetailPath =
+      '/producteur/publications-coop/:id';
+  static String producteurPublicationCoopDetailPathFor(String id) =>
+      '/producteur/publications-coop/$id';
+  // Profil & paramètres (push top-level — pattern iOS Settings)
+  static const producteurProfilSettings = 'producteur-profil-settings';
+  static const producteurProfilSettingsPath =
+      '/producteur/profil-settings';
+  // Édition du profil (formulaire info perso)
+  static const producteurProfilEditer = 'producteur-profil-editer';
+  static const producteurProfilEditerPath = '/producteur/profil/editer';
+  // Documents KYC (justificatifs : CNI, photo exploitation, etc.)
+  static const producteurDocumentsKyc = 'producteur-documents-kyc';
+  static const producteurDocumentsKycPath = '/producteur/documents-kyc';
+  // Centre d'aide (FAQ + contact)
+  static const producteurAide = 'producteur-aide';
+  static const producteurAidePath = '/producteur/aide';
+
+  // ─── Outils IA producteur (push hors shell) ──────────────────────────
+  // Diagnostiquer une plante (photo → maladie + traitements)
+  static const producteurAiAnalysePlante = 'producteur-ai-analyse-plante';
+  static const producteurAiAnalysePlantePath =
+      '/producteur/ai/analyse-plante';
+  // Historique des analyses passées
+  static const producteurAiAnalysesHistorique =
+      'producteur-ai-analyses-historique';
+  static const producteurAiAnalysesHistoriquePath = '/producteur/ai/analyses';
+  // Assistant conversationnel agronomique
+  static const producteurAiAssistant = 'producteur-ai-assistant';
+  static const producteurAiAssistantPath = '/producteur/ai/assistant';
+  // Feed d'actualités filtrées
+  static const producteurAiActualites = 'producteur-ai-actualites';
+  static const producteurAiActualitesPath = '/producteur/ai/actualites';
+  // Détail d'une actualité
+  static const producteurAiActualiteDetail =
+      'producteur-ai-actualite-detail';
+  static const producteurAiActualiteDetailPath =
+      '/producteur/ai/actualites/:id';
+  static String producteurAiActualiteDetailPathFor(String id) =>
+      '/producteur/ai/actualites/$id';
+  // Référentiel des traitements
+  static const producteurAiCatalogueTraitements =
+      'producteur-ai-catalogue-traitements';
+  static const producteurAiCatalogueTraitementsPath =
+      '/producteur/ai/catalogue-traitements';
 
   // ─── Onglets ACHETEUR ────────────────────────────────────────────────
   static const acheteurMessagesPath = '/acheteur/messages';
@@ -184,6 +238,12 @@ class RouteNames {
       '/acheteur/commandes/:id/livraison-qr';
   static String acheteurLivraisonQrPathFor(String id) =>
       '/acheteur/commandes/$id/livraison-qr';
+  // Évaluation du transport après livraison (push depuis le détail commande)
+  static const acheteurCommandeEvaluation = 'acheteur-commande-evaluation';
+  static const acheteurCommandeEvaluationPath =
+      '/acheteur/commandes/:id/evaluation';
+  static String acheteurCommandeEvaluationPathFor(String id) =>
+      '/acheteur/commandes/$id/evaluation';
   static const acheteurNotifications = 'acheteur-notifications';
   static const acheteurNotificationsPath = '/acheteur/notifications';
   // Flow Wallet acheteur (push hors shell — solde, transactions, retrait, recharge)
@@ -196,6 +256,19 @@ class RouteNames {
   // Page profil & paramètres (push top-level, accessible depuis l'avatar header)
   static const acheteurProfilSettings = 'acheteur-profil-settings';
   static const acheteurProfilSettingsPath = '/acheteur/profil-settings';
+  // Adresses de livraison (push depuis profil + panier + paiement)
+  static const acheteurAdressesLivraison = 'acheteur-adresses-livraison';
+  static const acheteurAdressesLivraisonPath =
+      '/acheteur/adresses-livraison';
+  // Mes favoris (annonces sauvegardées, push depuis profil)
+  static const acheteurFavoris = 'acheteur-favoris';
+  static const acheteurFavorisPath = '/acheteur/favoris';
+  // Profil public d'un vendeur (producteur ou coop) — vue acheteur,
+  // info masquée par data masking selon partage de coop (PARTIAL/FULL).
+  static const acheteurVendeurDetail = 'acheteur-vendeur-detail';
+  static const acheteurVendeurDetailPath = '/acheteur/vendeurs/:farmerId';
+  static String acheteurVendeurDetailPathFor(String farmerId) =>
+      '/acheteur/vendeurs/$farmerId';
 
   // ─── Onglets COOPÉRATIVE ─────────────────────────────────────────────
   static const cooperativeMembresPath = '/cooperative/membres';
@@ -298,6 +371,9 @@ class RouteNames {
   static const cooperativeVehiculeAjouter = 'cooperative-vehicule-ajouter';
   static const cooperativeVehiculeAjouterPath =
       '/cooperative/vehicule-ajouter';
+  // Planifier une collecte interne (membre → coop)
+  static const cooperativeCollecteCreer = 'cooperative-collecte-creer';
+  static const cooperativeCollecteCreerPath = '/cooperative/collectes/creer';
 
   // ─── Onglets TRANSPORTEUR ────────────────────────────────────────────
   static const transporteurMissionsPath = '/transporteur/missions';
@@ -357,8 +433,36 @@ class RouteNames {
       '/transporteur/wallet/recharger';
   static const transporteurWalletRetirer = 'transporteur-wallet-retirer';
   static const transporteurWalletRetirerPath = '/transporteur/wallet/retirer';
-  // Ajouter mon véhicule (push top-level depuis profil settings)
+  // Ajouter un itinéraire (push top-level — historiquement nommé
+  // "vehicule-ajouter" car la maquette posait la route comme une
+  // caractéristique du véhicule, mais c'est bien une route au sens
+  // backend qui se crée ici).
   static const transporteurVehiculeAjouter = 'transporteur-vehicule-ajouter';
   static const transporteurVehiculeAjouterPath =
       '/transporteur/vehicule-ajouter';
+  // Créer un véhicule (POST /logistics/vehicles) — distinct de l'itinéraire
+  static const transporteurVehiculeCreer = 'transporteur-vehicule-creer';
+  static const transporteurVehiculeCreerPath =
+      '/transporteur/vehicules/creer';
+  // Mes véhicules — liste (push depuis profil settings / profil)
+  static const transporteurMesVehicules = 'transporteur-mes-vehicules';
+  static const transporteurMesVehiculesPath = '/transporteur/vehicules';
+  // Historique des missions terminées (push depuis l'onglet Missions)
+  static const transporteurMissionsHistorique =
+      'transporteur-missions-historique';
+  static const transporteurMissionsHistoriquePath =
+      '/transporteur/missions/historique';
+  // Détail d'une demande entrante avant acceptation (push depuis la liste)
+  static const transporteurDemandeDetail = 'transporteur-demande-detail';
+  static const transporteurDemandeDetailPath =
+      '/transporteur/demandes-entrantes/:id';
+  static String transporteurDemandeDetailPathFor(String id) =>
+      '/transporteur/demandes-entrantes/$id';
+  // Évaluation après livraison confirmée (push depuis livraison_confirme)
+  static const transporteurMissionEvaluation =
+      'transporteur-mission-evaluation';
+  static const transporteurMissionEvaluationPath =
+      '/transporteur/missions/:id/evaluation';
+  static String transporteurMissionEvaluationPathFor(String id) =>
+      '/transporteur/missions/$id/evaluation';
 }

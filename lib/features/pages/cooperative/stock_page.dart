@@ -1,124 +1,53 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
+import '../../../models/lot.dart';
 import '../../../routing/route_names.dart';
+import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
 import '../../../theme/app_text_styles.dart';
+import '../../widgets/communs/chargement.dart';
 import '../../widgets/communs/header_utilisateur.dart';
+import '../../widgets/communs/vue_erreur.dart';
 
 // ─── Couleurs locales (alignées sur la maquette) ────────────────────────
 
 const Color _kPrimarySoft = Color(0xFFE8F5E9);
-const Color _kWarn = Color(0xFFB45309);
-const Color _kSuccess = Color(0xFF66BB6A);
 
-/// Modèle local pour un entrepôt mock.
-class _MockEntrepot {
-  final String id;
-  final String nom;
-  final String ville;
-  final String usageLabel; // « 8 t / 10 t »
-  final double pourcentage; // 0..1
-  final Color barColor;
-
-  const _MockEntrepot({
-    required this.id,
-    required this.nom,
-    required this.ville,
-    required this.usageLabel,
-    required this.pourcentage,
-    required this.barColor,
-  });
+/// Bundle entrepôts + lots récents pour cette page d'accueil stock.
+class _StockBundle {
+  const _StockBundle({required this.entrepots, required this.lots});
+  final List<Entrepot> entrepots;
+  final List<Lot> lots;
 }
 
-/// Modèle local pour un lot récent.
-class _MockLot {
-  final String produit;
-  final String quantiteLabel;
-  final String dateEntreeLabel;
-  final String photoUrl;
+final _stockBundleProvider =
+    FutureProvider.autoDispose<_StockBundle>((ref) async {
+  final svc = ref.read(marketplaceServiceProvider);
+  final results = await Future.wait<dynamic>([
+    svc.listEntrepots(),
+    svc.listLots(),
+  ]);
+  return _StockBundle(
+    entrepots: results[0] as List<Entrepot>,
+    lots: results[1] as List<Lot>,
+  );
+});
 
-  const _MockLot({
-    required this.produit,
-    required this.quantiteLabel,
-    required this.dateEntreeLabel,
-    required this.photoUrl,
-  });
-}
-
-const List<_MockEntrepot> _kMockEntrepots = [
-  _MockEntrepot(
-    id: 'ent_treichville',
-    nom: 'Entrepôt Abidjan-Treichville',
-    ville: 'Treichville',
-    usageLabel: '8 t / 10 t',
-    pourcentage: 0.80,
-    barColor: AppColors.primary,
-  ),
-  _MockEntrepot(
-    id: 'ent_bouake',
-    nom: 'Entrepôt Bouaké-Centre',
-    ville: 'Bouaké',
-    usageLabel: '3.4 t / 4 t',
-    pourcentage: 0.85,
-    barColor: _kWarn,
-  ),
-  _MockEntrepot(
-    id: 'ent_yamoussoukro',
-    nom: 'Entrepôt Yamoussoukro',
-    ville: 'Yamoussoukro',
-    usageLabel: '0.6 t / 2 t',
-    pourcentage: 0.30,
-    barColor: _kSuccess,
-  ),
-];
-
-const List<_MockLot> _kMockLots = [
-  _MockLot(
-    produit: 'Maïs blanc',
-    quantiteLabel: '500 kg',
-    dateEntreeLabel: 'Entré le 14 mai · Treichville',
-    photoUrl:
-        'https://images.unsplash.com/photo-1601493700631-2b16ec4b4716'
-        '?w=200&h=200&fit=crop&auto=format',
-  ),
-  _MockLot(
-    produit: 'Manioc',
-    quantiteLabel: '1 200 kg',
-    dateEntreeLabel: 'Entré le 13 mai · Bouaké',
-    photoUrl:
-        'https://images.unsplash.com/photo-1574484284002-952d92456975'
-        '?w=200&h=200&fit=crop&auto=format',
-  ),
-  _MockLot(
-    produit: 'Tomate',
-    quantiteLabel: '80 kg',
-    dateEntreeLabel: 'Entré le 12 mai · Yamoussoukro',
-    photoUrl:
-        'https://images.unsplash.com/photo-1518977956812-cd3dbadaaf31'
-        '?w=200&h=200&fit=crop&auto=format',
-  ),
-];
-
-/// Onglet Stock de la coopérative — accessible via le bottom-nav (shell).
-///
-/// Reproduction fidèle de `mockups/cooperative/stock.html` : header coop,
-/// compteur récap, 3 cards entrepôt avec barre de remplissage, et section
-/// « Lots récents » avec vignette produit.
-///
-/// Mock-first : à brancher sur `coopSvc.listEntrepots()` quand prêt.
+/// Onglet Stock de la coopérative — branché sur `listEntrepots`/`listLots`.
 class StockCooperativePage extends ConsumerWidget {
   const StockCooperativePage({super.key});
 
-  void _ouvrirEntrepot(BuildContext context, _MockEntrepot e) {
+  void _ouvrirEntrepot(BuildContext context, Entrepot e) {
     context.push(RouteNames.cooperativeStockEntrepotPathFor(e.id));
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(_stockBundleProvider);
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -127,30 +56,98 @@ class StockCooperativePage extends ConsumerWidget {
           children: [
             const HeaderUtilisateur(variant: HeaderVariant.cooperative),
             const _PageTitle(),
-            const _Summary(stockLabel: '12 t stockées', nbEntrepots: 3),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(
-                  AppDimens.pagePaddingH,
-                  AppDimens.space8,
-                  AppDimens.pagePaddingH,
-                  AppDimens.space24,
+              child: async.when(
+                loading: () => const Padding(
+                  padding: EdgeInsets.only(top: 48),
+                  child: Chargement(size: 22),
                 ),
-                children: [
-                  const _SectionTitre(label: 'Entrepôts'),
-                  AppDimens.vGap12,
-                  for (final e in _kMockEntrepots) ...[
-                    _EntrepotCard(
-                      entrepot: e,
-                      onTap: () => _ouvrirEntrepot(context, e),
-                    ),
-                    AppDimens.vGap12,
-                  ],
-                  AppDimens.vGap12,
-                  const _SectionTitre(label: 'Lots récents'),
-                  AppDimens.vGap12,
-                  _LotsCard(lots: _kMockLots),
-                ],
+                error: (e, _) => Padding(
+                  padding: const EdgeInsets.all(AppDimens.pagePaddingH),
+                  child: VueErreur(
+                    message: 'Impossible de charger le stock. $e',
+                    onRetry: () => ref.invalidate(_stockBundleProvider),
+                  ),
+                ),
+                data: (bundle) {
+                  final entrepots = bundle.entrepots;
+                  final lots = bundle.lots;
+                  final stockTotalKg = lots.fold<double>(
+                    0,
+                    (acc, l) => acc + l.quantiteKg,
+                  );
+                  final lotsRecents = [...lots]..sort((a, b) {
+                      final aDate = a.createdAt ??
+                          DateTime.fromMillisecondsSinceEpoch(0);
+                      final bDate = b.createdAt ??
+                          DateTime.fromMillisecondsSinceEpoch(0);
+                      return bDate.compareTo(aDate);
+                    });
+                  return Column(
+                    children: [
+                      _Summary(
+                        stockLabel: _formatStock(stockTotalKg),
+                        nbEntrepots: entrepots.length,
+                      ),
+                      Expanded(
+                        child: RefreshIndicator(
+                          color: AppColors.primary,
+                          onRefresh: () async {
+                            ref.invalidate(_stockBundleProvider);
+                            await ref.read(_stockBundleProvider.future);
+                          },
+                          child: ListView(
+                            padding: const EdgeInsets.fromLTRB(
+                              AppDimens.pagePaddingH,
+                              AppDimens.space8,
+                              AppDimens.pagePaddingH,
+                              AppDimens.space24,
+                            ),
+                            children: [
+                              const _SectionTitre(label: 'Entrepôts'),
+                              AppDimens.vGap12,
+                              if (entrepots.isEmpty)
+                                Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 16),
+                                  child: Text(
+                                    'Aucun entrepôt enregistré.',
+                                    style: AppTextStyles.bodySmall.copyWith(
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                )
+                              else
+                                for (final e in entrepots) ...[
+                                  _EntrepotCard(
+                                    entrepot: e,
+                                    onTap: () => _ouvrirEntrepot(context, e),
+                                  ),
+                                  AppDimens.vGap12,
+                                ],
+                              AppDimens.vGap12,
+                              const _SectionTitre(label: 'Lots récents'),
+                              AppDimens.vGap12,
+                              if (lotsRecents.isEmpty)
+                                Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 16),
+                                  child: Text(
+                                    'Aucun lot pour le moment.',
+                                    style: AppTextStyles.bodySmall.copyWith(
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                )
+                              else
+                                _LotsCard(lots: lotsRecents.take(8).toList()),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
           ],
@@ -158,6 +155,13 @@ class StockCooperativePage extends ConsumerWidget {
       ),
     );
   }
+}
+
+String _formatStock(double kg) {
+  if (kg < 1000) return '${kg.round()} kg stockés';
+  final tonnes = kg / 1000;
+  if (tonnes >= 10) return '${tonnes.toStringAsFixed(0)} t stockées';
+  return '${tonnes.toStringAsFixed(1)} t stockées';
 }
 
 // ─── Titre de page ──────────────────────────────────────────────────────
@@ -219,7 +223,7 @@ class _Summary extends StatelessWidget {
                 color: AppColors.text,
               ),
             ),
-            TextSpan(text: ' · $nbEntrepots entrepôts'),
+            TextSpan(text: ' · $nbEntrepots entrepôt${nbEntrepots > 1 ? 's' : ''}'),
           ],
         ),
       ),
@@ -251,11 +255,18 @@ class _SectionTitre extends StatelessWidget {
 class _EntrepotCard extends StatelessWidget {
   const _EntrepotCard({required this.entrepot, required this.onTap});
 
-  final _MockEntrepot entrepot;
+  final Entrepot entrepot;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    // Pas d'info "usage actuel" sans relation Lot→Entrepôt — on n'affiche
+    // que la capacité totale en t/kg.
+    final capacite = entrepot.capaciteKg;
+    final capaciteLabel = capacite >= 1000
+        ? '${(capacite / 1000).toStringAsFixed(1)} t'
+        : '${capacite.round()} kg';
+    final ville = entrepot.location ?? '';
     return Material(
       color: AppColors.surface,
       borderRadius: BorderRadius.circular(14),
@@ -304,25 +315,21 @@ class _EntrepotCard extends StatelessWidget {
                         color: AppColors.text,
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      entrepot.ville,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.bodySmall.copyWith(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
+                    if (ville.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        ville,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.bodySmall.copyWith(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    _ProgressBar(
-                      pourcentage: entrepot.pourcentage,
-                      color: entrepot.barColor,
-                    ),
-                    const SizedBox(height: 4),
+                    ],
+                    const SizedBox(height: 6),
                     Text(
-                      '${entrepot.usageLabel} '
-                      '(${(entrepot.pourcentage * 100).round()}%)',
+                      'Capacité $capaciteLabel${entrepot.isRefrigere ? ' · Réfrigéré' : ''}',
                       style: AppTextStyles.labelSmall.copyWith(
                         fontSize: 11,
                         color: AppColors.textSecondary,
@@ -345,40 +352,12 @@ class _EntrepotCard extends StatelessWidget {
   }
 }
 
-class _ProgressBar extends StatelessWidget {
-  const _ProgressBar({required this.pourcentage, required this.color});
-
-  final double pourcentage;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 6,
-      decoration: BoxDecoration(
-        color: AppColors.surfaceSoft,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(
-          color: AppColors.border,
-          width: AppDimens.borderThin,
-        ),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: FractionallySizedBox(
-        alignment: Alignment.centerLeft,
-        widthFactor: pourcentage.clamp(0, 1),
-        child: Container(color: color),
-      ),
-    );
-  }
-}
-
 // ─── Lots récents ───────────────────────────────────────────────────────
 
 class _LotsCard extends StatelessWidget {
   const _LotsCard({required this.lots});
 
-  final List<_MockLot> lots;
+  final List<Lot> lots;
 
   @override
   Widget build(BuildContext context) {
@@ -412,10 +391,14 @@ class _LotsCard extends StatelessWidget {
 class _LotRow extends StatelessWidget {
   const _LotRow({required this.lot});
 
-  final _MockLot lot;
+  final Lot lot;
 
   @override
   Widget build(BuildContext context) {
+    final qteLabel = '${_fmtKg(lot.quantiteKg)} kg';
+    final dateLabel = lot.createdAt != null
+        ? 'Entré le ${DateFormat('dd/MM').format(lot.createdAt!.toLocal())}'
+        : 'Date inconnue';
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppDimens.space16,
@@ -427,24 +410,18 @@ class _LotRow extends StatelessWidget {
             width: 50,
             height: 50,
             decoration: BoxDecoration(
-              color: AppColors.surfaceSoft,
+              color: _kPrimarySoft,
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
                 color: AppColors.border,
                 width: AppDimens.borderThin,
               ),
             ),
-            clipBehavior: Clip.antiAlias,
-            child: CachedNetworkImage(
-              imageUrl: lot.photoUrl,
-              fit: BoxFit.cover,
-              placeholder: (_, _) =>
-                  const ColoredBox(color: AppColors.surfaceSoft),
-              errorWidget: (_, _, _) => const Icon(
-                Icons.inventory_2_outlined,
-                color: AppColors.textSubtle,
-                size: 20,
-              ),
+            alignment: Alignment.center,
+            child: const Icon(
+              Icons.inventory_2_outlined,
+              color: AppColors.primary,
+              size: 22,
             ),
           ),
           const SizedBox(width: 12),
@@ -454,7 +431,7 @@ class _LotRow extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '${lot.produit} · ${lot.quantiteLabel}',
+                  '${lot.lotCode} · $qteLabel',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.bodyMedium.copyWith(
@@ -465,7 +442,7 @@ class _LotRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  lot.dateEntreeLabel,
+                  dateLabel,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.bodySmall.copyWith(
@@ -481,3 +458,16 @@ class _LotRow extends StatelessWidget {
     );
   }
 }
+
+String _fmtKg(double kg) {
+  final i = kg.round();
+  if (i < 1000) return '$i';
+  final s = '$i';
+  final buf = StringBuffer();
+  for (var k = 0; k < s.length; k++) {
+    if (k > 0 && (s.length - k) % 3 == 0) buf.write(' ');
+    buf.write(s[k]);
+  }
+  return buf.toString();
+}
+

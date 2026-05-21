@@ -4,11 +4,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../api_client/api_exception.dart';
+import '../../../../models/prevision.dart';
 import '../../../../routing/route_names.dart';
+import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
+import '../../../widgets/communs/chargement.dart';
 import '../../../widgets/communs/snackbars.dart';
+import '../../../widgets/communs/vue_erreur.dart';
 
 // ─── Constantes ───────────────────────────────────────────────────────
 
@@ -24,17 +29,13 @@ class _MethodSpec {
     required this.short,
     required this.name,
     required this.color,
-    required this.subtitle,
-    this.badge,
     this.dark = false,
   });
   final _PaymentMethod method;
   final String short;
   final String name;
   final Color color;
-  final String? subtitle;
-  final String? badge;
-  final bool dark; // si true => texte du logo en noir (MTN jaune)
+  final bool dark;
 }
 
 const List<_MethodSpec> _kMethods = [
@@ -43,22 +44,18 @@ const List<_MethodSpec> _kMethods = [
     short: 'FC',
     name: 'Solde wallet',
     color: AppColors.primary,
-    subtitle: null,
-    badge: 'Dispo 245 800 F',
   ),
   _MethodSpec(
     method: _PaymentMethod.om,
     short: 'OM',
     name: 'Orange Money',
     color: Color(0xFFFF6B00),
-    subtitle: '07 09 88 30 51',
   ),
   _MethodSpec(
     method: _PaymentMethod.mtn,
     short: 'MTN',
     name: 'MTN MoMo',
     color: Color(0xFFFFCC00),
-    subtitle: '05 ** ** ** 21',
     dark: true,
   ),
   _MethodSpec(
@@ -66,14 +63,26 @@ const List<_MethodSpec> _kMethods = [
     short: 'CB',
     name: 'Carte bancaire',
     color: Color(0xFF1E40AF),
-    subtitle: 'Visa / Mastercard',
   ),
 ];
+
+// ─── Provider ─────────────────────────────────────────────────────────
+
+final _previsionByIdProvider = FutureProvider.autoDispose
+    .family<Prevision, String>((ref, id) async {
+  final all = await ref.read(marketplaceServiceProvider).listPrevisions();
+  return all.firstWhere(
+    (p) => p.id == id,
+    orElse: () => throw StateError(
+      'Prévision introuvable. Elle n\'est plus active ou tu n\'y as pas accès.',
+    ),
+  );
+});
 
 // ─── Page ─────────────────────────────────────────────────────────────
 
 /// Écran de confirmation de réservation (acompte 10% + reste à livraison).
-/// Recap card hero, blocs acompte/reste, choix méthode, CGV, sticky bouton.
+/// Charge la `Prevision` cible et appelle `reserverPrevision` au submit.
 class ReservationPaiementPage extends ConsumerStatefulWidget {
   const ReservationPaiementPage({required this.previsionId, super.key});
 
@@ -88,84 +97,138 @@ class _ReservationPaiementPageState
     extends ConsumerState<ReservationPaiementPage> {
   _PaymentMethod _method = _PaymentMethod.wallet;
   bool _cgvAccepted = true;
+  bool _busy = false;
 
-  // Valeurs de la maquette (200 kg · Maïs · 350 F/kg).
-  static const int _qte = 200;
-  static const int _prixUnitaire = 350;
-  static const int _acompte = 7000; // 10%
-  static const int _reste = 63000; // 90%
+  /// Quantité à réserver (kg). On part sur la totalité de la prévision par
+  /// défaut, ajustable plus tard si la UI propose un picker.
+  double? _quantiteReservee;
 
   @override
   Widget build(BuildContext context) {
+    final async = ref.watch(_previsionByIdProvider(widget.previsionId));
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         bottom: false,
-        child: Column(
-          children: [
-            const _Header(title: 'Confirmer la réservation'),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-                children: [
-                  const _RecapCard(qte: _qte, prixUnitaire: _prixUnitaire),
-                  const SizedBox(height: 18),
-                  const _SectionTitle('Acompte à payer maintenant (10%)'),
-                  const SizedBox(height: 8),
-                  const _AcompteBox(montant: _acompte),
-                  const SizedBox(height: 14),
-                  const _SectionTitle('Reste à payer à la livraison (90%)'),
-                  const SizedBox(height: 8),
-                  const _ResteBox(montant: _reste, libelle: 'Le 15 juin'),
-                  const SizedBox(height: 18),
-                  const _SectionTitle('Méthode de paiement'),
-                  const SizedBox(height: 10),
-                  _MethodsGrid(
-                    selected: _method,
-                    onSelect: (m) => setState(() => _method = m),
+        child: async.when(
+          loading: () => const Column(
+            children: [
+              _Header(title: 'Confirmer la réservation'),
+              Expanded(child: Chargement(size: 22)),
+            ],
+          ),
+          error: (e, _) => Column(
+            children: [
+              const _Header(title: 'Confirmer la réservation'),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppDimens.pagePaddingH),
+                  child: VueErreur(
+                    message: 'Impossible de charger la prévision. $e',
+                    onRetry: () => ref
+                        .invalidate(_previsionByIdProvider(widget.previsionId)),
                   ),
-                  const SizedBox(height: 16),
-                  _CgvRow(
-                    accepted: _cgvAccepted,
-                    onToggle: () =>
-                        setState(() => _cgvAccepted = !_cgvAccepted),
-                  ),
-                ],
+                ),
               ),
-            ),
-            _StickyBottom(
-              acompte: _acompte,
-              enabled: _cgvAccepted,
-              onPay: _onPay,
-            ),
-          ],
+            ],
+          ),
+          data: (p) => _buildContent(p),
         ),
       ),
     );
   }
 
-  Future<void> _onPay() async {
+  Widget _buildContent(Prevision p) {
+    final qte = _quantiteReservee ?? p.quantitePrevKg;
+    final prixUnitaire = p.prixCibleKg ?? 0;
+    final montantTotal = qte * prixUnitaire;
+    final acompte = (montantTotal * 0.10).round();
+    final reste = (montantTotal - acompte).round();
+    final dispoLabel = p.dateRecoltePrev != null
+        ? DateFormat('d MMM yyyy', 'fr_FR').format(p.dateRecoltePrev!)
+        : 'À la récolte';
+
+    return Column(
+      children: [
+        const _Header(title: 'Confirmer la réservation'),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            children: [
+              _RecapCard(
+                qte: qte,
+                prixUnitaire: prixUnitaire,
+                dispoLabel: dispoLabel,
+              ),
+              const SizedBox(height: 18),
+              const _SectionTitle('Acompte à payer maintenant (10%)'),
+              const SizedBox(height: 8),
+              _AcompteBox(montant: acompte),
+              const SizedBox(height: 14),
+              const _SectionTitle('Reste à payer à la livraison (90%)'),
+              const SizedBox(height: 8),
+              _ResteBox(montant: reste, libelle: 'Le $dispoLabel'),
+              const SizedBox(height: 18),
+              const _SectionTitle('Méthode de paiement'),
+              const SizedBox(height: 10),
+              _MethodsGrid(
+                selected: _method,
+                onSelect: (m) => setState(() => _method = m),
+              ),
+              const SizedBox(height: 16),
+              _CgvRow(
+                accepted: _cgvAccepted,
+                onToggle: () =>
+                    setState(() => _cgvAccepted = !_cgvAccepted),
+              ),
+            ],
+          ),
+        ),
+        _StickyBottom(
+          acompte: acompte,
+          enabled: _cgvAccepted && !_busy && qte > 0,
+          busy: _busy,
+          onPay: () => _onPay(p, qte),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _onPay(Prevision p, double qte) async {
+    if (_busy) return;
     if (!_cgvAccepted) {
       Snackbars.showErreur(context, 'Tu dois accepter les CGV.');
       return;
     }
-    Snackbars.showSucces(
-      context,
-      'Réservation confirmée — acompte ${_nf.format(_acompte)} F payé',
-    );
-    await Future<void>.delayed(const Duration(milliseconds: 350));
-    if (!mounted) return;
-    context.go(RouteNames.acheteurMesReservationsPath);
+    setState(() => _busy = true);
+    try {
+      await ref.read(marketplaceServiceProvider).reserverPrevision(
+            previsionId: p.id,
+            quantiteKg: qte,
+          );
+      if (!mounted) return;
+      Snackbars.showSucces(context, 'Réservation confirmée');
+      context.go(RouteNames.acheteurMesReservationsPath);
+    } on ApiException catch (e) {
+      if (mounted) Snackbars.showErreur(context, e.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 }
 
 // ─── Recap card ───────────────────────────────────────────────────────
 
 class _RecapCard extends StatelessWidget {
-  const _RecapCard({required this.qte, required this.prixUnitaire});
+  const _RecapCard({
+    required this.qte,
+    required this.prixUnitaire,
+    required this.dispoLabel,
+  });
 
-  final int qte;
-  final int prixUnitaire;
+  final double qte;
+  final double prixUnitaire;
+  final String dispoLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -174,7 +237,8 @@ class _RecapCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: _kPrimarySoft,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border, width: AppDimens.borderThin),
+        border: Border.all(
+            color: AppColors.border, width: AppDimens.borderThin),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -204,10 +268,9 @@ class _RecapCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          _kvRow('Produit', 'Maïs blanc'),
-          _kvRow('Quantité', '$qte kg'),
-          _kvRow('Prix unitaire', '$prixUnitaire F/kg'),
-          _kvRow('Livraison estimée', '15 juin'),
+          _kvRow('Quantité', '${_nf.format(qte.round())} kg'),
+          _kvRow('Prix unitaire', '${_nf.format(prixUnitaire.round())} F/kg'),
+          _kvRow('Livraison estimée', dispoLabel),
         ],
       ),
     );
@@ -273,7 +336,8 @@ class _AcompteBox extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.primary, width: AppDimens.borderThin),
+        border: Border.all(
+            color: AppColors.primary, width: AppDimens.borderThin),
       ),
       child: Column(
         children: [
@@ -315,7 +379,8 @@ class _ResteBox extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border, width: AppDimens.borderThin),
+        border:
+            Border.all(color: AppColors.border, width: AppDimens.borderThin),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -416,27 +481,6 @@ class _MethodsGrid extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 6),
-                if (spec.badge != null)
-                  Text(
-                    spec.badge!,
-                    style: AppTextStyles.labelSmall.copyWith(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primary,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  )
-                else if (spec.subtitle != null)
-                  Text(
-                    spec.subtitle!,
-                    style: AppTextStyles.labelSmall.copyWith(
-                      fontSize: 10,
-                      color: AppColors.textSecondary,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
               ],
             ),
           ),
@@ -464,7 +508,8 @@ class _CgvRow extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.surfaceSoft,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border, width: AppDimens.borderThin),
+          border: Border.all(
+              color: AppColors.border, width: AppDimens.borderThin),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -527,11 +572,13 @@ class _StickyBottom extends StatelessWidget {
   const _StickyBottom({
     required this.acompte,
     required this.enabled,
+    required this.busy,
     required this.onPay,
   });
 
   final int acompte;
   final bool enabled;
+  final bool busy;
   final VoidCallback onPay;
 
   @override
@@ -541,7 +588,8 @@ class _StickyBottom extends StatelessWidget {
       decoration: const BoxDecoration(
         color: AppColors.background,
         border: Border(
-          top: BorderSide(color: AppColors.border, width: AppDimens.borderThin),
+          top: BorderSide(
+              color: AppColors.border, width: AppDimens.borderThin),
         ),
       ),
       child: SafeArea(
@@ -558,13 +606,22 @@ class _StickyBottom extends StatelessWidget {
                   : AppColors.primary.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Text(
-              'Payer ${_nf.format(acompte)} F et réserver',
-              style: AppTextStyles.button.copyWith(
-                fontSize: 14,
-                color: AppColors.onPrimary,
-              ),
-            ),
+            child: busy
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : Text(
+                    'Payer ${_nf.format(acompte)} F et réserver',
+                    style: AppTextStyles.button.copyWith(
+                      fontSize: 14,
+                      color: AppColors.onPrimary,
+                    ),
+                  ),
           ),
         ),
       ),
@@ -586,7 +643,8 @@ class _Header extends StatelessWidget {
       decoration: const BoxDecoration(
         color: AppColors.background,
         border: Border(
-          bottom: BorderSide(color: AppColors.border, width: AppDimens.borderThin),
+          bottom: BorderSide(
+              color: AppColors.border, width: AppDimens.borderThin),
         ),
       ),
       child: Row(

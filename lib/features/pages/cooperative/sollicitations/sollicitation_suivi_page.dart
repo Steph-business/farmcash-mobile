@@ -1,149 +1,176 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../api_client/api_exception.dart';
 import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
+import '../../../widgets/communs/chargement.dart';
 import '../../../widgets/communs/snackbars.dart';
+import '../../../widgets/communs/vue_erreur.dart';
 
 // ─── Couleurs accent ─────────────────────────────────────────────────────
 
 const Color _kPrimarySoft = Color(0xFFE8F5E9);
-const Color _kOrangeSoft = Color(0xFFFFF3E0);
-const Color _kOrange = Color(0xFFE65100);
 const Color _kBlueSoft = Color(0xFFE3F2FD);
 const Color _kBlue = Color(0xFF1565C0);
 
-enum _ReplyRole { membre, coop, indep }
+enum _ReplyRole { membre, coop, indep, unknown }
 
-enum _ReplyMode { now, later }
+enum _ReplyMode { now }
 
-/// Une réponse fournisseur à une sollicitation. **Membres en FULL** (règle
-/// 3b du chantier), **externes anonymisés** (coops + indép).
-class _MockReply {
-  final String avatar;
-  final String nom; // FULL si membre, abrégé sinon
+/// Une réponse fournisseur décodée depuis la Map riche `getSollicitation`.
+class _SollicitationReply {
+  final String? recipientId;
+  final String nom;
   final _ReplyRole role;
-  final int qtyKg;
+  final double qtyKg;
   final _ReplyMode mode;
-  final String? modeLabel; // "Dans 5j", "Dans 12j" pour later
-  final bool deja; // accepté
 
-  const _MockReply({
-    required this.avatar,
+  /// True si le recipient a déjà répondu (ACCEPTED).
+  final bool deja;
+
+  /// True si la coop a confirmé l'engagement de ce recipient.
+  final bool confirme;
+
+  const _SollicitationReply({
+    this.recipientId,
     required this.nom,
     required this.role,
     required this.qtyKg,
     required this.mode,
-    this.modeLabel,
     required this.deja,
+    required this.confirme,
   });
 }
 
-const List<_MockReply> _kMockReplies = [
-  // Membres — nom FULL
-  _MockReply(
-    avatar:
-        'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=120&h=120&fit=crop&auto=format',
-    nom: 'Yao Konan',
-    role: _ReplyRole.membre,
-    qtyKg: 500,
-    mode: _ReplyMode.now,
-    deja: false,
-  ),
-  // Coop externe — anonymisée
-  _MockReply(
-    avatar:
-        'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=120&h=120&fit=crop&auto=format',
-    nom: 'Coop CEMAC',
-    role: _ReplyRole.coop,
-    qtyKg: 400,
-    mode: _ReplyMode.later,
-    modeLabel: 'Dans 5j',
-    deja: false,
-  ),
-  // Membre — nom FULL
-  _MockReply(
-    avatar:
-        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&h=120&fit=crop&auto=format',
-    nom: "Aya N'Guessan",
-    role: _ReplyRole.membre,
-    qtyKg: 300,
-    mode: _ReplyMode.later,
-    modeLabel: 'Dans 12j',
-    deja: false,
-  ),
-  // Membre — déjà accepté
-  _MockReply(
-    avatar:
-        'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120&h=120&fit=crop&auto=format',
-    nom: 'Kouadio Bertin',
-    role: _ReplyRole.membre,
-    qtyKg: 250,
-    mode: _ReplyMode.now,
-    deja: true,
-  ),
-  // Coop externe — anonymisée
-  _MockReply(
-    avatar:
-        'https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=120&h=120&fit=crop&auto=format',
-    nom: 'Coop Yamoussoukro',
-    role: _ReplyRole.coop,
-    qtyKg: 200,
-    mode: _ReplyMode.now,
-    deja: true,
-  ),
-  // Indépendante — anonymisée
-  _MockReply(
-    avatar:
-        'https://images.unsplash.com/photo-1493612276216-ee3925520721?w=120&h=120&fit=crop&auto=format',
-    nom: 'Diabaté Awa',
-    role: _ReplyRole.indep,
-    qtyKg: 180,
-    mode: _ReplyMode.later,
-    modeLabel: 'Dans 8j',
-    deja: true,
-  ),
-  // Membre — déjà accepté
-  _MockReply(
-    avatar:
-        'https://images.unsplash.com/photo-1601412436009-d964bd02edbc?w=120&h=120&fit=crop&auto=format',
-    nom: 'Traoré Salif',
-    role: _ReplyRole.membre,
-    qtyKg: 120,
-    mode: _ReplyMode.now,
-    deja: true,
-  ),
-  // Membre — déjà accepté
-  _MockReply(
-    avatar:
-        'https://images.unsplash.com/photo-1573497019418-b400bb3ab074?w=120&h=120&fit=crop&auto=format',
-    nom: 'Adjoua Brigitte',
-    role: _ReplyRole.membre,
-    qtyKg: 60,
-    mode: _ReplyMode.now,
-    deja: true,
-  ),
-];
+/// Données décodées depuis la Map riche `getSollicitation(id)`.
+class _SollicitationDetail {
+  final String? produitNom;
+  final double? quantiteCibleKg;
+  final double quantiteOfferteKg;
+  final int totalRecipients;
+  final int totalResponses;
+  final String status;
+  final List<_SollicitationReply> replies;
 
-/// Fetch optionnel — `getSollicitation` renvoie une Map riche du back.
-/// Mock-fallback strict pour la maquette (le payload back ne contient pas
-/// l'agrégat exact en V1).
+  const _SollicitationDetail({
+    this.produitNom,
+    this.quantiteCibleKg,
+    required this.quantiteOfferteKg,
+    required this.totalRecipients,
+    required this.totalResponses,
+    required this.status,
+    required this.replies,
+  });
+}
+
 final _sollicitationSuiviProvider = FutureProvider.autoDispose
-    .family<List<_MockReply>, String>((ref, id) async {
-  try {
-    await ref.watch(cooperativesServiceProvider).getSollicitation(id);
-    // En V1 on retombe sur les mocks pour préserver le pixel-perfect.
-    return _kMockReplies;
-  } catch (_) {
-    return _kMockReplies;
-  }
+    .family<_SollicitationDetail, String>((ref, id) async {
+  final raw = await ref.read(cooperativesServiceProvider).getSollicitation(id);
+  return _decodeSollicitation(raw);
 });
 
+_SollicitationDetail _decodeSollicitation(Map<String, dynamic> raw) {
+  final annonce = raw['annonce'];
+  String? produitNom;
+  double? quantiteCibleKg;
+  if (annonce is Map) {
+    final a = annonce.cast<String, dynamic>();
+    final p = a['produit'];
+    if (p is Map) {
+      produitNom = p['nom'] as String?;
+    }
+    quantiteCibleKg = _asDouble(a['quantite_kg']);
+  }
+
+  final replies = <_SollicitationReply>[];
+  final recipients = raw['recipients'];
+  if (recipients is List) {
+    for (final r in recipients.whereType<Map>()) {
+      final m = r.cast<String, dynamic>();
+      final user = m['user'];
+      String nom = 'Destinataire';
+      if (user is Map) {
+        final u = user.cast<String, dynamic>();
+        nom = (u['full_name'] as String?) ??
+            (u['fullName'] as String?) ??
+            (u['phone'] as String?) ??
+            'Destinataire';
+      }
+      final audience =
+          (m['audience_segment'] as String? ?? 'UNKNOWN').toUpperCase();
+      _ReplyRole role;
+      switch (audience) {
+        case 'MEMBRES':
+        case 'MEMBRE':
+          role = _ReplyRole.membre;
+          break;
+        case 'COOPS_VOISINES':
+        case 'COOP':
+          role = _ReplyRole.coop;
+          break;
+        case 'INDEPENDANTS':
+        case 'INDEPENDANT':
+          role = _ReplyRole.indep;
+          break;
+        default:
+          role = _ReplyRole.unknown;
+      }
+      final action = (m['response_action'] as String? ?? '').toUpperCase();
+      final accepted = action == 'ACCEPTED' || action == 'CONFIRMED_BY_COOP';
+      final confirme = (m['confirmed_by_coop_at'] as Object?) != null ||
+          action == 'CONFIRMED_BY_COOP';
+      final qty = _asDouble(m['response_quantite_kg']) ?? 0;
+      replies.add(_SollicitationReply(
+        recipientId: m['id'] as String?,
+        nom: nom,
+        role: role,
+        qtyKg: qty,
+        mode: _ReplyMode.now,
+        deja: accepted,
+        confirme: confirme,
+      ));
+    }
+  }
+
+  final summary = raw['responses_summary'];
+  double totalOfferte = 0;
+  if (summary is Map) {
+    final s = summary.cast<String, dynamic>();
+    totalOfferte = _asDouble(s['total_quantite_offerte']) ??
+        _asDouble(s['totalQuantiteOfferte']) ??
+        0;
+  }
+  if (totalOfferte == 0) {
+    totalOfferte = replies
+        .where((r) => r.deja)
+        .fold<double>(0, (acc, r) => acc + r.qtyKg);
+  }
+
+  return _SollicitationDetail(
+    produitNom: produitNom,
+    quantiteCibleKg: quantiteCibleKg,
+    quantiteOfferteKg: totalOfferte,
+    totalRecipients:
+        (raw['total_recipients'] as num?)?.toInt() ?? replies.length,
+    totalResponses: (raw['total_responses'] as num?)?.toInt() ??
+        replies.where((r) => r.deja).length,
+    status: (raw['status'] as String? ?? 'OPEN').toUpperCase(),
+    replies: replies,
+  );
+}
+
+double? _asDouble(Object? v) {
+  if (v == null) return null;
+  if (v is num) return v.toDouble();
+  if (v is String) return double.tryParse(v);
+  return null;
+}
+
 /// Suivi d'une sollicitation envoyée par la coop : progression du
-/// remplissage, liste des réponses, actions (relancer / confirmer).
+/// remplissage, liste des réponses, actions (clôturer).
 class SollicitationSuiviPage extends ConsumerWidget {
   const SollicitationSuiviPage({required this.sollicitationId, super.key});
 
@@ -164,18 +191,22 @@ class SollicitationSuiviPage extends ConsumerWidget {
               child: async.when(
                 loading: () => const Padding(
                   padding: EdgeInsets.only(top: AppDimens.space32),
-                  child: Center(
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.2,
-                      color: AppColors.primary,
+                  child: Chargement(size: 22),
+                ),
+                error: (e, _) => Padding(
+                  padding: const EdgeInsets.all(AppDimens.pagePaddingH),
+                  child: VueErreur(
+                    message: 'Impossible de charger la sollicitation. $e',
+                    onRetry: () => ref.invalidate(
+                      _sollicitationSuiviProvider(sollicitationId),
                     ),
                   ),
                 ),
-                error: (_, _) => const _Body(replies: _kMockReplies),
-                data: (replies) => _Body(replies: replies),
+                data: (detail) =>
+                    _Body(detail: detail, sollicitationId: sollicitationId),
               ),
             ),
-            const _Sticky(),
+            _Sticky(sollicitationId: sollicitationId),
           ],
         ),
       ),
@@ -247,12 +278,18 @@ class _Header extends StatelessWidget {
 // ─── Body ────────────────────────────────────────────────────────────────
 
 class _Body extends StatelessWidget {
-  const _Body({required this.replies});
+  const _Body({required this.detail, required this.sollicitationId});
 
-  final List<_MockReply> replies;
+  final _SollicitationDetail detail;
+  final String sollicitationId;
 
   @override
   Widget build(BuildContext context) {
+    final replies = detail.replies;
+    final cible = detail.quantiteCibleKg ?? 0;
+    final offerte = detail.quantiteOfferteKg;
+    final pct = (cible > 0) ? (offerte / cible).clamp(0.0, 1.0) : 0.0;
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(
         AppDimens.pagePaddingH,
@@ -263,18 +300,40 @@ class _Body extends StatelessWidget {
       children: [
         _SectionTitle(title: 'Récap'),
         AppDimens.vGap12,
-        const _RecapCard(),
+        _RecapCard(
+          produit: detail.produitNom ?? 'Produit',
+          quantiteCibleKg: cible,
+          totalRecipients: detail.totalRecipients,
+          status: detail.status,
+        ),
         AppDimens.vGap24,
         _SectionTitle(title: 'Progression du remplissage'),
         AppDimens.vGap12,
-        const _ProgressCard(),
+        _ProgressCard(
+          quantiteOfferteKg: offerte,
+          quantiteCibleKg: cible,
+          pct: pct,
+        ),
         AppDimens.vGap24,
         _SectionTitle(title: 'Réponses reçues (${replies.length})'),
         AppDimens.vGap12,
-        for (final r in replies) ...[
-          _ReplyTile(reply: r),
-          AppDimens.vGap8,
-        ],
+        if (replies.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            child: Center(
+              child: Text(
+                'Aucune réponse pour le moment.',
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+          )
+        else
+          for (final r in replies) ...[
+            _ReplyTile(reply: r, sollicitationId: sollicitationId),
+            AppDimens.vGap8,
+          ],
       ],
     );
   }
@@ -298,13 +357,26 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
-// ─── Récap card (sous-titre anonymisé) ───────────────────────────────────
+// ─── Récap card ──────────────────────────────────────────────────────────
 
 class _RecapCard extends StatelessWidget {
-  const _RecapCard();
+  const _RecapCard({
+    required this.produit,
+    required this.quantiteCibleKg,
+    required this.totalRecipients,
+    required this.status,
+  });
+
+  final String produit;
+  final double quantiteCibleKg;
+  final int totalRecipients;
+  final String status;
 
   @override
   Widget build(BuildContext context) {
+    final cibleLabel = quantiteCibleKg > 0
+        ? '$produit · ${_fmt(quantiteCibleKg)} kg'
+        : produit;
     return Container(
       decoration: BoxDecoration(
         color: AppColors.background,
@@ -319,7 +391,7 @@ class _RecapCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Manioc · 3 000 kg manquants',
+            cibleLabel,
             style: AppTextStyles.titleLarge.copyWith(
               fontSize: 15,
               fontWeight: FontWeight.w700,
@@ -328,8 +400,7 @@ class _RecapCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            // Acheteur anonymisé : "Industries A." (anti-contournement)
-            'Pour Industries A. · Livraison 25 juin',
+            'Statut : $status',
             style: AppTextStyles.bodySmall.copyWith(
               fontSize: 12,
               color: AppColors.textSecondary,
@@ -337,7 +408,8 @@ class _RecapCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
               color: AppColors.surfaceSoft,
               borderRadius: BorderRadius.circular(12),
@@ -347,7 +419,7 @@ class _RecapCard extends StatelessWidget {
               ),
             ),
             child: Text(
-              'Sollicitation envoyée à 47 farmers + 12 coops',
+              'Sollicitation envoyée à $totalRecipients destinataire(s)',
               style: AppTextStyles.labelSmall.copyWith(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
@@ -361,13 +433,25 @@ class _RecapCard extends StatelessWidget {
   }
 }
 
-// ─── Progress card (barre + 2 mini-stats) ────────────────────────────────
+// ─── Progress card ────────────────────────────────────────────────────────
 
 class _ProgressCard extends StatelessWidget {
-  const _ProgressCard();
+  const _ProgressCard({
+    required this.quantiteOfferteKg,
+    required this.quantiteCibleKg,
+    required this.pct,
+  });
+
+  final double quantiteOfferteKg;
+  final double quantiteCibleKg;
+  final double pct;
 
   @override
   Widget build(BuildContext context) {
+    final pctLabel = '${(pct * 100).round()}%';
+    final mainLabel = quantiteCibleKg > 0
+        ? '${_fmt(quantiteOfferteKg)} / ${_fmt(quantiteCibleKg)} kg engagés'
+        : '${_fmt(quantiteOfferteKg)} kg engagés';
     return Container(
       decoration: BoxDecoration(
         color: AppColors.background,
@@ -385,7 +469,7 @@ class _ProgressCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  '2 010 / 3 000 kg engagés',
+                  mainLabel,
                   style: AppTextStyles.bodyMedium.copyWith(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -393,7 +477,7 @@ class _ProgressCard extends StatelessWidget {
                 ),
               ),
               Text(
-                '67%',
+                pctLabel,
                 style: AppTextStyles.titleLarge.copyWith(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
@@ -403,7 +487,6 @@ class _ProgressCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          // Barre de progression custom (16px height)
           Container(
             width: double.infinity,
             height: 16,
@@ -414,7 +497,7 @@ class _ProgressCard extends StatelessWidget {
             child: Align(
               alignment: Alignment.centerLeft,
               child: FractionallySizedBox(
-                widthFactor: 0.67,
+                widthFactor: pct,
                 child: Container(
                   decoration: BoxDecoration(
                     color: AppColors.primary,
@@ -422,75 +505,6 @@ class _ProgressCard extends StatelessWidget {
                   ),
                 ),
               ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: const [
-              Expanded(
-                child: _MiniStat(
-                  label: 'Stock immédiat',
-                  value: '1 200 kg',
-                  ok: true,
-                ),
-              ),
-              SizedBox(width: 10),
-              Expanded(
-                child: _MiniStat(
-                  label: 'Engagé à venir',
-                  value: '810 kg · max 18 juin',
-                  ok: false,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MiniStat extends StatelessWidget {
-  const _MiniStat({
-    required this.label,
-    required this.value,
-    required this.ok,
-  });
-
-  final String label;
-  final String value;
-  final bool ok;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: AppColors.border,
-          width: AppDimens.borderThin,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: AppTextStyles.labelSmall.copyWith(
-              fontSize: 11,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            value,
-            style: AppTextStyles.titleLarge.copyWith(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: ok ? AppColors.primary : _kOrange,
             ),
           ),
         ],
@@ -501,13 +515,46 @@ class _MiniStat extends StatelessWidget {
 
 // ─── Reply tile ──────────────────────────────────────────────────────────
 
-class _ReplyTile extends StatelessWidget {
-  const _ReplyTile({required this.reply});
+class _ReplyTile extends ConsumerStatefulWidget {
+  const _ReplyTile({required this.reply, required this.sollicitationId});
 
-  final _MockReply reply;
+  final _SollicitationReply reply;
+  final String sollicitationId;
+
+  @override
+  ConsumerState<_ReplyTile> createState() => _ReplyTileState();
+}
+
+class _ReplyTileState extends ConsumerState<_ReplyTile> {
+  bool _busy = false;
+
+  Future<void> _confirmer() async {
+    if (_busy) return;
+    final recipientId = widget.reply.recipientId;
+    if (recipientId == null || recipientId.isEmpty) {
+      Snackbars.showErreur(context, 'Identifiant de destinataire manquant');
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      await ref.read(cooperativesServiceProvider).confirmRecipientResponse(
+            sollicitationId: widget.sollicitationId,
+            recipientId: recipientId,
+          );
+      if (!mounted) return;
+      ref.invalidate(_sollicitationSuiviProvider(widget.sollicitationId));
+      Snackbars.showSucces(context, 'Engagement confirmé');
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      Snackbars.showErreur(context, e.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final reply = widget.reply;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -520,26 +567,24 @@ class _ReplyTile extends StatelessWidget {
       ),
       child: Row(
         children: [
-          ClipOval(
-            child: Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: AppColors.surfaceSoft,
-                border: Border.all(
-                  color: AppColors.border,
-                  width: AppDimens.borderThin,
-                ),
-                shape: BoxShape.circle,
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: _kPrimarySoft,
+              border: Border.all(
+                color: AppColors.border,
+                width: AppDimens.borderThin,
               ),
-              clipBehavior: Clip.hardEdge,
-              child: CachedNetworkImage(
-                imageUrl: reply.avatar,
-                fit: BoxFit.cover,
-                placeholder: (_, _) =>
-                    Container(color: AppColors.surfaceSoft),
-                errorWidget: (_, _, _) =>
-                    Container(color: AppColors.surfaceSoft),
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              _initiales(reply.nom),
+              style: AppTextStyles.labelSmall.copyWith(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primary,
               ),
             ),
           ),
@@ -570,7 +615,7 @@ class _ReplyTile extends StatelessWidget {
                 Row(
                   children: [
                     Text(
-                      '${reply.qtyKg} kg',
+                      '${_fmt(reply.qtyKg)} kg',
                       style: AppTextStyles.titleLarge.copyWith(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
@@ -578,23 +623,22 @@ class _ReplyTile extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    _ModeChip(
-                      mode: reply.mode,
-                      label: reply.mode == _ReplyMode.now
-                          ? 'Maintenant'
-                          : (reply.modeLabel ?? 'Dans Xj'),
-                    ),
+                    const _ModeChip(label: 'Maintenant'),
                   ],
                 ),
               ],
             ),
           ),
           const SizedBox(width: 8),
-          reply.deja
-              ? const _DoneChip()
-              : _AcceptBtn(onTap: () {
-                  Snackbars.showSucces(context, 'Réponse acceptée');
-                }),
+          if (reply.confirme)
+            const _ConfirmedChip()
+          else if (reply.deja)
+            _AcceptBtn(
+              label: _busy ? '…' : 'Confirmer',
+              onTap: _busy ? null : _confirmer,
+            )
+          else
+            const _DoneChip(label: 'En attente'),
         ],
       ),
     );
@@ -634,6 +678,15 @@ class _RoleTag extends StatelessWidget {
           width: AppDimens.borderThin,
         );
         break;
+      case _ReplyRole.unknown:
+        bg = AppColors.surfaceSoft;
+        fg = AppColors.textSecondary;
+        label = 'Destinataire';
+        border = Border.all(
+          color: AppColors.border,
+          width: AppDimens.borderThin,
+        );
+        break;
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
@@ -655,19 +708,16 @@ class _RoleTag extends StatelessWidget {
 }
 
 class _ModeChip extends StatelessWidget {
-  const _ModeChip({required this.mode, required this.label});
+  const _ModeChip({required this.label});
 
-  final _ReplyMode mode;
   final String label;
 
   @override
   Widget build(BuildContext context) {
-    final bg = mode == _ReplyMode.now ? _kPrimarySoft : _kOrangeSoft;
-    final fg = mode == _ReplyMode.now ? AppColors.primary : _kOrange;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: bg,
+        color: _kPrimarySoft,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Text(
@@ -675,7 +725,7 @@ class _ModeChip extends StatelessWidget {
         style: AppTextStyles.labelSmall.copyWith(
           fontSize: 10,
           fontWeight: FontWeight.w600,
-          color: fg,
+          color: AppColors.primary,
         ),
       ),
     );
@@ -683,19 +733,23 @@ class _ModeChip extends StatelessWidget {
 }
 
 class _AcceptBtn extends StatelessWidget {
-  const _AcceptBtn({required this.onTap});
+  const _AcceptBtn({required this.onTap, this.label = 'Confirmer'});
 
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
+    final disabled = onTap == null;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(9),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
-          color: AppColors.primary,
+          color: disabled
+              ? AppColors.primary.withValues(alpha: 0.5)
+              : AppColors.primary,
           borderRadius: BorderRadius.circular(9),
           border: Border.all(
             color: AppColors.primary,
@@ -703,7 +757,7 @@ class _AcceptBtn extends StatelessWidget {
           ),
         ),
         child: Text(
-          'Accepter',
+          label,
           style: AppTextStyles.button.copyWith(
             fontSize: 12,
             fontWeight: FontWeight.w600,
@@ -716,7 +770,9 @@ class _AcceptBtn extends StatelessWidget {
 }
 
 class _DoneChip extends StatelessWidget {
-  const _DoneChip();
+  const _DoneChip({this.label = 'Acceptée'});
+
+  final String label;
 
   @override
   Widget build(BuildContext context) {
@@ -731,7 +787,7 @@ class _DoneChip extends StatelessWidget {
         ),
       ),
       child: Text(
-        'Acceptée',
+        label,
         style: AppTextStyles.labelSmall.copyWith(
           fontSize: 11,
           fontWeight: FontWeight.w600,
@@ -742,17 +798,82 @@ class _DoneChip extends StatelessWidget {
   }
 }
 
+/// Chip vert "Confirmé" — engagement scellé par la coop.
+class _ConfirmedChip extends StatelessWidget {
+  const _ConfirmedChip();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: _kPrimarySoft,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: AppColors.primary,
+          width: AppDimens.borderThin,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.check_circle,
+            size: 12,
+            color: AppColors.primary,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            'Confirmé',
+            style: AppTextStyles.labelSmall.copyWith(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: AppColors.primary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ─── Sticky 2 boutons ────────────────────────────────────────────────────
 
-class _Sticky extends StatelessWidget {
-  const _Sticky();
+class _Sticky extends ConsumerStatefulWidget {
+  const _Sticky({required this.sollicitationId});
 
-  void _relancer(BuildContext context) {
-    Snackbars.showInfo(context, 'Relance envoyée aux non-répondants');
+  final String sollicitationId;
+
+  @override
+  ConsumerState<_Sticky> createState() => _StickyState();
+}
+
+class _StickyState extends ConsumerState<_Sticky> {
+  bool _busy = false;
+
+  Future<void> _cloturer() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await ref
+          .read(cooperativesServiceProvider)
+          .closeSollicitation(widget.sollicitationId);
+      if (!mounted) return;
+      ref.invalidate(_sollicitationSuiviProvider(widget.sollicitationId));
+      Snackbars.showSucces(context, 'Sollicitation clôturée');
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      Snackbars.showErreur(context, e.message);
+    } catch (e) {
+      if (!mounted) return;
+      Snackbars.showErreur(context, 'Erreur : $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
-  void _confirmer(BuildContext context) {
-    Snackbars.showInfo(context, 'Confirmer à 100% du remplissage requis');
+  void _relancer() {
+    Snackbars.showInfo(context, 'Relance — à venir');
   }
 
   @override
@@ -772,13 +893,14 @@ class _Sticky extends StatelessWidget {
         children: [
           Expanded(
             child: InkWell(
-              onTap: () => _relancer(context),
+              onTap: _busy ? null : _relancer,
               borderRadius: BorderRadius.circular(AppDimens.radiusCard),
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 13),
                 decoration: BoxDecoration(
                   color: AppColors.background,
-                  borderRadius: BorderRadius.circular(AppDimens.radiusCard),
+                  borderRadius:
+                      BorderRadius.circular(AppDimens.radiusCard),
                   border: Border.all(
                     color: AppColors.primary,
                     width: AppDimens.borderThin,
@@ -799,31 +921,37 @@ class _Sticky extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: InkWell(
-              onTap: () => _confirmer(context),
+              onTap: _busy ? null : _cloturer,
               borderRadius: BorderRadius.circular(AppDimens.radiusCard),
-              child: Opacity(
-                opacity: 0.6,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 13),
-                  decoration: BoxDecoration(
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 13),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius:
+                      BorderRadius.circular(AppDimens.radiusCard),
+                  border: Border.all(
                     color: AppColors.primary,
-                    borderRadius:
-                        BorderRadius.circular(AppDimens.radiusCard),
-                    border: Border.all(
-                      color: AppColors.primary,
-                      width: AppDimens.borderThin,
-                    ),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    "Confirmer à l'acheteur (67%)",
-                    style: AppTextStyles.button.copyWith(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
+                    width: AppDimens.borderThin,
                   ),
                 ),
+                alignment: Alignment.center,
+                child: _busy
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text(
+                        'Clôturer',
+                        style: AppTextStyles.button.copyWith(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
               ),
             ),
           ),
@@ -833,3 +961,27 @@ class _Sticky extends StatelessWidget {
   }
 }
 
+// ─── Helpers ─────────────────────────────────────────────────────────────
+
+String _fmt(double v) {
+  final i = v.round();
+  if (i < 1000) return '$i';
+  final s = '$i';
+  final buf = StringBuffer();
+  for (var k = 0; k < s.length; k++) {
+    if (k > 0 && (s.length - k) % 3 == 0) buf.write(' ');
+    buf.write(s[k]);
+  }
+  return buf.toString();
+}
+
+String _initiales(String s) {
+  final t = s.trim();
+  if (t.isEmpty) return '?';
+  final parts = t.split(RegExp(r'[\s\-_]+'))..removeWhere((p) => p.isEmpty);
+  if (parts.length >= 2) {
+    return (parts[0].substring(0, 1) + parts[1].substring(0, 1)).toUpperCase();
+  }
+  if (t.length == 1) return t.toUpperCase();
+  return t.substring(0, 2).toUpperCase();
+}

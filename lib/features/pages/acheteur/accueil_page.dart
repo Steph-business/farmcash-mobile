@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../models/ai_content.dart';
@@ -8,6 +9,7 @@ import '../../../models/annonce_achat.dart';
 import '../../../models/annonce_vente.dart';
 import '../../../models/pagination.dart';
 import '../../../models/produit.dart';
+import '../../../routing/route_names.dart';
 import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
@@ -183,23 +185,21 @@ class _AccueilPageState extends ConsumerState<AccueilPage> {
     );
   }
 
-  void _onTapRecherche() => _showSoon('Recherche — à venir');
-  void _onTapPublierDemande() => _showSoon('Publier demande — à venir');
-  void _onTapDemande() => _showSoon('Mes demandes — à venir');
-  void _onTapVoirTout() => _showSoon('Liste complète — à venir');
-  void _onTapVoirProducteurs() => _showSoon('Producteurs — à venir');
-  void _onTapVendeur(_VendeurApercu v) =>
-      _showSoon('Profil vendeur — à venir');
+  void _onTapRecherche() => context.push(RouteNames.acheteurMarchePath);
+  void _onTapPublierDemande() =>
+      context.push(RouteNames.acheteurDemandePublierPath);
+  void _onTapDemande() => context.push(RouteNames.acheteurDemandesPath);
+  void _onTapVoirTout() => context.push(RouteNames.acheteurMarchePath);
+  void _onTapVoirProducteurs() => context.push(RouteNames.acheteurMarchePath);
+  void _onTapVendeur(_VendeurApercu v) {
+    final farmerId = v.farmerId.isNotEmpty ? v.farmerId : 'mock-farmer-1';
+    context.push(RouteNames.acheteurVendeurDetailPathFor(farmerId));
+  }
   void _onTapAssistantAchat() => _showSoon('Assistant achat — à venir');
   void _onTapAlertesPrix() => _showSoon('Alertes prix — à venir');
 
   void _onTapAnnonce(AnnonceVente a) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Détail "${a.titre}" — à venir'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    context.push(RouteNames.acheteurAnnonceDetailPathFor(a.id));
   }
 
   @override

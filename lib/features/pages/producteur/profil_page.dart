@@ -131,10 +131,8 @@ class ProfilProducteurPage extends ConsumerWidget {
         child: Column(
           children: [
             _TopBar(
-              onSettings: () => Snackbars.showInfo(
-                context,
-                'Paramètres — à venir',
-              ),
+              onSettings: () =>
+                  context.push(RouteNames.producteurProfilSettingsPath),
             ),
             Expanded(
               child: async.when(
@@ -225,8 +223,7 @@ class _ProfilContent extends ConsumerWidget {
         // 2 — Carte d'identité
         _IdentityCard(
           user: user,
-          onEdit: () =>
-              Snackbars.showInfo(context, 'Modifier mon profil — à venir'),
+          onEdit: () => context.push(RouteNames.producteurProfilEditerPath),
           onEditPhoto: () =>
               Snackbars.showInfo(context, 'Modifier la photo — à venir'),
         ),
@@ -250,22 +247,20 @@ class _ProfilContent extends ConsumerWidget {
               iconGreen: true,
               label: 'Cultures principales',
               subtitle: _subTexteCultures(data.parcelles, data.produits),
-              onTap: () => Snackbars.showInfo(
-                context,
-                'Cultures principales — à venir',
-              ),
+              onTap: () =>
+                  context.push(RouteNames.producteurMesParcellesPath),
             ),
             _RowTile(
               icon: Icons.groups_outlined,
               iconGreen: true,
               label: 'Ma coopérative',
               subtitle: _subTexteCoop(data.coopInfo),
-              onTap: () => Snackbars.showInfo(
-                context,
-                data.coopInfo == null
-                    ? 'Rejoindre une coopérative — à venir'
-                    : 'Page coopérative — à venir',
-              ),
+              onTap: () => data.coopInfo == null
+                  ? Snackbars.showInfo(
+                      context,
+                      'Rejoindre une coopérative — à venir',
+                    )
+                  : context.push(RouteNames.producteurCooperativePath),
             ),
           ],
         ),
@@ -281,22 +276,19 @@ class _ProfilContent extends ConsumerWidget {
               iconGreen: true,
               label: 'Mon wallet',
               trailingText: _formatMontant(data.wallet?.balance ?? 0),
-              onTap: () =>
-                  Snackbars.showInfo(context, 'Mon wallet — à venir'),
+              onTap: () => context.push(RouteNames.producteurWalletPath),
             ),
             _RowTile(
               icon: Icons.credit_card_outlined,
               label: 'Moyens de paiement',
-              onTap: () => Snackbars.showInfo(
-                context,
-                'Moyens de paiement — à venir',
+              onTap: () => context.push(
+                RouteNames.producteurWalletRechargerPath,
               ),
             ),
             _RowTile(
               icon: Icons.show_chart,
               label: 'Mes transactions',
-              onTap: () =>
-                  Snackbars.showInfo(context, 'Mes transactions — à venir'),
+              onTap: () => context.push(RouteNames.producteurWalletPath),
             ),
           ],
         ),
@@ -312,14 +304,14 @@ class _ProfilContent extends ConsumerWidget {
               label: 'Mes annonces',
               subtitle: _subTexteAnnonces(data.mesAnnonces),
               onTap: () =>
-                  Snackbars.showInfo(context, 'Mes annonces — à venir'),
+                  context.push(RouteNames.producteurMesPublicationsPath),
             ),
             _RowTile(
               icon: Icons.cloud_upload_outlined,
               label: 'Documents (KYC)',
               subtitle: 'À compléter',
               onTap: () =>
-                  Snackbars.showInfo(context, 'Documents KYC — à venir'),
+                  context.push(RouteNames.producteurDocumentsKycPath),
             ),
           ],
         ),
@@ -359,8 +351,7 @@ class _ProfilContent extends ConsumerWidget {
             _RowTile(
               icon: Icons.help_outline,
               label: "Centre d'aide",
-              onTap: () =>
-                  Snackbars.showInfo(context, "Centre d'aide — à venir"),
+              onTap: () => context.push(RouteNames.producteurAidePath),
             ),
             _RowTile(
               icon: Icons.description_outlined,

@@ -35,13 +35,6 @@ const Color _kRedSoft = Color(0xFFFDECEA);
 const BorderRadius _kBrCard = BorderRadius.all(Radius.circular(14));
 const BorderRadius _kBrHero = BorderRadius.all(Radius.circular(16));
 
-// Photos statiques pour les "Outils intelligents" (Unsplash — pas du mock
-// data fonctionnel, c'est juste de l'illustration neutre comme demandé).
-const String _kPhotoAnalysePlante =
-    'https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?w=400&h=300&fit=crop&auto=format';
-const String _kPhotoAssistantAgricole =
-    'https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=400&h=300&fit=crop&auto=format';
-
 /// Bundle de données chargées en parallèle pour l'accueil producteur.
 class _AccueilProducteurData {
   final Portefeuille? wallet;
@@ -261,7 +254,8 @@ class _ContenuAccueil extends ConsumerWidget {
         _BandeauParcellesVide(asyncCount: parcellesCount),
         // 1. CTA Publier ma récolte
         _CtaPublier(
-          onTap: () => _showSoon(context, 'Publier — à venir'),
+          onTap: () =>
+              context.push(RouteNames.producteurPublierAnnoncePath),
         ),
         AppDimens.vGap24,
         // 2. KPI Row
@@ -290,10 +284,16 @@ class _ContenuAccueil extends ConsumerWidget {
           ),
           AppDimens.vGap24,
         ],
-        // 6. Outils intelligents (grid 2×2 avec photos)
+        // 6. Outils IA (grid 2×2 — 4 raccourcis)
         _SectionOutilsIA(
-          onAnalyse: () => _showSoon(context, 'Analyse de plante — à venir'),
-          onAssistant: () => _showSoon(context, 'Assistant agricole — à venir'),
+          onAnalyse: () =>
+              context.push(RouteNames.producteurAiAnalysePlantePath),
+          onAssistant: () =>
+              context.push(RouteNames.producteurAiAssistantPath),
+          onActualites: () =>
+              context.push(RouteNames.producteurAiActualitesPath),
+          onTraitements: () => context
+              .push(RouteNames.producteurAiCatalogueTraitementsPath),
         ),
         AppDimens.vGap24,
         // 7. Mes annonces
@@ -308,15 +308,6 @@ class _ContenuAccueil extends ConsumerWidget {
         ],
         if (data.isEmpty) _EtatVide(),
       ],
-    );
-  }
-
-  void _showSoon(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-      ),
     );
   }
 }
@@ -623,7 +614,12 @@ class _SectionATraiter extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _SectionHead(titre: 'À traiter', lienTexte: 'Voir tout'),
+        _SectionHead(
+          titre: 'À traiter',
+          lienTexte: 'Voir tout',
+          onLien: () =>
+              context.push(RouteNames.producteurOffresRecuesPath),
+        ),
         Container(
           decoration: BoxDecoration(
             color: AppColors.surface,
@@ -636,6 +632,8 @@ class _SectionATraiter extends StatelessWidget {
               return _ActionRow(
                 item: items[i],
                 isLast: i == items.length - 1,
+                onTap: () =>
+                    context.push(RouteNames.producteurOffresRecuesPath),
               );
             }),
           ),
@@ -662,10 +660,15 @@ class _SectionATraiter extends StatelessWidget {
 }
 
 class _ActionRow extends StatelessWidget {
-  const _ActionRow({required this.item, required this.isLast});
+  const _ActionRow({
+    required this.item,
+    required this.isLast,
+    this.onTap,
+  });
 
   final _ActionItem item;
   final bool isLast;
+  final VoidCallback? onTap;
 
   Color get _bubbleBg {
     switch (item.type) {
@@ -693,64 +696,67 @@ class _ActionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppDimens.space16,
-        vertical: 14,
-      ),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: isLast ? Colors.transparent : AppColors.border,
-            width: AppDimens.borderThin,
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppDimens.space16,
+          vertical: 14,
+        ),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: isLast ? Colors.transparent : AppColors.border,
+              width: AppDimens.borderThin,
+            ),
           ),
         ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: _bubbleBg,
-              shape: BoxShape.circle,
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: _bubbleBg,
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: Icon(item.icon, size: 20, color: _bubbleFg),
             ),
-            alignment: Alignment.center,
-            child: Icon(item.icon, size: 20, color: _bubbleFg),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  item.titre,
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    fontWeight: FontWeight.w500,
-                    height: 1.3,
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    item.titre,
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      fontWeight: FontWeight.w500,
+                      height: 1.3,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  item.sousTitre,
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textSecondary,
+                  const SizedBox(height: 2),
+                  Text(
+                    item.sousTitre,
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const Icon(
-            Icons.chevron_right,
-            size: AppDimens.iconM,
-            color: AppColors.textSubtle,
-          ),
-        ],
+            const Icon(
+              Icons.chevron_right,
+              size: AppDimens.iconM,
+              color: AppColors.textSubtle,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -768,9 +774,11 @@ class _SectionAcheteurs extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _SectionHead(
+        _SectionHead(
           titre: 'Acheteurs qui cherchent',
           lienTexte: 'Voir tout',
+          onLien: () =>
+              context.push(RouteNames.producteurDemandesAchatPath),
         ),
         SizedBox(
           height: 130,
@@ -801,76 +809,86 @@ class _DemandeCard extends StatelessWidget {
         : 'Cherche $qte kg';
     final region = annonce.regionId;
 
-    return Container(
-      width: 250,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
+    return Material(
+      color: AppColors.surface,
+      borderRadius: _kBrCard,
+      child: InkWell(
+        onTap: () => context.push(
+          RouteNames.producteurDemandeAchatRepondrePathFor(annonce.id),
+        ),
         borderRadius: _kBrCard,
-        border: Border.all(color: AppColors.border, width: AppDimens.borderThin),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+        child: Container(
+          width: 250,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: _kBrCard,
+            border:
+                Border.all(color: AppColors.border, width: AppDimens.borderThin),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _AvatarInitiales(seed: annonce.buyerId),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Acheteur ${_initiales(annonce.buyerId)}',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (region != null && region.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        region,
-                        style: AppTextStyles.bodySmall.copyWith(
-                          fontSize: 11,
-                          color: AppColors.textSecondary,
+              Row(
+                children: [
+                  _AvatarInitiales(seed: annonce.buyerId),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Acheteur ${_initiales(annonce.buyerId)}',
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ],
+                        if (region != null && region.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            region,
+                            style: AppTextStyles.bodySmall.copyWith(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                titre,
+                style: AppTextStyles.bodyMedium.copyWith(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'jusqu\'à $prix F/kg',
+                style: AppTextStyles.titleLarge.copyWith(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                  letterSpacing: -0.2,
+                  height: 1.2,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Text(
-            titre,
-            style: AppTextStyles.bodyMedium.copyWith(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'jusqu\'à $prix F/kg',
-            style: AppTextStyles.titleLarge.copyWith(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: AppColors.primary,
-              letterSpacing: -0.2,
-              height: 1.2,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -917,7 +935,12 @@ class _SectionCoop extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _SectionHead(titre: 'Ma coopérative', lienTexte: 'Voir tout'),
+        _SectionHead(
+          titre: 'Ma coopérative',
+          lienTexte: 'Voir tout',
+          onLien: () =>
+              context.push(RouteNames.producteurCooperativePath),
+        ),
         Container(
           decoration: BoxDecoration(
             color: AppColors.surface,
@@ -946,67 +969,74 @@ class _CoopBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final logoUrl = coop.logoUrl;
-    return Container(
-      color: _kPrimarySoft,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(10),
-              border:
-                  Border.all(color: AppColors.border, width: AppDimens.borderThin),
-            ),
-            clipBehavior: Clip.hardEdge,
-            child: (logoUrl != null && logoUrl.isNotEmpty)
-                ? CachedNetworkImage(
-                    imageUrl: logoUrl,
-                    fit: BoxFit.cover,
-                    placeholder: (_, __) => _CoopLogoPlaceholder(nom: coop.nom),
-                    errorWidget: (_, __, ___) =>
-                        _CoopLogoPlaceholder(nom: coop.nom),
-                  )
-                : _CoopLogoPlaceholder(nom: coop.nom),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  coop.nom,
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+    return InkWell(
+      onTap: () =>
+          context.push(RouteNames.producteurCooperativePath),
+      child: Container(
+        color: _kPrimarySoft,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: AppColors.border,
+                  width: AppDimens.borderThin,
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  _formatMembreDepuis(coop.createdAt),
-                  style: AppTextStyles.bodySmall.copyWith(
-                    fontSize: 11,
-                    color: AppColors.textSecondary,
+              ),
+              clipBehavior: Clip.hardEdge,
+              child: (logoUrl != null && logoUrl.isNotEmpty)
+                  ? CachedNetworkImage(
+                      imageUrl: logoUrl,
+                      fit: BoxFit.cover,
+                      placeholder: (_, __) =>
+                          _CoopLogoPlaceholder(nom: coop.nom),
+                      errorWidget: (_, __, ___) =>
+                          _CoopLogoPlaceholder(nom: coop.nom),
+                    )
+                  : _CoopLogoPlaceholder(nom: coop.nom),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    coop.nom,
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+                  const SizedBox(height: 2),
+                  Text(
+                    _formatMembreDepuis(coop.createdAt),
+                    style: AppTextStyles.bodySmall.copyWith(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
-          ),
-          Text(
-            'Voir →',
-            style: AppTextStyles.link.copyWith(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
+            Text(
+              'Voir →',
+              style: AppTextStyles.link.copyWith(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1045,17 +1075,21 @@ class _CoopPublicationRow extends StatelessWidget {
     final titre = publication.titre.trim().isNotEmpty
         ? publication.titre.trim()
         : 'Publication';
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: const BoxDecoration(
-        border: Border(
-          top: BorderSide(
-            color: AppColors.border,
-            width: AppDimens.borderThin,
+    return InkWell(
+      onTap: () => context.push(
+        RouteNames.producteurPublicationCoopDetailPathFor(publication.id),
+      ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: const BoxDecoration(
+          border: Border(
+            top: BorderSide(
+              color: AppColors.border,
+              width: AppDimens.borderThin,
+            ),
           ),
         ),
-      ),
-      child: Row(
+        child: Row(
         children: [
           Container(
             width: 28,
@@ -1103,49 +1137,68 @@ class _CoopPublicationRow extends StatelessWidget {
             ),
           ),
         ],
+        ),
       ),
     );
   }
 }
 
-// ─── SECTION "OUTILS INTELLIGENTS" (grid 2×2 avec photos) ────────────────
+// ─── SECTION "OUTILS IA" (grid 2×2 d'icônes sobres) ──────────────────────
 
 class _SectionOutilsIA extends StatelessWidget {
   const _SectionOutilsIA({
     required this.onAnalyse,
     required this.onAssistant,
+    required this.onActualites,
+    required this.onTraitements,
   });
 
   final VoidCallback onAnalyse;
   final VoidCallback onAssistant;
+  final VoidCallback onActualites;
+  final VoidCallback onTraitements;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _SectionHead(titre: 'Outils intelligents'),
+        const _SectionHead(titre: 'Outils IA'),
         Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: _OutilCard(
-                photoUrl: _kPhotoAnalysePlante,
-                badgeIcon: Icons.photo_camera_outlined,
-                titre: 'Analyse de plante',
-                sousTitre:
-                    'Photographie une feuille malade pour un diagnostic',
+              child: _OutilTile(
+                icon: Icons.eco_outlined,
+                titre: 'Diagnostiquer une plante',
                 onTap: onAnalyse,
               ),
             ),
             AppDimens.hGap12,
             Expanded(
-              child: _OutilCard(
-                photoUrl: _kPhotoAssistantAgricole,
-                badgeIcon: Icons.chat_bubble_outline,
-                titre: 'Assistant agricole',
-                sousTitre: 'Pose ta question, obtiens une réponse claire',
+              child: _OutilTile(
+                icon: Icons.chat_bubble_outline,
+                titre: 'Assistant agronomique',
                 onTap: onAssistant,
+              ),
+            ),
+          ],
+        ),
+        AppDimens.vGap12,
+        Row(
+          children: [
+            Expanded(
+              child: _OutilTile(
+                icon: Icons.newspaper_outlined,
+                titre: 'Actualités',
+                onTap: onActualites,
+              ),
+            ),
+            AppDimens.hGap12,
+            Expanded(
+              child: _OutilTile(
+                icon: Icons.science_outlined,
+                titre: 'Traitements',
+                onTap: onTraitements,
               ),
             ),
           ],
@@ -1155,19 +1208,15 @@ class _SectionOutilsIA extends StatelessWidget {
   }
 }
 
-class _OutilCard extends StatelessWidget {
-  const _OutilCard({
-    required this.photoUrl,
-    required this.badgeIcon,
+class _OutilTile extends StatelessWidget {
+  const _OutilTile({
+    required this.icon,
     required this.titre,
-    required this.sousTitre,
     required this.onTap,
   });
 
-  final String photoUrl;
-  final IconData badgeIcon;
+  final IconData icon;
   final String titre;
-  final String sousTitre;
   final VoidCallback onTap;
 
   @override
@@ -1179,80 +1228,34 @@ class _OutilCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: _kBrCard,
         child: Container(
+          height: 96,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           decoration: BoxDecoration(
             borderRadius: _kBrCard,
-            border:
-                Border.all(color: AppColors.border, width: AppDimens.borderThin),
+            border: Border.all(
+              color: AppColors.border,
+              width: AppDimens.borderThin,
+            ),
           ),
-          padding: const EdgeInsets.all(14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Photo + badge en bas-droite (overflow autorisé via Stack)
-              SizedBox(
-                height: 80 + 12, // 80 photo + 12 badge overflow
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Positioned.fill(
-                      bottom: 12,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: CachedNetworkImage(
-                          imageUrl: photoUrl,
-                          fit: BoxFit.cover,
-                          placeholder: (_, __) => Container(
-                            color: AppColors.surfaceSoft,
-                          ),
-                          errorWidget: (_, __, ___) => Container(
-                            color: AppColors.surfaceSoft,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      right: 8,
-                      bottom: 0,
-                      child: Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: AppColors.border,
-                            width: AppDimens.borderThin,
-                          ),
-                        ),
-                        alignment: Alignment.center,
-                        child: Icon(
-                          badgeIcon,
-                          size: 18,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ),
-                  ],
+              Container(
+                width: 32,
+                height: 32,
+                decoration: const BoxDecoration(
+                  color: _kPrimarySoft,
+                  shape: BoxShape.circle,
                 ),
+                alignment: Alignment.center,
+                child: Icon(icon, size: 18, color: AppColors.primary),
               ),
-              const SizedBox(height: 8),
               Text(
                 titre,
                 style: AppTextStyles.bodyMedium.copyWith(
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.w600,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                sousTitre,
-                style: AppTextStyles.bodySmall.copyWith(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                  height: 1.4,
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -1277,7 +1280,12 @@ class _SectionAnnonces extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _SectionHead(titre: 'Mes annonces', lienTexte: 'Voir tout'),
+        _SectionHead(
+          titre: 'Mes annonces',
+          lienTexte: 'Voir tout',
+          onLien: () =>
+              context.push(RouteNames.producteurMesPublicationsPath),
+        ),
         SizedBox(
           height: 256,
           child: ListView.separated(
@@ -1304,93 +1312,102 @@ class _AnnonceCard extends StatelessWidget {
     final qte = NumberFormat('#,##0', 'fr_FR').format(annonce.quantiteKg);
     final prix = NumberFormat('#,##0', 'fr_FR').format(annonce.prixParKg);
 
-    return Container(
-      width: 200,
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: _kBrCard,
-        border: Border.all(color: AppColors.border, width: AppDimens.borderThin),
-      ),
+    return Material(
+      color: AppColors.surface,
+      borderRadius: _kBrCard,
       clipBehavior: Clip.hardEdge,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            height: 132,
-            width: double.infinity,
-            child: photoUrl != null && photoUrl.isNotEmpty
-                ? CachedNetworkImage(
-                    imageUrl: photoUrl,
-                    fit: BoxFit.cover,
-                    placeholder: (_, __) => Container(
-                      color: AppColors.surfaceSoft,
-                    ),
-                    errorWidget: (_, __, ___) => Container(
-                      color: AppColors.surfaceSoft,
-                      alignment: Alignment.center,
-                      child: Text(
-                        'Photo',
-                        style: AppTextStyles.labelSmall.copyWith(
-                          color: AppColors.textSubtle,
+      child: InkWell(
+        onTap: () => context.push(
+          RouteNames.producteurAnnonceDetailPathFor(annonce.id),
+        ),
+        child: Container(
+          width: 200,
+          decoration: BoxDecoration(
+            borderRadius: _kBrCard,
+            border:
+                Border.all(color: AppColors.border, width: AppDimens.borderThin),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                height: 132,
+                width: double.infinity,
+                child: photoUrl != null && photoUrl.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: photoUrl,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(
+                          color: AppColors.surfaceSoft,
+                        ),
+                        errorWidget: (_, __, ___) => Container(
+                          color: AppColors.surfaceSoft,
+                          alignment: Alignment.center,
+                          child: Text(
+                            'Photo',
+                            style: AppTextStyles.labelSmall.copyWith(
+                              color: AppColors.textSubtle,
+                            ),
+                          ),
+                        ),
+                      )
+                    : Container(
+                        color: AppColors.surfaceSoft,
+                        alignment: Alignment.center,
+                        child: Text(
+                          'Photo',
+                          style: AppTextStyles.labelSmall.copyWith(
+                            color: AppColors.textSubtle,
+                          ),
                         ),
                       ),
-                    ),
-                  )
-                : Container(
-                    color: AppColors.surfaceSoft,
-                    alignment: Alignment.center,
-                    child: Text(
-                      'Photo',
-                      style: AppTextStyles.labelSmall.copyWith(
-                        color: AppColors.textSubtle,
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      annonce.titre,
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$qte kg · ${annonce.viewsCount} vues',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '$prix F/kg',
+                      style: AppTextStyles.titleLarge.copyWith(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                        letterSpacing: -0.2,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 12,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  annonce.titre,
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '$qte kg · ${annonce.viewsCount} vues',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '$prix F/kg',
-                  style: AppTextStyles.titleLarge.copyWith(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
-                    letterSpacing: -0.2,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -1478,10 +1495,11 @@ class _SectionConseils extends StatelessWidget {
 // ─── SECTION HEAD ────────────────────────────────────────────────────────
 
 class _SectionHead extends StatelessWidget {
-  const _SectionHead({required this.titre, this.lienTexte});
+  const _SectionHead({required this.titre, this.lienTexte, this.onLien});
 
   final String titre;
   final String? lienTexte;
+  final VoidCallback? onLien;
 
   @override
   Widget build(BuildContext context) {
@@ -1499,11 +1517,21 @@ class _SectionHead extends StatelessWidget {
             ),
           ),
           if (lienTexte != null)
-            Text(
-              lienTexte!,
-              style: AppTextStyles.link.copyWith(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
+            InkWell(
+              onTap: onLien,
+              borderRadius: BorderRadius.circular(6),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 4,
+                  vertical: 2,
+                ),
+                child: Text(
+                  lienTexte!,
+                  style: AppTextStyles.link.copyWith(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ),
         ],
@@ -1538,14 +1566,9 @@ class _EtatVide extends StatelessWidget {
           SizedBox(
             height: AppDimens.buttonHeight,
             child: ElevatedButton(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Publication d\'annonce — à venir'),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              },
+              onPressed: () => context.push(
+                RouteNames.producteurPublierAnnoncePath,
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: AppColors.onPrimary,

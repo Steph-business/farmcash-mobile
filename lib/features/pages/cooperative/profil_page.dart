@@ -227,27 +227,29 @@ class _ProfilContent extends ConsumerWidget {
         AppDimens.vGap24,
 
         // 2. LIGNE 3 STATS
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: _StatCard(value: '—', label: 'Ventes cumulées'),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _StatCard(
-                value: '${data.nbDistributions}',
-                label: 'Distributions',
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _StatCard(value: '—', label: 'Ventes cumulées'),
               ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _StatCard(
-                value: '${data.nbAvancesActives}',
-                label: 'Avances actives',
+              const SizedBox(width: 8),
+              Expanded(
+                child: _StatCard(
+                  value: '${data.nbDistributions}',
+                  label: 'Distributions',
+                ),
               ),
-            ),
-          ],
+              const SizedBox(width: 8),
+              Expanded(
+                child: _StatCard(
+                  value: '${data.nbAvancesActives}',
+                  label: 'Avances actives',
+                ),
+              ),
+            ],
+          ),
         ),
         AppDimens.vGap24,
 

@@ -1,12 +1,17 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../api_client/api_exception.dart';
+import '../../../../models/enums.dart';
+import '../../../../models/produit.dart';
 import '../../../../routing/route_names.dart';
+import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
+import '../../../state/auth_state.dart';
 import '../../../widgets/communs/snackbars.dart';
 
 // ─── Constantes locales ─────────────────────────────────────────────────
@@ -14,55 +19,48 @@ const Color _kPrimarySoft = Color(0xFFE8F5E9);
 const BorderRadius _kBrCard12 = BorderRadius.all(Radius.circular(12));
 const BorderRadius _kBrChip = BorderRadius.all(Radius.circular(14));
 
-const List<String> _kSources = [
-  'Depuis une livraison farmer',
-  'Lot externe (achat direct)',
+/// Sources possibles → mappées sur le champ `type` du lot.
+/// COLLECTE = livraison farmer, ACHAT_EXTERNE = achat direct hors coop.
+const List<({String label, String apiType})> _kSources = [
+  (label: 'Depuis une livraison farmer', apiType: 'COLLECTE'),
+  (label: 'Lot externe (achat direct)', apiType: 'ACHAT_EXTERNE'),
 ];
 
-const List<String> _kQualites = ['Standard', 'Premium', 'Bio', 'Équitable'];
+const List<({String label, ProductQuality api})> _kQualites = [
+  (label: 'Standard', api: ProductQuality.standard),
+  (label: 'Premium', api: ProductQuality.premium),
+  (label: 'Bio', api: ProductQuality.bio),
+  (label: 'Équitable', api: ProductQuality.equitable),
+];
+
+/// Provider qui charge la liste des produits pour le sélecteur.
+final _produitsProvider = FutureProvider.autoDispose<List<Produit>>((ref) {
+  return ref.read(marketplaceServiceProvider).listProduits();
+});
 
 /// Formulaire de réception d'un nouveau lot dans un entrepôt.
-/// Reproduction fidèle de `mockups/cooperative/reception_lot.html`.
-class ReceptionLotPage extends StatefulWidget {
+class ReceptionLotPage extends ConsumerStatefulWidget {
   const ReceptionLotPage({super.key});
 
   @override
-  State<ReceptionLotPage> createState() => _ReceptionLotPageState();
+  ConsumerState<ReceptionLotPage> createState() => _ReceptionLotPageState();
 }
 
-class _ReceptionLotPageState extends State<ReceptionLotPage> {
-  final TextEditingController _qteCtrl = TextEditingController(text: '245');
-  final TextEditingController _noteCtrl = TextEditingController();
-  // Réf. auto-générée (read-only)
-  static const String _refNum = 'LOT-2026-0142';
-  // Date de réception (aujourd'hui)
+class _ReceptionLotPageState extends ConsumerState<ReceptionLotPage> {
+  final TextEditingController _qteCtrl = TextEditingController();
   DateTime _date = DateTime.now();
   int _sourceIndex = 0;
   int _qualiteIndex = 0;
+  Produit? _produit;
+  bool _busy = false;
 
   @override
   void dispose() {
     _qteCtrl.dispose();
-    _noteCtrl.dispose();
     super.dispose();
   }
 
   String get _dateLabel {
-    const mois = [
-      'janv.',
-      'févr.',
-      'mars',
-      'avr.',
-      'mai',
-      'juin',
-      'juil.',
-      'août',
-      'sept.',
-      'oct.',
-      'nov.',
-      'déc.',
-    ];
-    // Format proche de "16 mai 2026" — la maquette utilise "mai" en plein.
     const moisPlein = [
       'janvier',
       'février',
@@ -77,11 +75,7 @@ class _ReceptionLotPageState extends State<ReceptionLotPage> {
       'novembre',
       'décembre',
     ];
-    // On garde la version courte pour les autres mois mais "mai" est court.
-    final label = '${_date.day} ${moisPlein[_date.month - 1]} ${_date.year}';
-    // mois inutilisé (réservé pour cas futurs).
-    mois.length;
-    return label;
+    return '${_date.day} ${moisPlein[_date.month - 1]} ${_date.year}';
   }
 
   Future<void> _pickDate() async {
@@ -96,14 +90,97 @@ class _ReceptionLotPageState extends State<ReceptionLotPage> {
     }
   }
 
-  void _copierRef() {
-    Clipboard.setData(const ClipboardData(text: _refNum));
-    Snackbars.showInfo(context, 'Numéro de référence copié');
+  Future<void> _choisirProduit() async {
+    final produits = await ref.read(_produitsProvider.future);
+    if (!mounted) return;
+    final selected = await showModalBottomSheet<Produit>(
+      context: context,
+      backgroundColor: AppColors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          top: false,
+          child: ListView(
+            shrinkWrap: true,
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                child: Text(
+                  'Choisir un produit',
+                  style: AppTextStyles.titleSmall.copyWith(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              for (final p in produits)
+                ListTile(
+                  title: Text(p.nom),
+                  onTap: () => Navigator.of(ctx).pop(p),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+    if (selected != null && mounted) {
+      setState(() => _produit = selected);
+    }
   }
 
-  void _enregistrer() {
-    Snackbars.showSucces(context, 'Lot $_refNum enregistré');
-    if (context.canPop()) context.pop();
+  Future<void> _enregistrer() async {
+    if (_busy) return;
+    final user = ref.read(currentUserProvider);
+    final coopId = user?.cooperativeId;
+    final produit = _produit;
+    final quantiteText = _qteCtrl.text.replaceAll(',', '.').trim();
+    final quantite = double.tryParse(quantiteText);
+
+    if (produit == null) {
+      Snackbars.showErreur(context, 'Choisissez un produit');
+      return;
+    }
+    if (quantite == null || quantite <= 0) {
+      Snackbars.showErreur(context, 'Quantité invalide');
+      return;
+    }
+    if (coopId == null || coopId.isEmpty) {
+      Snackbars.showErreur(
+        context,
+        "Aucune coopérative liée à votre compte",
+      );
+      return;
+    }
+
+    setState(() => _busy = true);
+    try {
+      final source = _kSources[_sourceIndex];
+      await ref.read(marketplaceServiceProvider).createLot(
+            type: source.apiType,
+            produitId: produit.id,
+            quantiteKg: quantite,
+            cooperativeId: coopId,
+            qualite: _kQualites[_qualiteIndex].api,
+            dateRecolte: _date,
+          );
+      if (!mounted) return;
+      Snackbars.showSucces(context, 'Lot enregistré');
+      if (context.canPop()) context.pop();
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      Snackbars.showErreur(context, e.message);
+    } catch (e) {
+      if (!mounted) return;
+      Snackbars.showErreur(context, 'Erreur : $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override
@@ -124,7 +201,6 @@ class _ReceptionLotPageState extends State<ReceptionLotPage> {
                   AppDimens.space16,
                 ),
                 children: [
-                  // ── Section "Source du lot" ─────────────────────────
                   _SectionTitle('Source du lot'),
                   const SizedBox(height: 12),
                   Wrap(
@@ -133,25 +209,23 @@ class _ReceptionLotPageState extends State<ReceptionLotPage> {
                     children: [
                       for (int i = 0; i < _kSources.length; i++)
                         _Chip(
-                          label: _kSources[i],
+                          label: _kSources[i].label,
                           active: _sourceIndex == i,
                           onTap: () => setState(() => _sourceIndex = i),
                         ),
                     ],
                   ),
-                  const SizedBox(height: 10),
-                  // Sélecteur farmer mock
-                  _SelectorFarmer(
-                    onTap: () => Snackbars.showInfo(
-                      context,
-                      'Sélection farmer — à venir',
-                    ),
-                  ),
                   const SizedBox(height: 20),
 
-                  // ── Section "Détails du lot" ────────────────────────
                   _SectionTitle('Détails du lot'),
                   const SizedBox(height: 12),
+                  _FieldLabel('Produit'),
+                  const SizedBox(height: 6),
+                  _SelectorProduit(
+                    produit: _produit,
+                    onTap: _busy ? null : _choisirProduit,
+                  ),
+                  const SizedBox(height: 14),
                   _FieldLabel('Quantité réceptionnée'),
                   const SizedBox(height: 6),
                   _InputWithUnit(
@@ -174,36 +248,20 @@ class _ReceptionLotPageState extends State<ReceptionLotPage> {
                     children: [
                       for (int i = 0; i < _kQualites.length; i++)
                         _Chip(
-                          label: _kQualites[i],
+                          label: _kQualites[i].label,
                           active: _qualiteIndex == i,
                           onTap: () => setState(() => _qualiteIndex = i),
                         ),
                     ],
                   ),
                   const SizedBox(height: 14),
-                  _FieldLabel('Date de réception'),
+                  _FieldLabel('Date de récolte'),
                   const SizedBox(height: 6),
-                  _InputDate(label: _dateLabel, onTap: _pickDate),
-                  const SizedBox(height: 14),
-                  _FieldLabel('Numéro de référence'),
-                  const SizedBox(height: 6),
-                  _InputReadOnlyRef(value: _refNum, onCopy: _copierRef),
-                  const SizedBox(height: 20),
-
-                  // ── Section Photos ──────────────────────────────────
-                  _SectionTitle('Photos du lot (recommandé)'),
-                  const SizedBox(height: 12),
-                  const _PhotoGrid(),
-                  const SizedBox(height: 20),
-
-                  // ── Section Note ────────────────────────────────────
-                  _SectionTitle('Note (optionnel)'),
-                  const SizedBox(height: 12),
-                  _NoteField(controller: _noteCtrl),
+                  _InputDate(label: _dateLabel, onTap: _busy ? null : _pickDate),
                 ],
               ),
             ),
-            _StickyButton(onTap: _enregistrer),
+            _StickyButton(onTap: _enregistrer, busy: _busy),
           ],
         ),
       ),
@@ -243,31 +301,14 @@ class _Header extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Réceptionner un lot',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.titleSmall.copyWith(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    height: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Entrepôt Abidjan-Treichville',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.bodySmall.copyWith(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
+            child: Text(
+              'Réceptionner un lot',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.titleSmall.copyWith(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -354,12 +395,13 @@ class _Chip extends StatelessWidget {
   }
 }
 
-// ─── Sélecteur farmer ───────────────────────────────────────────────────
+// ─── Sélecteur produit ──────────────────────────────────────────────────
 
-class _SelectorFarmer extends StatelessWidget {
-  const _SelectorFarmer({required this.onTap});
+class _SelectorProduit extends StatelessWidget {
+  const _SelectorProduit({required this.produit, required this.onTap});
 
-  final VoidCallback onTap;
+  final Produit? produit;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -378,55 +420,33 @@ class _SelectorFarmer extends StatelessWidget {
         ),
         child: Row(
           children: [
-            ClipOval(
-              child: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: AppColors.border,
-                    width: AppDimens.borderThin,
-                  ),
-                  shape: BoxShape.circle,
-                ),
-                child: CachedNetworkImage(
-                  imageUrl:
-                      'https://images.unsplash.com/photo-1531123897727-8f129e1688ce'
-                      '?w=200&h=200&fit=crop&auto=format',
-                  fit: BoxFit.cover,
-                  placeholder: (_, __) =>
-                      const ColoredBox(color: _kPrimarySoft),
-                  errorWidget: (_, __, ___) =>
-                      const ColoredBox(color: _kPrimarySoft),
-                ),
+            Container(
+              width: 36,
+              height: 36,
+              decoration: const BoxDecoration(
+                color: _kPrimarySoft,
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: const Icon(
+                Icons.inventory_2_outlined,
+                size: 18,
+                color: AppColors.primary,
               ),
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Yao Konan',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.titleSmall.copyWith(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Maïs blanc · 250 kg disponible',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.bodySmall.copyWith(
-                      fontSize: 11,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
+              child: Text(
+                produit?.nom ?? 'Choisir un produit',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.titleSmall.copyWith(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: produit == null
+                      ? AppColors.textSubtle
+                      : AppColors.text,
+                ),
               ),
             ),
             const Icon(
@@ -508,7 +528,7 @@ class _InputDate extends StatelessWidget {
   const _InputDate({required this.label, required this.onTap});
 
   final String label;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -546,178 +566,13 @@ class _InputDate extends StatelessWidget {
   }
 }
 
-class _InputReadOnlyRef extends StatelessWidget {
-  const _InputReadOnlyRef({required this.value, required this.onCopy});
-
-  final String value;
-  final VoidCallback onCopy;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceSoft,
-        borderRadius: _kBrCard12,
-        border: Border.all(
-          color: AppColors.border,
-          width: AppDimens.borderThin,
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              value,
-              style: AppTextStyles.bodyMedium.copyWith(
-                fontFamily: 'Poppins',
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ),
-          InkWell(
-            onTap: onCopy,
-            borderRadius: BorderRadius.circular(6),
-            child: const Padding(
-              padding: EdgeInsets.all(4),
-              child: Icon(
-                Icons.content_copy_outlined,
-                size: 16,
-                color: AppColors.textSubtle,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Photo grid ─────────────────────────────────────────────────────────
-
-class _PhotoGrid extends StatelessWidget {
-  const _PhotoGrid();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        for (int i = 0; i < 3; i++) ...[
-          Expanded(child: _PhotoSlot(onTap: () {})),
-          if (i != 2) const SizedBox(width: 10),
-        ],
-      ],
-    );
-  }
-}
-
-class _PhotoSlot extends StatelessWidget {
-  const _PhotoSlot({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: 1,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: _kBrCard12,
-        child: DottedBox(
-          color: AppColors.borderStrong,
-          radius: _kBrCard12,
-          background: AppColors.surfaceSoft,
-          child: const Center(
-            child: Icon(
-              Icons.add,
-              size: 22,
-              color: AppColors.textSubtle,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Boîte avec bordure pleine (simulant le dashed du HTML).
-class DottedBox extends StatelessWidget {
-  const DottedBox({
-    super.key,
-    required this.color,
-    required this.radius,
-    required this.background,
-    required this.child,
-  });
-
-  final Color color;
-  final BorderRadius radius;
-  final Color background;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: radius,
-        border: Border.all(color: color, width: AppDimens.borderThin),
-      ),
-      child: child,
-    );
-  }
-}
-
-// ─── Note ───────────────────────────────────────────────────────────────
-
-class _NoteField extends StatelessWidget {
-  const _NoteField({required this.controller});
-
-  final TextEditingController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: _kBrCard12,
-        border: Border.all(
-          color: AppColors.border,
-          width: AppDimens.borderThin,
-        ),
-      ),
-      child: TextField(
-        controller: controller,
-        minLines: 2,
-        maxLines: 2,
-        decoration: InputDecoration(
-          hintText: 'Observations sur le lot…',
-          border: InputBorder.none,
-          isDense: true,
-          contentPadding: EdgeInsets.zero,
-          hintStyle: AppTextStyles.bodySmall.copyWith(
-            fontSize: 13,
-            color: AppColors.textSubtle,
-          ),
-        ),
-        style: AppTextStyles.bodySmall.copyWith(
-          fontSize: 13,
-          color: AppColors.text,
-        ),
-      ),
-    );
-  }
-}
-
 // ─── Sticky bouton ──────────────────────────────────────────────────────
 
 class _StickyButton extends StatelessWidget {
-  const _StickyButton({required this.onTap});
+  const _StickyButton({required this.onTap, required this.busy});
 
   final VoidCallback onTap;
+  final bool busy;
 
   @override
   Widget build(BuildContext context) {
@@ -741,24 +596,32 @@ class _StickyButton extends StatelessWidget {
         width: double.infinity,
         height: 48,
         child: ElevatedButton(
-          onPressed: onTap,
+          onPressed: busy ? null : onTap,
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
             foregroundColor: AppColors.onPrimary,
             elevation: 0,
             shape: const RoundedRectangleBorder(borderRadius: _kBrCard12),
           ),
-          child: Text(
-            'Enregistrer le lot',
-            style: AppTextStyles.labelLarge.copyWith(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppColors.onPrimary,
-            ),
-          ),
+          child: busy
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : Text(
+                  'Enregistrer le lot',
+                  style: AppTextStyles.labelLarge.copyWith(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.onPrimary,
+                  ),
+                ),
         ),
       ),
     );
   }
 }
-

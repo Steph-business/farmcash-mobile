@@ -15,6 +15,10 @@ class Commande with _$Commande {
     required String buyerId,
     required String sellerId,
     required String annonceId,
+    /// Identifiant du lot physique livré (rempli quand le vendeur lie la
+    /// commande à un lot tracé). Sert à charger la traçabilité publique
+    /// `/ai/traceability/:lotId` côté acheteur.
+    String? lotId,
     @FlexDouble() required double quantiteKg,
     @FlexDouble() required double prixUnitaireKg,
     @FlexDouble() required double montantTotal,

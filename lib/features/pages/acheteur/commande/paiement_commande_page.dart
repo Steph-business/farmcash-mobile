@@ -1,88 +1,107 @@
+import 'dart:math';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../api_client/api_exception.dart';
+import '../../../../models/annonce_vente.dart';
+import '../../../../models/enums.dart';
+import '../../../../models/wallet_with_transactions.dart';
 import '../../../../routing/route_names.dart';
+import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
+import '../../../widgets/communs/chargement.dart';
 import '../../../widgets/communs/snackbars.dart';
+import '../../../widgets/communs/vue_erreur.dart';
 
-// ─── Constantes visuelles (calées sur la maquette HTML) ────────────────
+// ─── Constantes visuelles ──────────────────────────────────────────────
 
 const Color _kPrimarySoft = Color(0xFFE8F5E9);
-const String _kRecapPhoto =
-    'https://images.unsplash.com/photo-1601493700631-2b16ec4b4716?w=600&h=300&fit=crop&auto=format';
-
-const String _kFallbackCommandeId = 'C-2026-0089';
 
 // ─── Modes ──────────────────────────────────────────────────────────────
 
 enum _DeliveryMode { auto, choisir }
 
-enum _PaymentMethod { wallet, om, mtn, carte }
-
-class _MethodSpec {
-  const _MethodSpec({
-    required this.method,
+class _PaymentChoice {
+  const _PaymentChoice({
+    required this.provider,
     required this.short,
     required this.name,
     required this.color,
-    this.subtitle,
-    this.badge,
     this.dark = false,
   });
-  final _PaymentMethod method;
+  final MobileProvider provider;
   final String short;
   final String name;
   final Color color;
-  final String? subtitle;
-  final String? badge;
   final bool dark;
 }
 
-const List<_MethodSpec> _kMethods = [
-  _MethodSpec(
-    method: _PaymentMethod.wallet,
+const List<_PaymentChoice> _kChoices = [
+  _PaymentChoice(
+    provider: MobileProvider.wallet,
     short: 'FC',
     name: 'Solde wallet',
     color: AppColors.primary,
-    badge: '245 800 F dispo',
   ),
-  _MethodSpec(
-    method: _PaymentMethod.om,
+  _PaymentChoice(
+    provider: MobileProvider.orangeMoney,
     short: 'OM',
     name: 'Orange Money',
     color: Color(0xFFFF6B00),
-    subtitle: '07 09 88 30 51',
   ),
-  _MethodSpec(
-    method: _PaymentMethod.mtn,
+  _PaymentChoice(
+    provider: MobileProvider.mtnMomo,
     short: 'MTN',
     name: 'MTN MoMo',
     color: Color(0xFFFFCC00),
-    subtitle: '+ Ajouter',
     dark: true,
   ),
-  _MethodSpec(
-    method: _PaymentMethod.carte,
-    short: 'CB',
-    name: 'Carte bancaire',
-    color: AppColors.text,
-    subtitle: 'Visa / MC',
+  _PaymentChoice(
+    provider: MobileProvider.wave,
+    short: 'WV',
+    name: 'Wave',
+    color: AppColors.primary,
   ),
 ];
 
-// ─── Page ──────────────────────────────────────────────────────────────
+// ─── Provider ─────────────────────────────────────────────────────────
+
+class _PaiementBundle {
+  const _PaiementBundle({required this.annonce, required this.wallet});
+  final AnnonceVente annonce;
+  final WalletWithTransactions? wallet;
+}
+
+final _paiementBundleProvider = FutureProvider.autoDispose
+    .family<_PaiementBundle, String>((ref, annonceId) async {
+  final svc = ref.read(marketplaceServiceProvider);
+  final finance = ref.read(financeServiceProvider);
+  final results = await Future.wait<dynamic>([
+    svc.getAnnonceVente(annonceId),
+    finance.getWallet(limit: 1).then<Object?>((v) => v).catchError((_) => null),
+  ]);
+  return _PaiementBundle(
+    annonce: results[0] as AnnonceVente,
+    wallet: results[1] as WalletWithTransactions?,
+  );
+});
 
 /// Paiement d'une commande (acheteur, depuis une annonce ferme).
-/// Calque sur `mockups/acheteur/paiement_commande.html`.
 class PaiementCommandePage extends ConsumerStatefulWidget {
-  const PaiementCommandePage({required this.annonceId, super.key});
+  const PaiementCommandePage({
+    required this.annonceId,
+    this.quantiteKgInitiale,
+    super.key,
+  });
 
   final String annonceId;
+  final int? quantiteKgInitiale;
 
   @override
   ConsumerState<PaiementCommandePage> createState() =>
@@ -90,15 +109,10 @@ class PaiementCommandePage extends ConsumerStatefulWidget {
 }
 
 class _PaiementCommandePageState extends ConsumerState<PaiementCommandePage> {
-  _PaymentMethod _method = _PaymentMethod.wallet;
+  MobileProvider _provider = MobileProvider.wallet;
   _DeliveryMode _delivery = _DeliveryMode.auto;
   final TextEditingController _noteCtrl = TextEditingController();
-
-  // Valeurs maquette (500 kg × 350 F/kg).
-  static const int _sousTotal = 175000;
-  static const int _frais = 2625;
-  static const int _livraison = 4500;
-  static const int _total = _sousTotal + _frais + _livraison;
+  bool _busy = false;
 
   @override
   void dispose() {
@@ -108,81 +122,169 @@ class _PaiementCommandePageState extends ConsumerState<PaiementCommandePage> {
 
   @override
   Widget build(BuildContext context) {
+    final async = ref.watch(_paiementBundleProvider(widget.annonceId));
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         bottom: false,
-        child: Column(
-          children: [
-            const _Header(),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
-                children: [
-                  const _RecapCard(),
-                  const SizedBox(height: 18),
-                  const _SectionTitle('Mode de livraison'),
-                  const SizedBox(height: 10),
-                  _DeliveryOptions(
-                    selected: _delivery,
-                    onChange: (mode) {
-                      setState(() => _delivery = mode);
-                      if (mode == _DeliveryMode.choisir) {
-                        context.push(
-                          RouteNames.acheteurChoisirTransporteurPath,
-                        );
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 18),
-                  const _SectionTitle('Montants'),
-                  const SizedBox(height: 10),
-                  const _AmountsCard(
-                    sousTotal: _sousTotal,
-                    frais: _frais,
-                    livraison: _livraison,
-                    total: _total,
-                  ),
-                  const SizedBox(height: 18),
-                  const _SectionTitle('Méthode de paiement'),
-                  const SizedBox(height: 10),
-                  _MethodsGrid(
-                    selected: _method,
-                    onSelect: (m) => setState(() => _method = m),
-                  ),
-                  const SizedBox(height: 18),
-                  const _SectionTitle('Adresse de livraison'),
-                  const SizedBox(height: 10),
-                  _AddressCard(
-                    onEdit: () => Snackbars.showInfo(
-                      context,
-                      'Édition de l\'adresse — à venir',
+        child: async.when(
+          loading: () => const Column(
+            children: [
+              _Header(),
+              Expanded(child: Chargement(size: 22)),
+            ],
+          ),
+          error: (e, _) => Column(
+            children: [
+              const _Header(),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppDimens.pagePaddingH),
+                  child: VueErreur(
+                    message: 'Impossible de charger la commande. $e',
+                    onRetry: () => ref.invalidate(
+                      _paiementBundleProvider(widget.annonceId),
                     ),
                   ),
-                  const SizedBox(height: 18),
-                  const _SectionTitle('Note pour le vendeur (optionnel)'),
-                  const SizedBox(height: 10),
-                  _NoteField(controller: _noteCtrl),
-                ],
+                ),
               ),
-            ),
-            _StickyBottom(total: _total, onPay: _onPay),
-          ],
+            ],
+          ),
+          data: (bundle) => _build(bundle),
         ),
       ),
     );
   }
 
-  Future<void> _onPay() async {
-    Snackbars.showSucces(
-      context,
-      'Paiement de ${_nf.format(_total)} F · escrow activé',
+  Widget _build(_PaiementBundle bundle) {
+    final annonce = bundle.annonce;
+    final dispo = annonce.quantiteKg.round();
+    final qteMin = (annonce.quantiteMinKg ?? 1).round().clamp(1, dispo);
+    final qte = (widget.quantiteKgInitiale ?? qteMin).clamp(qteMin, dispo);
+    final prix = annonce.prixParKg.round();
+    final sousTotal = qte * prix;
+    final frais = (sousTotal * 0.015).round();
+    final total = sousTotal + frais;
+
+    final soldeWallet = bundle.wallet?.wallet.balance ?? 0.0;
+    final walletInsuffisant =
+        _provider == MobileProvider.wallet && soldeWallet < total;
+
+    return Column(
+      children: [
+        const _Header(),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+            children: [
+              _RecapCard(annonce: annonce, quantiteKg: qte),
+              const SizedBox(height: 18),
+              const _SectionTitle('Mode de livraison'),
+              const SizedBox(height: 10),
+              _DeliveryOptions(
+                selected: _delivery,
+                onChange: (mode) {
+                  setState(() => _delivery = mode);
+                  if (mode == _DeliveryMode.choisir) {
+                    context.push(
+                      RouteNames.acheteurChoisirTransporteurPath,
+                    );
+                  }
+                },
+              ),
+              const SizedBox(height: 18),
+              const _SectionTitle('Montants'),
+              const SizedBox(height: 10),
+              _AmountsCard(
+                sousTotal: sousTotal,
+                frais: frais,
+                total: total,
+              ),
+              const SizedBox(height: 18),
+              const _SectionTitle('Méthode de paiement'),
+              const SizedBox(height: 10),
+              _MethodsGrid(
+                selected: _provider,
+                soldeWallet: soldeWallet,
+                onSelect: (p) => setState(() => _provider = p),
+              ),
+              if (walletInsuffisant) ...[
+                const SizedBox(height: 8),
+                _WalletLowBanner(
+                  manquant: (total - soldeWallet).round(),
+                  onRecharger: () =>
+                      context.push(RouteNames.acheteurWalletRechargerPath),
+                ),
+              ],
+              const SizedBox(height: 18),
+              const _SectionTitle('Adresse de livraison'),
+              const SizedBox(height: 10),
+              _AddressCard(
+                onEdit: () => context
+                    .push(RouteNames.acheteurAdressesLivraisonPath),
+              ),
+              const SizedBox(height: 18),
+              const _SectionTitle('Note pour le vendeur (optionnel)'),
+              const SizedBox(height: 10),
+              _NoteField(controller: _noteCtrl),
+            ],
+          ),
+        ),
+        _StickyBottom(
+          total: total,
+          busy: _busy,
+          enabled: !walletInsuffisant,
+          onPay: () => _payer(annonce, qte),
+        ),
+      ],
     );
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    if (!mounted) return;
-    context.push(
-      RouteNames.acheteurCommandeSuccesPathFor(_kFallbackCommandeId),
-    );
+  }
+
+  Future<void> _payer(AnnonceVente annonce, int qte) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    final idempotencyKey = _generateIdempotencyKey();
+    try {
+      final commande = await ref
+          .read(ordersServiceProvider)
+          .createOrder(
+        annonceId: annonce.id,
+        quantiteKg: qte.toDouble(),
+        paymentProvider: _provider,
+        idempotencyKey: idempotencyKey,
+      );
+      // Rafraîchit le wallet (le débit immédiat éventuel).
+      ref.invalidate(_paiementBundleProvider(widget.annonceId));
+      if (!mounted) return;
+      Snackbars.showSucces(
+        context,
+        'Commande créée · escrow activé',
+      );
+      context.go(RouteNames.acheteurCommandeSuccesPathFor(commande.id));
+    } on ApiException catch (e) {
+      if (mounted) Snackbars.showErreur(context, e.message);
+    } catch (e) {
+      if (mounted) Snackbars.showErreur(context, 'Erreur : $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// UUID v4 simplifié à partir de Random.secure() + timestamp. Suffisant
+  /// pour l'idempotency key (côté backend : header `Idempotency-Key`).
+  String _generateIdempotencyKey() {
+    final rnd = Random.secure();
+    String chunk(int n) {
+      final buf = StringBuffer();
+      for (var i = 0; i < n; i++) {
+        buf.write(rnd.nextInt(16).toRadixString(16));
+      }
+      return buf.toString();
+    }
+
+    return '${chunk(8)}-${chunk(4)}-4${chunk(3)}-'
+        '${(8 + rnd.nextInt(4)).toRadixString(16)}${chunk(3)}-${chunk(12)}';
   }
 }
 
@@ -234,13 +336,20 @@ class _Header extends StatelessWidget {
   }
 }
 
-// ─── Recap card (hero photo 110px + 3 lignes) ───────────────────────────
+// ─── Recap card ────────────────────────────────────────────────────────
 
 class _RecapCard extends StatelessWidget {
-  const _RecapCard();
+  const _RecapCard({required this.annonce, required this.quantiteKg});
+  final AnnonceVente annonce;
+  final int quantiteKg;
 
   @override
   Widget build(BuildContext context) {
+    final photo =
+        annonce.photos.isNotEmpty ? annonce.photos.first : null;
+    final nom = annonce.produitLabel;
+    final vendeur = annonce.vendeurNom ?? 'Vendeur';
+    final loc = annonce.localisationLabel;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -259,18 +368,29 @@ class _RecapCard extends StatelessWidget {
             child: SizedBox(
               width: double.infinity,
               height: 110,
-              child: CachedNetworkImage(
-                imageUrl: _kRecapPhoto,
-                fit: BoxFit.cover,
-                placeholder: (_, _) => Container(color: AppColors.surfaceSoft),
-                errorWidget: (_, _, _) =>
-                    Container(color: AppColors.surfaceSoft),
-              ),
+              child: photo != null
+                  ? CachedNetworkImage(
+                      imageUrl: photo,
+                      fit: BoxFit.cover,
+                      placeholder: (_, _) =>
+                          Container(color: AppColors.surfaceSoft),
+                      errorWidget: (_, _, _) =>
+                          Container(color: AppColors.surfaceSoft),
+                    )
+                  : Container(
+                      color: AppColors.surfaceSoft,
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.image_outlined,
+                        size: 36,
+                        color: AppColors.textSubtle,
+                      ),
+                    ),
             ),
           ),
           const SizedBox(height: 10),
           Text(
-            '500 kg Maïs blanc',
+            '${_nf.format(quantiteKg)} kg · $nom',
             style: AppTextStyles.bodyMedium.copyWith(
               fontSize: 14,
               fontWeight: FontWeight.w600,
@@ -279,33 +399,43 @@ class _RecapCard extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(
-            '350 F/kg · Yao K.',
+            '${_nf.format(annonce.prixParKg.round())} F/kg · $vendeur',
             style: AppTextStyles.bodySmall.copyWith(
               fontSize: 12,
               color: AppColors.textSecondary,
             ),
           ),
-          const SizedBox(height: 2),
-          Text(
-            'Livraison estimée : 23 mai',
-            style: AppTextStyles.bodySmall.copyWith(
-              fontSize: 12,
-              color: AppColors.text,
+          if (loc != null) ...[
+            const SizedBox(height: 2),
+            Row(
+              children: [
+                const Icon(
+                  Icons.location_on_outlined,
+                  size: 12,
+                  color: AppColors.textSubtle,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  loc,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    fontSize: 11,
+                    color: AppColors.textSubtle,
+                  ),
+                ),
+              ],
             ),
-          ),
+          ],
         ],
       ),
     );
   }
 }
 
-// ─── Section title (bold 14px, conforme maquette) ───────────────────────
+// ─── Section title ────────────────────────────────────────────────────
 
 class _SectionTitle extends StatelessWidget {
   const _SectionTitle(this.text);
-
   final String text;
-
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -322,11 +452,10 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
-// ─── Delivery options (radios) ─────────────────────────────────────────
+// ─── Delivery options ─────────────────────────────────────────────────
 
 class _DeliveryOptions extends StatelessWidget {
   const _DeliveryOptions({required this.selected, required this.onChange});
-
   final _DeliveryMode selected;
   final ValueChanged<_DeliveryMode> onChange;
 
@@ -336,19 +465,18 @@ class _DeliveryOptions extends StatelessWidget {
       children: [
         _DOption(
           isSelected: selected == _DeliveryMode.auto,
-          title: '🤝 Trouvé automatiquement par FarmCash',
+          title: 'Trouvé automatiquement par FarmCash',
           badge: 'Recommandé',
           subtitle:
-              'Prix fixe · 12 500 F · ETA 1-2j · Le 1er transporteur dispo prend',
+              'Prix fixe · ETA 1-2j · Le 1er transporteur dispo prend',
           onTap: () => onChange(_DeliveryMode.auto),
         ),
         const SizedBox(height: 8),
         _DOption(
           isSelected: selected == _DeliveryMode.choisir,
-          title: '🚛 Choisir mon transporteur',
+          title: 'Choisir mon transporteur',
           badge: null,
-          subtitle:
-              'À partir de 11 800 F · Compare 4 transporteurs dispos dans ta zone',
+          subtitle: 'Compare les transporteurs dispos dans ta zone',
           onTap: () => onChange(_DeliveryMode.choisir),
         ),
       ],
@@ -364,7 +492,6 @@ class _DOption extends StatelessWidget {
     required this.onTap,
     this.badge,
   });
-
   final bool isSelected;
   final String title;
   final String subtitle;
@@ -479,13 +606,10 @@ class _AmountsCard extends StatelessWidget {
   const _AmountsCard({
     required this.sousTotal,
     required this.frais,
-    required this.livraison,
     required this.total,
   });
-
   final int sousTotal;
   final int frais;
-  final int livraison;
   final int total;
 
   @override
@@ -495,16 +619,12 @@ class _AmountsCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.border,
-          width: AppDimens.borderThin,
-        ),
+        border: Border.all(color: AppColors.border, width: AppDimens.borderThin),
       ),
       child: Column(
         children: [
           _amRow('Sous-total', '${_nf.format(sousTotal)} F'),
-          _amRow('Frais service', '${_nf.format(frais)} F'),
-          _amRow('Livraison estimée', '${_nf.format(livraison)} F'),
+          _amRow('Frais service (1,5 %)', '${_nf.format(frais)} F'),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.only(top: 10),
@@ -573,13 +693,17 @@ class _AmountsCard extends StatelessWidget {
   }
 }
 
-// ─── Methods grid (2×2) ───────────────────────────────────────────────
+// ─── Methods grid ─────────────────────────────────────────────────────
 
 class _MethodsGrid extends StatelessWidget {
-  const _MethodsGrid({required this.selected, required this.onSelect});
-
-  final _PaymentMethod selected;
-  final ValueChanged<_PaymentMethod> onSelect;
+  const _MethodsGrid({
+    required this.selected,
+    required this.soldeWallet,
+    required this.onSelect,
+  });
+  final MobileProvider selected;
+  final double soldeWallet;
+  final ValueChanged<MobileProvider> onSelect;
 
   @override
   Widget build(BuildContext context) {
@@ -592,12 +716,15 @@ class _MethodsGrid extends StatelessWidget {
         mainAxisSpacing: 10,
         mainAxisExtent: 100,
       ),
-      itemCount: _kMethods.length,
+      itemCount: _kChoices.length,
       itemBuilder: (context, i) {
-        final spec = _kMethods[i];
-        final active = spec.method == selected;
+        final spec = _kChoices[i];
+        final active = spec.provider == selected;
+        final String? subtitle = spec.provider == MobileProvider.wallet
+            ? '${_nf.format(soldeWallet.round())} F dispo'
+            : null;
         return InkWell(
-          onTap: () => onSelect(spec.method),
+          onTap: () => onSelect(spec.provider),
           borderRadius: BorderRadius.circular(12),
           child: Container(
             padding: const EdgeInsets.all(10),
@@ -641,25 +768,18 @@ class _MethodsGrid extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                if (spec.badge != null) ...[
+                if (subtitle != null) ...[
                   const SizedBox(height: 2),
                   Text(
-                    spec.badge!,
+                    subtitle,
                     style: AppTextStyles.labelSmall.copyWith(
                       fontSize: 11,
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ] else if (spec.subtitle != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    spec.subtitle!,
-                    style: AppTextStyles.labelSmall.copyWith(
-                      fontSize: 11,
-                      color: AppColors.textSecondary,
+                      color: spec.provider == MobileProvider.wallet
+                          ? AppColors.primary
+                          : AppColors.textSecondary,
+                      fontWeight: spec.provider == MobileProvider.wallet
+                          ? FontWeight.w600
+                          : FontWeight.w500,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -674,11 +794,62 @@ class _MethodsGrid extends StatelessWidget {
   }
 }
 
-// ─── Adresse card ──────────────────────────────────────────────────────
+class _WalletLowBanner extends StatelessWidget {
+  const _WalletLowBanner({required this.manquant, required this.onRecharger});
+  final int manquant;
+  final VoidCallback onRecharger;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8E1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: const Color(0xFFFFE082),
+          width: AppDimens.borderThin,
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline, size: 18, color: Color(0xFFB45309)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Solde insuffisant. Recharge ${_nf.format(manquant)} F pour payer avec le wallet.',
+              style: AppTextStyles.bodySmall.copyWith(
+                fontSize: 12,
+                color: AppColors.text,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          InkWell(
+            onTap: onRecharger,
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              child: Text(
+                'Recharger',
+                style: AppTextStyles.labelMedium.copyWith(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Adresse ────────────────────────────────────────────────────────────
 
 class _AddressCard extends StatelessWidget {
   const _AddressCard({required this.onEdit});
-
   final VoidCallback onEdit;
 
   @override
@@ -688,10 +859,7 @@ class _AddressCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.border,
-          width: AppDimens.borderThin,
-        ),
+        border: Border.all(color: AppColors.border, width: AppDimens.borderThin),
       ),
       child: Row(
         children: [
@@ -716,7 +884,7 @@ class _AddressCard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Restaurant Le B.',
+                  'Adresse par défaut',
                   style: AppTextStyles.bodyMedium.copyWith(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -724,7 +892,7 @@ class _AddressCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Cocody · 22 Av X',
+                  'Modifie depuis ton profil',
                   style: AppTextStyles.bodySmall.copyWith(
                     fontSize: 11,
                     color: AppColors.textSecondary,
@@ -760,7 +928,6 @@ class _AddressCard extends StatelessWidget {
 
 class _NoteField extends StatelessWidget {
   const _NoteField({required this.controller});
-
   final TextEditingController controller;
 
   @override
@@ -799,58 +966,70 @@ class _NoteField extends StatelessWidget {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(
-            color: AppColors.primary,
-            width: 1.5,
-          ),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
         ),
       ),
     );
   }
 }
 
-// ─── Sticky bottom (bouton plein vert) ─────────────────────────────────
+// ─── Sticky bottom ─────────────────────────────────────────────────────
 
 class _StickyBottom extends StatelessWidget {
-  const _StickyBottom({required this.total, required this.onPay});
+  const _StickyBottom({
+    required this.total,
+    required this.busy,
+    required this.enabled,
+    required this.onPay,
+  });
 
   final int total;
+  final bool busy;
+  final bool enabled;
   final VoidCallback onPay;
 
   @override
   Widget build(BuildContext context) {
+    final actif = enabled && !busy;
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       decoration: const BoxDecoration(
         color: AppColors.background,
         border: Border(
-          top: BorderSide(
-            color: AppColors.border,
-            width: AppDimens.borderThin,
-          ),
+          top: BorderSide(color: AppColors.border, width: AppDimens.borderThin),
         ),
       ),
-      child: InkWell(
-        onTap: onPay,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          height: 50,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: AppColors.primary,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: AppColors.primary,
-              width: AppDimens.borderThin,
+      child: SafeArea(
+        top: false,
+        child: InkWell(
+          onTap: actif ? onPay : null,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            height: 50,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: actif ? AppColors.primary : AppColors.borderStrong,
+              borderRadius: BorderRadius.circular(12),
             ),
-          ),
-          child: Text(
-            'Payer ${_nf.format(total)} F · escrow sécurisé',
-            style: AppTextStyles.button.copyWith(
-              fontSize: 14,
-              color: AppColors.onPrimary,
-              fontWeight: FontWeight.w600,
-            ),
+            child: busy
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: Colors.white,
+                    ),
+                  )
+                : Text(
+                    enabled
+                        ? 'Payer ${_nf.format(total)} F · escrow sécurisé'
+                        : 'Solde wallet insuffisant',
+                    style: AppTextStyles.button.copyWith(
+                      fontSize: 14,
+                      color: AppColors.onPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
           ),
         ),
       ),

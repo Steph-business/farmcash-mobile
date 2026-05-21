@@ -41,7 +41,18 @@ mixin _$AnnonceAchat {
   String? get targetCooperativeId => throw _privateConstructorUsedError;
   DateTime? get dateLimiteLivraison => throw _privateConstructorUsedError;
   DateTime? get createdAt => throw _privateConstructorUsedError;
-  DateTime? get updatedAt => throw _privateConstructorUsedError;
+  DateTime? get updatedAt =>
+      throw _privateConstructorUsedError; // ─── Champs joints ────────────────────────────────────────────────
+  @JsonKey(name: 'produits_agricoles', fromJson: _nomFromMap, toJson: _nomToMap)
+  String? get produitNom => throw _privateConstructorUsedError;
+  @JsonKey(
+    name: 'users',
+    fromJson: _buyerInfoFromJson,
+    toJson: _buyerInfoToJson,
+  )
+  VendeurApercu? get buyer => throw _privateConstructorUsedError;
+  @JsonKey(name: 'regions_ci', fromJson: _nomFromMap, toJson: _nomToMap)
+  String? get regionNom => throw _privateConstructorUsedError;
 
   /// Serializes this AnnonceAchat to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -80,6 +91,20 @@ abstract class $AnnonceAchatCopyWith<$Res> {
     DateTime? dateLimiteLivraison,
     DateTime? createdAt,
     DateTime? updatedAt,
+    @JsonKey(
+      name: 'produits_agricoles',
+      fromJson: _nomFromMap,
+      toJson: _nomToMap,
+    )
+    String? produitNom,
+    @JsonKey(
+      name: 'users',
+      fromJson: _buyerInfoFromJson,
+      toJson: _buyerInfoToJson,
+    )
+    VendeurApercu? buyer,
+    @JsonKey(name: 'regions_ci', fromJson: _nomFromMap, toJson: _nomToMap)
+    String? regionNom,
   });
 }
 
@@ -113,6 +138,9 @@ class _$AnnonceAchatCopyWithImpl<$Res, $Val extends AnnonceAchat>
     Object? dateLimiteLivraison = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
+    Object? produitNom = freezed,
+    Object? buyer = freezed,
+    Object? regionNom = freezed,
   }) {
     return _then(
       _value.copyWith(
@@ -176,6 +204,18 @@ class _$AnnonceAchatCopyWithImpl<$Res, $Val extends AnnonceAchat>
                 ? _value.updatedAt
                 : updatedAt // ignore: cast_nullable_to_non_nullable
                       as DateTime?,
+            produitNom: freezed == produitNom
+                ? _value.produitNom
+                : produitNom // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            buyer: freezed == buyer
+                ? _value.buyer
+                : buyer // ignore: cast_nullable_to_non_nullable
+                      as VendeurApercu?,
+            regionNom: freezed == regionNom
+                ? _value.regionNom
+                : regionNom // ignore: cast_nullable_to_non_nullable
+                      as String?,
           )
           as $Val,
     );
@@ -211,6 +251,20 @@ abstract class _$$AnnonceAchatImplCopyWith<$Res>
     DateTime? dateLimiteLivraison,
     DateTime? createdAt,
     DateTime? updatedAt,
+    @JsonKey(
+      name: 'produits_agricoles',
+      fromJson: _nomFromMap,
+      toJson: _nomToMap,
+    )
+    String? produitNom,
+    @JsonKey(
+      name: 'users',
+      fromJson: _buyerInfoFromJson,
+      toJson: _buyerInfoToJson,
+    )
+    VendeurApercu? buyer,
+    @JsonKey(name: 'regions_ci', fromJson: _nomFromMap, toJson: _nomToMap)
+    String? regionNom,
   });
 }
 
@@ -243,6 +297,9 @@ class __$$AnnonceAchatImplCopyWithImpl<$Res>
     Object? dateLimiteLivraison = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
+    Object? produitNom = freezed,
+    Object? buyer = freezed,
+    Object? regionNom = freezed,
   }) {
     return _then(
       _$AnnonceAchatImpl(
@@ -306,6 +363,18 @@ class __$$AnnonceAchatImplCopyWithImpl<$Res>
             ? _value.updatedAt
             : updatedAt // ignore: cast_nullable_to_non_nullable
                   as DateTime?,
+        produitNom: freezed == produitNom
+            ? _value.produitNom
+            : produitNom // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        buyer: freezed == buyer
+            ? _value.buyer
+            : buyer // ignore: cast_nullable_to_non_nullable
+                  as VendeurApercu?,
+        regionNom: freezed == regionNom
+            ? _value.regionNom
+            : regionNom // ignore: cast_nullable_to_non_nullable
+                  as String?,
       ),
     );
   }
@@ -313,7 +382,7 @@ class __$$AnnonceAchatImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$AnnonceAchatImpl implements _AnnonceAchat {
+class _$AnnonceAchatImpl extends _AnnonceAchat {
   const _$AnnonceAchatImpl({
     required this.id,
     required this.buyerId,
@@ -334,7 +403,21 @@ class _$AnnonceAchatImpl implements _AnnonceAchat {
     this.dateLimiteLivraison,
     this.createdAt,
     this.updatedAt,
-  });
+    @JsonKey(
+      name: 'produits_agricoles',
+      fromJson: _nomFromMap,
+      toJson: _nomToMap,
+    )
+    this.produitNom,
+    @JsonKey(
+      name: 'users',
+      fromJson: _buyerInfoFromJson,
+      toJson: _buyerInfoToJson,
+    )
+    this.buyer,
+    @JsonKey(name: 'regions_ci', fromJson: _nomFromMap, toJson: _nomToMap)
+    this.regionNom,
+  }) : super._();
 
   factory _$AnnonceAchatImpl.fromJson(Map<String, dynamic> json) =>
       _$$AnnonceAchatImplFromJson(json);
@@ -376,10 +459,24 @@ class _$AnnonceAchatImpl implements _AnnonceAchat {
   final DateTime? createdAt;
   @override
   final DateTime? updatedAt;
+  // ─── Champs joints ────────────────────────────────────────────────
+  @override
+  @JsonKey(name: 'produits_agricoles', fromJson: _nomFromMap, toJson: _nomToMap)
+  final String? produitNom;
+  @override
+  @JsonKey(
+    name: 'users',
+    fromJson: _buyerInfoFromJson,
+    toJson: _buyerInfoToJson,
+  )
+  final VendeurApercu? buyer;
+  @override
+  @JsonKey(name: 'regions_ci', fromJson: _nomFromMap, toJson: _nomToMap)
+  final String? regionNom;
 
   @override
   String toString() {
-    return 'AnnonceAchat(id: $id, buyerId: $buyerId, produitId: $produitId, quantiteKg: $quantiteKg, prixMaxKg: $prixMaxKg, regionId: $regionId, villeId: $villeId, titre: $titre, description: $description, isActive: $isActive, audience: $audience, targetCooperativeId: $targetCooperativeId, dateLimiteLivraison: $dateLimiteLivraison, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'AnnonceAchat(id: $id, buyerId: $buyerId, produitId: $produitId, quantiteKg: $quantiteKg, prixMaxKg: $prixMaxKg, regionId: $regionId, villeId: $villeId, titre: $titre, description: $description, isActive: $isActive, audience: $audience, targetCooperativeId: $targetCooperativeId, dateLimiteLivraison: $dateLimiteLivraison, createdAt: $createdAt, updatedAt: $updatedAt, produitNom: $produitNom, buyer: $buyer, regionNom: $regionNom)';
   }
 
   @override
@@ -412,7 +509,12 @@ class _$AnnonceAchatImpl implements _AnnonceAchat {
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
-                other.updatedAt == updatedAt));
+                other.updatedAt == updatedAt) &&
+            (identical(other.produitNom, produitNom) ||
+                other.produitNom == produitNom) &&
+            (identical(other.buyer, buyer) || other.buyer == buyer) &&
+            (identical(other.regionNom, regionNom) ||
+                other.regionNom == regionNom));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -434,6 +536,9 @@ class _$AnnonceAchatImpl implements _AnnonceAchat {
     dateLimiteLivraison,
     createdAt,
     updatedAt,
+    produitNom,
+    buyer,
+    regionNom,
   );
 
   /// Create a copy of AnnonceAchat
@@ -450,7 +555,7 @@ class _$AnnonceAchatImpl implements _AnnonceAchat {
   }
 }
 
-abstract class _AnnonceAchat implements AnnonceAchat {
+abstract class _AnnonceAchat extends AnnonceAchat {
   const factory _AnnonceAchat({
     required final String id,
     required final String buyerId,
@@ -471,7 +576,22 @@ abstract class _AnnonceAchat implements AnnonceAchat {
     final DateTime? dateLimiteLivraison,
     final DateTime? createdAt,
     final DateTime? updatedAt,
+    @JsonKey(
+      name: 'produits_agricoles',
+      fromJson: _nomFromMap,
+      toJson: _nomToMap,
+    )
+    final String? produitNom,
+    @JsonKey(
+      name: 'users',
+      fromJson: _buyerInfoFromJson,
+      toJson: _buyerInfoToJson,
+    )
+    final VendeurApercu? buyer,
+    @JsonKey(name: 'regions_ci', fromJson: _nomFromMap, toJson: _nomToMap)
+    final String? regionNom,
   }) = _$AnnonceAchatImpl;
+  const _AnnonceAchat._() : super._();
 
   factory _AnnonceAchat.fromJson(Map<String, dynamic> json) =
       _$AnnonceAchatImpl.fromJson;
@@ -511,7 +631,20 @@ abstract class _AnnonceAchat implements AnnonceAchat {
   @override
   DateTime? get createdAt;
   @override
-  DateTime? get updatedAt;
+  DateTime? get updatedAt; // ─── Champs joints ────────────────────────────────────────────────
+  @override
+  @JsonKey(name: 'produits_agricoles', fromJson: _nomFromMap, toJson: _nomToMap)
+  String? get produitNom;
+  @override
+  @JsonKey(
+    name: 'users',
+    fromJson: _buyerInfoFromJson,
+    toJson: _buyerInfoToJson,
+  )
+  VendeurApercu? get buyer;
+  @override
+  @JsonKey(name: 'regions_ci', fromJson: _nomFromMap, toJson: _nomToMap)
+  String? get regionNom;
 
   /// Create a copy of AnnonceAchat
   /// with the given fields replaced by the non-null parameter values.

@@ -1,9 +1,13 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../api_client/api_exception.dart';
 import '../../../../models/commande.dart';
+import '../../../../models/enums.dart';
+import '../../../../routing/route_names.dart';
 import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
@@ -27,20 +31,9 @@ const String _kBuyerAvatar =
 
 /// Détail d'une commande côté producteur — hero produit, acheteur, montants,
 /// statut escrow (encart orange), timeline 5 étapes, sticky 2 boutons.
-///
-/// L'écran est conçu pour rester fidèle à la maquette HTML même sans
-/// données backend : on charge la commande via `ordersService.getOrder(id)`
-/// si possible, mais les valeurs visibles (qte, prix, montants, statuts
-/// timeline) restent calées sur la commande C-2026-0089 du mock.
 final _commandeProvider = FutureProvider.autoDispose
-    .family<Commande?, String>((ref, id) async {
-  try {
-    return await ref.watch(ordersServiceProvider).getOrder(id);
-  } catch (_) {
-    // Mock fallback : on retourne null et l'UI tombe sur les valeurs
-    // visuelles statiques de la maquette.
-    return null;
-  }
+    .family<Commande, String>((ref, id) async {
+  return ref.watch(ordersServiceProvider).getOrder(id);
 });
 
 class CommandeDetailPage extends ConsumerWidget {
@@ -65,11 +58,20 @@ class CommandeDetailPage extends ConsumerWidget {
                   padding: EdgeInsets.only(top: AppDimens.space32),
                   child: Chargement(size: 22),
                 ),
-                error: (e, _) => const _Body(commande: null),
+                error: (e, _) => Padding(
+                  padding: const EdgeInsets.all(AppDimens.pagePaddingH),
+                  child: VueErreur(
+                    message: 'Impossible de charger la commande.',
+                    onRetry: () => ref.invalidate(_commandeProvider(commandeId)),
+                  ),
+                ),
                 data: (commande) => _Body(commande: commande),
               ),
             ),
-            const _StickyButtons(),
+            async.maybeWhen(
+              data: (commande) => _StickyButtons(commande: commande),
+              orElse: () => const SizedBox.shrink(),
+            ),
           ],
         ),
       ),
@@ -138,34 +140,34 @@ class _Header extends StatelessWidget {
 class _Body extends StatelessWidget {
   const _Body({required this.commande});
 
-  final Commande? commande;
+  final Commande commande;
 
   @override
   Widget build(BuildContext context) {
-    // Mock-first : on garde les valeurs visuelles de la maquette quand
-    // l'API n'a pas répondu, ou quand certains champs ne sont pas remplis.
-    final qte = commande != null && commande!.quantiteKg > 0
-        ? commande!.quantiteKg
-        : 500.0;
-    final prixKg = commande != null && commande!.prixUnitaireKg > 0
-        ? commande!.prixUnitaireKg
-        : 350.0;
-    final brut = qte * prixKg;
+    final qte = commande.quantiteKg;
+    final prixKg = commande.prixUnitaireKg;
+    final brut = commande.montantTotal > 0 ? commande.montantTotal : qte * prixKg;
     final frais = (brut * 0.03).round().toDouble();
     final net = brut - frais;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
       children: [
-        const _HeroCard(),
+        _HeroCard(commande: commande),
         AppDimens.vGap12,
-        const _BuyerSection(),
+        _BuyerSection(commande: commande),
         AppDimens.vGap12,
-        _AmountsSection(brut: brut, frais: frais, net: net, qte: qte, prixKg: prixKg),
+        _AmountsSection(
+          brut: brut,
+          frais: frais,
+          net: net,
+          qte: qte,
+          prixKg: prixKg,
+        ),
         AppDimens.vGap16,
         _EscrowBanner(net: net),
         AppDimens.vGap16,
-        _TimelineSection(net: net),
+        _TimelineSection(commande: commande, net: net),
       ],
     );
   }
@@ -174,10 +176,13 @@ class _Body extends StatelessWidget {
 // ─── Hero card (photo + titre) ───────────────────────────────────────────
 
 class _HeroCard extends StatelessWidget {
-  const _HeroCard();
+  const _HeroCard({required this.commande});
+
+  final Commande commande;
 
   @override
   Widget build(BuildContext context) {
+    final qte = NumberFormat('#,##0', 'fr_FR').format(commande.quantiteKg);
     return Container(
       decoration: BoxDecoration(
         color: AppColors.background,
@@ -219,7 +224,7 @@ class _HeroCard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '500 kg de Maïs grain blanc',
+                  '$qte kg commandés',
                   style: AppTextStyles.titleMedium.copyWith(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
@@ -228,7 +233,7 @@ class _HeroCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'qualité Standard',
+                  'Statut : ${_statusLabelOrder(commande.status)}',
                   style: AppTextStyles.bodySmall.copyWith(
                     fontSize: 12,
                     color: AppColors.textSecondary,
@@ -243,13 +248,42 @@ class _HeroCard extends StatelessWidget {
   }
 }
 
+String _statusLabelOrder(OrderStatus s) {
+  switch (s) {
+    case OrderStatus.sent:
+      return 'Envoyée';
+    case OrderStatus.accepted:
+      return 'Acceptée';
+    case OrderStatus.rejected:
+      return 'Refusée';
+    case OrderStatus.inProgress:
+      return 'En préparation';
+    case OrderStatus.delivered:
+      return 'Livrée';
+    case OrderStatus.completed:
+      return 'Terminée';
+    case OrderStatus.disputed:
+      return 'Litige';
+    case OrderStatus.cancelled:
+      return 'Annulée';
+    case OrderStatus.unknown:
+      return 'Inconnue';
+  }
+}
+
 // ─── Buyer section ───────────────────────────────────────────────────────
 
 class _BuyerSection extends StatelessWidget {
-  const _BuyerSection();
+  const _BuyerSection({required this.commande});
+
+  final Commande commande;
 
   @override
   Widget build(BuildContext context) {
+    final shortBuyer = commande.buyerId.length >= 6
+        ? commande.buyerId.substring(0, 6)
+        : commande.buyerId;
+    final adresse = commande.livraisonAdresse?.trim();
     return _Section(
       title: 'Acheteur',
       child: Column(
@@ -287,20 +321,24 @@ class _BuyerSection extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'Restaurant Le B.',
+                      'Acheteur $shortBuyer',
                       style: AppTextStyles.bodyMedium.copyWith(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Cocody',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
+                    if (adresse != null && adresse.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        adresse,
+                        style: AppTextStyles.bodySmall.copyWith(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
+                    ],
                     const SizedBox(height: 6),
                     _SharedBadge(),
                   ],
@@ -313,10 +351,7 @@ class _BuyerSection extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: InkWell(
-              onTap: () => Snackbars.showInfo(
-                context,
-                'Ouvrir la conversation — à venir',
-              ),
+              onTap: () => context.push(RouteNames.producteurMessagesPath),
               borderRadius: BorderRadius.circular(10),
               child: Container(
                 height: 42,
@@ -553,40 +588,73 @@ class _EscrowBanner extends StatelessWidget {
 // ─── Timeline ────────────────────────────────────────────────────────────
 
 class _TimelineSection extends StatelessWidget {
-  const _TimelineSection({required this.net});
+  const _TimelineSection({required this.commande, required this.net});
 
+  final Commande commande;
   final double net;
 
   @override
   Widget build(BuildContext context) {
+    _StepKind kindForStep(int step) {
+      final s = commande.status;
+      // step 1 (passée), 2 (escrow), 3 (préparation), 4 (enlèvement), 5 (livraison)
+      switch (s) {
+        case OrderStatus.sent:
+          if (step == 1) return _StepKind.done;
+          if (step == 2) return _StepKind.pending;
+          return _StepKind.todo;
+        case OrderStatus.accepted:
+          if (step <= 2) return _StepKind.done;
+          if (step == 3) return _StepKind.pending;
+          return _StepKind.todo;
+        case OrderStatus.inProgress:
+          if (step <= 3) return _StepKind.done;
+          if (step == 4) return _StepKind.pending;
+          return _StepKind.todo;
+        case OrderStatus.delivered:
+        case OrderStatus.completed:
+          return _StepKind.done;
+        case OrderStatus.disputed:
+        case OrderStatus.cancelled:
+        case OrderStatus.rejected:
+          return _StepKind.todo;
+        case OrderStatus.unknown:
+          return _StepKind.todo;
+      }
+    }
+
+    final created = commande.createdAt != null
+        ? DateFormat('d MMM', 'fr_FR').format(commande.createdAt!)
+        : '—';
+
     final steps = <_Step>[
       _Step(
-        kind: _StepKind.done,
+        kind: kindForStep(1),
         label: '1',
         titre: 'Commande passée',
-        sousTitre: 'Restaurant Le B. · 10 mai',
+        sousTitre: 'Le $created',
       ),
       _Step(
-        kind: _StepKind.done,
+        kind: kindForStep(2),
         label: '2',
         titre: 'Paiement bloqué en escrow',
-        sousTitre: '175 000 F sécurisés · 10 mai',
+        sousTitre: '${_fmt(commande.montantTotal)} F sécurisés',
       ),
       _Step(
-        kind: _StepKind.pending,
+        kind: kindForStep(3),
         label: '3',
         titre: 'Préparation du colis',
         sousTitre: 'À ton tour — marque expédié quand prêt',
       ),
       _Step(
-        kind: _StepKind.todo,
+        kind: kindForStep(4),
         label: '4',
         titre: 'Enlèvement par le transporteur',
         sousTitre: '→ Tu recevras ${_fmt(net)} F à cette étape',
         highlightSousTitre: true,
       ),
       _Step(
-        kind: _StepKind.todo,
+        kind: kindForStep(5),
         label: '5',
         titre: 'Livraison à l\'acheteur',
         sousTitre: 'Le transporteur reçoit alors sa commission',
@@ -777,11 +845,61 @@ class _Section extends StatelessWidget {
 
 // ─── Sticky 2 boutons ────────────────────────────────────────────────────
 
-class _StickyButtons extends StatelessWidget {
-  const _StickyButtons();
+class _StickyButtons extends ConsumerStatefulWidget {
+  const _StickyButtons({required this.commande});
+
+  final Commande commande;
+
+  @override
+  ConsumerState<_StickyButtons> createState() => _StickyButtonsState();
+}
+
+class _StickyButtonsState extends ConsumerState<_StickyButtons> {
+  bool _busy = false;
+
+  /// Le bouton "Marquer expédiée" n'a de sens que tant que la commande
+  /// est avant l'étape `IN_PROGRESS`. Après, on grise le bouton.
+  bool get _canShip {
+    switch (widget.commande.status) {
+      case OrderStatus.sent:
+      case OrderStatus.accepted:
+        return true;
+      case OrderStatus.inProgress:
+      case OrderStatus.delivered:
+      case OrderStatus.completed:
+      case OrderStatus.disputed:
+      case OrderStatus.cancelled:
+      case OrderStatus.rejected:
+      case OrderStatus.unknown:
+        return false;
+    }
+  }
+
+  Future<void> _markShipped() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await ref.read(ordersServiceProvider).updateOrderStatus(
+            id: widget.commande.id,
+            newStatus: OrderStatus.inProgress,
+          );
+      if (!mounted) return;
+      Snackbars.showSucces(context, 'Commande marquée comme expédiée.');
+      ref.invalidate(_commandeProvider(widget.commande.id));
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      Snackbars.showErreur(context, e.message);
+    } catch (_) {
+      if (!mounted) return;
+      Snackbars.showErreur(context, 'Impossible de marquer comme expédiée.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final shipEnabled = _canShip && !_busy;
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.background,
@@ -797,10 +915,7 @@ class _StickyButtons extends StatelessWidget {
         children: [
           Expanded(
             child: InkWell(
-              onTap: () => Snackbars.showInfo(
-                context,
-                'Ouvrir la conversation — à venir',
-              ),
+              onTap: () => context.push(RouteNames.producteurMessagesPath),
               borderRadius: AppDimens.brButton,
               child: Container(
                 height: 46,
@@ -826,30 +941,39 @@ class _StickyButtons extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           Expanded(
-            child: InkWell(
-              onTap: () => Snackbars.showInfo(
-                context,
-                'Marquer comme expédiée — à venir',
-              ),
-              borderRadius: AppDimens.brButton,
-              child: Container(
-                height: 46,
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: AppDimens.brButton,
-                  border: Border.all(
+            child: Opacity(
+              opacity: shipEnabled ? 1 : 0.5,
+              child: InkWell(
+                onTap: shipEnabled ? _markShipped : null,
+                borderRadius: AppDimens.brButton,
+                child: Container(
+                  height: 46,
+                  decoration: BoxDecoration(
                     color: AppColors.primary,
-                    width: AppDimens.borderThin,
+                    borderRadius: AppDimens.brButton,
+                    border: Border.all(
+                      color: AppColors.primary,
+                      width: AppDimens.borderThin,
+                    ),
                   ),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  'Marquer comme expédiée',
-                  style: AppTextStyles.button.copyWith(
-                    fontSize: 13,
-                    color: AppColors.onPrimary,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  alignment: Alignment.center,
+                  child: _busy
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          'Marquer comme expédiée',
+                          style: AppTextStyles.button.copyWith(
+                            fontSize: 13,
+                            color: AppColors.onPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                 ),
               ),
             ),
@@ -863,14 +987,3 @@ class _StickyButtons extends StatelessWidget {
 // ─── Helpers ────────────────────────────────────────────────────────────
 
 String _fmt(double v) => NumberFormat('#,##0', 'fr_FR').format(v);
-
-// Conserve l'import pour usage futur si on veut afficher un état d'erreur
-// dédié plutôt que tomber sur les mocks.
-@visibleForTesting
-Widget commandeErrorView(VoidCallback onRetry) => Padding(
-      padding: const EdgeInsets.all(AppDimens.pagePaddingH),
-      child: VueErreur(
-        message: 'Impossible de charger la commande.',
-        onRetry: onRetry,
-      ),
-    );

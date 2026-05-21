@@ -110,36 +110,33 @@ class _SollicitationCreerPageState
       Snackbars.showErreur(context, 'Sélectionne au moins une audience.');
       return;
     }
+    // Le backend exige un annonce_achat_id réel pour rattacher la
+    // sollicitation à une commande à couvrir. Sans `offreId`, on refuse
+    // au lieu de mentir à l'utilisateur.
+    final offreId = widget.offreId;
+    if (offreId == null || offreId.isEmpty) {
+      Snackbars.showErreur(
+        context,
+        'Ouvre une offre d\'achat depuis « Offres reçues » pour la solliciter.',
+      );
+      return;
+    }
     setState(() => _isSubmitting = true);
     try {
-      // L'API attend un annonce_achat_id ; sans contexte d'offre, on
-      // tente quand même l'appel avec un id placeholder pour respecter la
-      // signature, mais on retombe gracieusement sur un succès local si
-      // l'endpoint refuse (mock-fallback).
-      try {
-        await ref.read(cooperativesServiceProvider).createSollicitation(
-              annonceAchatId: widget.offreId ?? 'mock-offre',
-              message: _messageCtrl.text.trim().isEmpty
-                  ? 'Sollicitation coop pour couvrir une offre acheteur'
-                  : _messageCtrl.text.trim(),
-              audiences: _audiences.toList(),
-            );
-      } on ApiException {
-        // En l'absence d'offre réelle, on laisse passer en mock.
-      }
+      await ref.read(cooperativesServiceProvider).createSollicitation(
+            annonceAchatId: offreId,
+            message: _messageCtrl.text.trim().isEmpty
+                ? 'Sollicitation coop pour couvrir une offre acheteur'
+                : _messageCtrl.text.trim(),
+            audiences: _audiences.toList(),
+          );
       if (!mounted) return;
-      Snackbars.showSucces(
-        context,
-        'Sollicitation envoyée à $_totalRecipients destinataires.',
-      );
+      Snackbars.showSucces(context, 'Sollicitation envoyée.');
       Navigator.of(context).pop(true);
-    } catch (_) {
-      if (!mounted) return;
-      Snackbars.showSucces(
-        context,
-        'Sollicitation envoyée à $_totalRecipients destinataires.',
-      );
-      Navigator.of(context).pop(true);
+    } on ApiException catch (e) {
+      if (mounted) Snackbars.showErreur(context, e.message);
+    } catch (e) {
+      if (mounted) Snackbars.showErreur(context, 'Erreur : $e');
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }

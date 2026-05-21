@@ -1,154 +1,55 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
+import '../../../models/membre_coop.dart';
 import '../../../routing/route_names.dart';
+import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
 import '../../../theme/app_text_styles.dart';
+import '../../widgets/communs/chargement.dart';
 import '../../widgets/communs/header_utilisateur.dart';
-
-// ─── Couleurs locales (alignées sur la maquette) ────────────────────────
+import '../../widgets/communs/vue_erreur.dart';
 
 const Color _kPrimarySoft = Color(0xFFE8F5E9);
 const Color _kWarnSoft = Color(0xFFFEF3C7);
 const Color _kWarn = Color(0xFFB45309);
 
-/// Sémantique du pill statut membre.
-enum _MemberStatus { actif, inactif }
-
-/// Modèle local pour un membre coop mock — calqué sur la maquette HTML.
-class _MockMember {
-  final String id;
-  final String photoUrl;
-  final String nomComplet;
-  final String ville;
-  final String montantVerseLabel;
-  final _MemberStatus statut;
-
-  const _MockMember({
-    required this.id,
-    required this.photoUrl,
-    required this.nomComplet,
-    required this.ville,
-    required this.montantVerseLabel,
-    required this.statut,
-  });
+/// Bundle membres + nombre de demandes d'adhésion en attente.
+class _MembresData {
+  const _MembresData({required this.membres, required this.adhesionsCount});
+  final List<MembreCoop> membres;
+  final int adhesionsCount;
 }
 
-/// Liste mock alignée sur `mockups/cooperative/membres.html` (noms FULL —
-/// la coopérative voit ses membres en clair, pas d'anonymisation).
-const List<_MockMember> _kMockMembers = [
-  _MockMember(
-    id: 'mem_yao',
-    photoUrl:
-        'https://images.unsplash.com/photo-1531123897727-8f129e1688ce'
-        '?w=120&h=120&fit=crop&auto=format',
-    nomComplet: 'Yao Konan',
-    ville: 'Yopougon',
-    montantVerseLabel: '850 000 F',
-    statut: _MemberStatus.actif,
-  ),
-  _MockMember(
-    id: 'mem_aya',
-    photoUrl:
-        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d'
-        '?w=120&h=120&fit=crop&auto=format',
-    nomComplet: "Aya N'Guessan",
-    ville: 'Sassandra',
-    montantVerseLabel: '620 000 F',
-    statut: _MemberStatus.actif,
-  ),
-  _MockMember(
-    id: 'mem_kouadio',
-    photoUrl:
-        'https://images.unsplash.com/photo-1500648767791-00dcc994a43e'
-        '?w=120&h=120&fit=crop&auto=format',
-    nomComplet: 'Kouadio Bertin',
-    ville: 'Yamoussoukro',
-    montantVerseLabel: '420 000 F',
-    statut: _MemberStatus.actif,
-  ),
-  _MockMember(
-    id: 'mem_adjoua',
-    photoUrl:
-        'https://images.unsplash.com/photo-1599566150163-29194dcaad36'
-        '?w=120&h=120&fit=crop&auto=format',
-    nomComplet: 'Adjoua Brigitte',
-    ville: 'Grand-Bassam',
-    montantVerseLabel: '380 000 F',
-    statut: _MemberStatus.actif,
-  ),
-  _MockMember(
-    id: 'mem_traore',
-    photoUrl:
-        'https://images.unsplash.com/photo-1493612276216-ee3925520721'
-        '?w=120&h=120&fit=crop&auto=format',
-    nomComplet: 'Traoré Salif',
-    ville: 'Bingerville',
-    montantVerseLabel: '290 000 F',
-    statut: _MemberStatus.actif,
-  ),
-  _MockMember(
-    id: 'mem_diabate',
-    photoUrl:
-        'https://images.unsplash.com/photo-1438761681033-6461ffad8d80'
-        '?w=120&h=120&fit=crop&auto=format',
-    nomComplet: 'Diabaté Awa',
-    ville: 'Jacqueville',
-    montantVerseLabel: '175 000 F',
-    statut: _MemberStatus.inactif,
-  ),
-  _MockMember(
-    id: 'mem_konan_adjoua',
-    photoUrl:
-        'https://images.unsplash.com/photo-1463453091185-61582044d556'
-        '?w=120&h=120&fit=crop&auto=format',
-    nomComplet: 'Konan Adjoua',
-    ville: 'Songon',
-    montantVerseLabel: '140 000 F',
-    statut: _MemberStatus.inactif,
-  ),
-  _MockMember(
-    id: 'mem_bamba',
-    photoUrl:
-        'https://images.unsplash.com/photo-1544005313-94ddf0286df2'
-        '?w=120&h=120&fit=crop&auto=format',
-    nomComplet: 'Bamba Yaya',
-    ville: 'Port-Bouët',
-    montantVerseLabel: '95 000 F',
-    statut: _MemberStatus.inactif,
-  ),
-];
+final _membresProvider =
+    FutureProvider.autoDispose<_MembresData>((ref) async {
+  final svc = ref.read(cooperativesServiceProvider);
+  final results = await Future.wait<dynamic>([
+    svc.listMembers(limit: 100).then<Object?>((v) => v),
+    svc
+        .listJoinRequests()
+        .then<Object?>((v) => v)
+        .catchError((_) => const <CoopJoinRequest>[]),
+  ]);
+  final page = results[0] as dynamic;
+  final adhesions = results[1] as List<CoopJoinRequest>;
+  return _MembresData(
+    membres: page.data as List<MembreCoop>,
+    adhesionsCount:
+        adhesions.where((a) => a.status.toUpperCase() == 'PENDING').length,
+  );
+});
 
-const int _kNbDemandesAdhesion = 3;
-const int _kNbActifsCetteSemaine = 12;
-
-/// Onglet Membres de la coopérative — accessible via le bottom-nav (shell).
-///
-/// Reproduction fidèle de `mockups/cooperative/membres.html` : header coop,
-/// compteur récap, bandeau « Demandes d'adhésion », liste de 8 membres
-/// avec photo / ville / montant versé / pill statut, et FAB « Inviter ».
-///
-/// Mock-first : à brancher sur `coopSvc.listMembers()` quand prêt.
+/// Liste des membres de la coopérative — branchée sur `listMembers`.
 class MembresCooperativePage extends ConsumerWidget {
   const MembresCooperativePage({super.key});
 
-  void _ouvrirMembre(BuildContext context, _MockMember m) {
-    context.push(RouteNames.cooperativeMembreDetailPathFor(m.id));
-  }
-
-  void _ouvrirAdhesions(BuildContext context) {
-    context.push(RouteNames.cooperativeAdhesionsPath);
-  }
-
-  void _ouvrirInviter(BuildContext context) {
-    context.push(RouteNames.cooperativeInviterFarmerPath);
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(_membresProvider);
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -159,30 +60,56 @@ class MembresCooperativePage extends ConsumerWidget {
               children: [
                 const HeaderUtilisateur(variant: HeaderVariant.cooperative),
                 const _PageTitle(),
-                const _Summary(
-                  total: 47,
-                  actifsCetteSemaine: _kNbActifsCetteSemaine,
-                ),
                 Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppDimens.pagePaddingH,
-                      AppDimens.space8,
-                      AppDimens.pagePaddingH,
-                      // Espace pour ne pas que le FAB cache la dernière card.
-                      AppDimens.space48 + AppDimens.space24,
+                  child: async.when(
+                    loading: () => const Padding(
+                      padding: EdgeInsets.only(top: 48),
+                      child: Chargement(size: 22),
                     ),
-                    children: [
-                      _AdhesionsBanner(
-                        count: _kNbDemandesAdhesion,
-                        onTap: () => _ouvrirAdhesions(context),
+                    error: (e, _) => Padding(
+                      padding: const EdgeInsets.all(AppDimens.pagePaddingH),
+                      child: VueErreur(
+                        message: 'Impossible de charger les membres. $e',
+                        onRetry: () => ref.invalidate(_membresProvider),
                       ),
-                      AppDimens.vGap16,
-                      _MembersCard(
-                        members: _kMockMembers,
-                        onTap: (m) => _ouvrirMembre(context, m),
+                    ),
+                    data: (data) => RefreshIndicator(
+                      color: AppColors.primary,
+                      onRefresh: () async {
+                        ref.invalidate(_membresProvider);
+                        await ref.read(_membresProvider.future);
+                      },
+                      child: ListView(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppDimens.pagePaddingH,
+                          AppDimens.space8,
+                          AppDimens.pagePaddingH,
+                          AppDimens.space48 + AppDimens.space24,
+                        ),
+                        children: [
+                          _Summary(total: data.membres.length),
+                          AppDimens.vGap16,
+                          if (data.adhesionsCount > 0) ...[
+                            _AdhesionsBanner(
+                              count: data.adhesionsCount,
+                              onTap: () => context.push(
+                                RouteNames.cooperativeAdhesionsPath,
+                              ),
+                            ),
+                            AppDimens.vGap16,
+                          ],
+                          if (data.membres.isEmpty)
+                            const _EmptyState()
+                          else
+                            _MembersCard(
+                              members: data.membres,
+                              onTap: (m) => context.push(
+                                RouteNames.cooperativeMembreDetailPathFor(m.userId),
+                              ),
+                            ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ],
@@ -190,7 +117,10 @@ class MembresCooperativePage extends ConsumerWidget {
             Positioned(
               right: AppDimens.pagePaddingH,
               bottom: AppDimens.space24,
-              child: _FabInviter(onTap: () => _ouvrirInviter(context)),
+              child: _FabInviter(
+                onTap: () =>
+                    context.push(RouteNames.cooperativeInviterFarmerPath),
+              ),
             ),
           ],
         ),
@@ -199,11 +129,8 @@ class MembresCooperativePage extends ConsumerWidget {
   }
 }
 
-// ─── Titre de page ──────────────────────────────────────────────────────
-
 class _PageTitle extends StatelessWidget {
   const _PageTitle();
-
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -226,51 +153,35 @@ class _PageTitle extends StatelessWidget {
   }
 }
 
-// ─── Récap ──────────────────────────────────────────────────────────────
-
 class _Summary extends StatelessWidget {
-  const _Summary({required this.total, required this.actifsCetteSemaine});
-
+  const _Summary({required this.total});
   final int total;
-  final int actifsCetteSemaine;
-
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppDimens.pagePaddingH,
-        0,
-        AppDimens.pagePaddingH,
-        AppDimens.space12,
-      ),
-      child: RichText(
-        text: TextSpan(
-          style: AppTextStyles.bodySmall.copyWith(
-            fontSize: 13,
-            color: AppColors.textSecondary,
-          ),
-          children: [
-            TextSpan(
-              text: '$total membres',
-              style: AppTextStyles.bodySmall.copyWith(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.text,
-              ),
-            ),
-            TextSpan(text: ' · $actifsCetteSemaine actifs cette semaine'),
-          ],
+    return RichText(
+      text: TextSpan(
+        style: AppTextStyles.bodySmall.copyWith(
+          fontSize: 13,
+          color: AppColors.textSecondary,
         ),
+        children: [
+          TextSpan(
+            text: '$total membre${total > 1 ? 's' : ''}',
+            style: AppTextStyles.bodySmall.copyWith(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppColors.text,
+            ),
+          ),
+          const TextSpan(text: ' dans la coopérative'),
+        ],
       ),
     );
   }
 }
 
-// ─── Bandeau Demandes d'adhésion ────────────────────────────────────────
-
 class _AdhesionsBanner extends StatelessWidget {
   const _AdhesionsBanner({required this.count, required this.onTap});
-
   final int count;
   final VoidCallback onTap;
 
@@ -322,10 +233,8 @@ class _AdhesionsBanner extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 3,
-                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: _kWarnSoft,
                   borderRadius: BorderRadius.circular(10),
@@ -354,13 +263,10 @@ class _AdhesionsBanner extends StatelessWidget {
   }
 }
 
-// ─── Card membres ───────────────────────────────────────────────────────
-
 class _MembersCard extends StatelessWidget {
   const _MembersCard({required this.members, required this.onTap});
-
-  final List<_MockMember> members;
-  final ValueChanged<_MockMember> onTap;
+  final List<MembreCoop> members;
+  final ValueChanged<MembreCoop> onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -373,12 +279,12 @@ class _MembersCard extends StatelessWidget {
           width: AppDimens.borderThin,
         ),
       ),
-      clipBehavior: Clip.antiAlias,
+      clipBehavior: Clip.hardEdge,
       child: Column(
         children: [
           for (var i = 0; i < members.length; i++) ...[
             _MemberRow(
-              member: members[i],
+              membre: members[i],
               onTap: () => onTap(members[i]),
             ),
             if (i < members.length - 1)
@@ -395,91 +301,77 @@ class _MembersCard extends StatelessWidget {
 }
 
 class _MemberRow extends StatelessWidget {
-  const _MemberRow({required this.member, required this.onTap});
-
-  final _MockMember member;
+  const _MemberRow({required this.membre, required this.onTap});
+  final MembreCoop membre;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final nom = membre.fullName ?? 'Membre';
+    final phone = membre.phone ?? '';
+    final df = DateFormat('MMM y', 'fr_FR');
+    final joined =
+        membre.joinedAt != null ? 'rejoint en ${df.format(membre.joinedAt!)}' : '';
+    final sousTitre = [if (phone.isNotEmpty) phone, if (joined.isNotEmpty) joined]
+        .join(' · ');
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppDimens.space16,
-          vertical: 14,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(
           children: [
             Container(
-              width: 44,
-              height: 44,
+              width: 42,
+              height: 42,
               decoration: BoxDecoration(
-                color: AppColors.surfaceSoft,
+                color: _kPrimarySoft,
                 shape: BoxShape.circle,
-                border: Border.all(
-                  color: AppColors.border,
-                  width: AppDimens.borderThin,
-                ),
               ),
-              clipBehavior: Clip.antiAlias,
-              child: CachedNetworkImage(
-                imageUrl: member.photoUrl,
-                fit: BoxFit.cover,
-                placeholder: (_, _) =>
-                    const ColoredBox(color: AppColors.surfaceSoft),
-                errorWidget: (_, _, _) => const Icon(
-                  Icons.person_outline,
-                  color: AppColors.textSubtle,
-                  size: 20,
+              alignment: Alignment.center,
+              child: Text(
+                _initiales(nom),
+                style: AppTextStyles.labelMedium.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
                 ),
               ),
             ),
-            AppDimens.hGap12,
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    member.nomComplet,
+                    nom,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppTextStyles.bodyMedium.copyWith(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.text,
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    member.ville,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.bodySmall.copyWith(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
+                  if (sousTitre.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      sousTitre,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),
-            AppDimens.hGap8,
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  member.montantVerseLabel,
-                  style: AppTextStyles.titleSmall.copyWith(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.text,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                _StatusPill(statut: member.statut),
-              ],
+            _RolePill(role: membre.role.apiValue),
+            const SizedBox(width: 6),
+            const Icon(
+              Icons.chevron_right,
+              size: 18,
+              color: AppColors.textSubtle,
             ),
           ],
         ),
@@ -488,76 +380,104 @@ class _MemberRow extends StatelessWidget {
   }
 }
 
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.statut});
-
-  final _MemberStatus statut;
-
+class _RolePill extends StatelessWidget {
+  const _RolePill({required this.role});
+  final String role;
   @override
   Widget build(BuildContext context) {
-    final (bg, fg, label) = switch (statut) {
-      _MemberStatus.actif => (_kPrimarySoft, AppColors.primary, 'Actif'),
-      _MemberStatus.inactif => (
-        AppColors.surfaceSoft,
-        AppColors.textSecondary,
-        'Inactif'
-      ),
-    };
+    final label = role.toLowerCase() == 'membre' ? 'Membre' : role;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(10),
+        color: _kPrimarySoft,
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
         label,
         style: AppTextStyles.labelSmall.copyWith(
           fontSize: 10,
-          fontWeight: FontWeight.w600,
-          color: fg,
-          height: 1.2,
+          fontWeight: FontWeight.w700,
+          color: AppColors.primary,
+          letterSpacing: 0.4,
         ),
       ),
     );
   }
 }
 
-// ─── FAB "Inviter" ──────────────────────────────────────────────────────
-
 class _FabInviter extends StatelessWidget {
   const _FabInviter({required this.onTap});
-
   final VoidCallback onTap;
-
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.primary,
+    return InkWell(
+      onTap: onTap,
       borderRadius: BorderRadius.circular(28),
-      elevation: 4,
-      shadowColor: AppColors.primary.withValues(alpha: 0.35),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(28),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.add, size: 18, color: AppColors.onPrimary),
-              const SizedBox(width: 6),
-              Text(
-                'Inviter',
-                style: AppTextStyles.labelMedium.copyWith(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.onPrimary,
-                ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.primary,
+          borderRadius: BorderRadius.circular(28),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.person_add_alt_1, size: 18, color: Colors.white),
+            const SizedBox(width: 8),
+            Text(
+              'Inviter',
+              style: AppTextStyles.button.copyWith(
+                color: AppColors.onPrimary,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.group_outlined,
+            size: 40,
+            color: AppColors.textSubtle.withValues(alpha: 0.9),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Aucun membre pour le moment',
+            style: AppTextStyles.titleSmall,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Invite des farmers via le bouton « Inviter ».',
+            textAlign: TextAlign.center,
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _initiales(String s) {
+  final t = s.trim();
+  if (t.isEmpty) return '?';
+  final parts = t.split(RegExp(r'[\s\-_]+'))..removeWhere((p) => p.isEmpty);
+  if (parts.length >= 2) {
+    return (parts[0].substring(0, 1) + parts[1].substring(0, 1)).toUpperCase();
+  }
+  if (t.length == 1) return t.toUpperCase();
+  return t.substring(0, 2).toUpperCase();
 }

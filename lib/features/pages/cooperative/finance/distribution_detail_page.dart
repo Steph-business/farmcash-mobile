@@ -1,91 +1,47 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
+import '../../../../models/payout.dart';
 import '../../../../routing/route_names.dart';
+import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
+import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/vue_erreur.dart';
 
-// ─── Couleurs & photos (alignées maquette HTML) ─────────────────────────
+// ─── Couleurs alignées maquette ──────────────────────────────────────────
 
 const Color _kPrimarySoft = Color(0xFFE8F5E9);
 
-// Photos contributeurs (Unsplash — portraits neutres).
-const String _kPhotoYao =
-    'https://images.unsplash.com/photo-1531123897727-8f129e1688ce'
-    '?w=120&h=120&fit=crop&auto=format';
-const String _kPhotoAya =
-    'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2'
-    '?w=120&h=120&fit=crop&auto=format';
-const String _kPhotoKouame =
-    'https://images.unsplash.com/photo-1500648767791-00dcc994a43e'
-    '?w=120&h=120&fit=crop&auto=format';
-const String _kPhotoAkissi =
-    'https://images.unsplash.com/photo-1488459716781-31db52582fe9'
-    '?w=120&h=120&fit=crop&auto=format';
+/// Provider qui retrouve un batch via `listPayoutBatches()` + filtre par id.
+/// Pas d'endpoint `GET /finance/payout-batches/:id` côté backend.
+final _payoutDetailProvider = FutureProvider.autoDispose
+    .family<PayoutBatch?, String>((ref, id) async {
+  final all = await ref.read(financeServiceProvider).listPayoutBatches();
+  for (final p in all) {
+    if (p.id == id) return p;
+  }
+  return null;
+});
 
-/// Contributeur mock d'une distribution.
-class _ContribMock {
-  final String photo;
-  final String nom; // FULL — la coop voit ses membres en clair (règle 3b).
-  final String qty;
-  final String pct;
-  final String montant;
-  const _ContribMock({
-    required this.photo,
-    required this.nom,
-    required this.qty,
-    required this.pct,
-    required this.montant,
-  });
-}
-
-const List<_ContribMock> _kContribs = [
-  _ContribMock(
-    photo: _kPhotoYao,
-    nom: 'Yao Konan',
-    qty: '175 kg',
-    pct: '35%',
-    montant: '61 250 F',
-  ),
-  _ContribMock(
-    photo: _kPhotoAya,
-    nom: 'Aya Diomandé',
-    qty: '150 kg',
-    pct: '30%',
-    montant: '52 500 F',
-  ),
-  _ContribMock(
-    photo: _kPhotoKouame,
-    nom: 'Kouamé Brou',
-    qty: '100 kg',
-    pct: '20%',
-    montant: '35 000 F',
-  ),
-  _ContribMock(
-    photo: _kPhotoAkissi,
-    nom: "Akissi N'Guessan",
-    qty: '75 kg',
-    pct: '15%',
-    montant: '26 250 F',
-  ),
-];
-
-/// Page Distribution détail — répartition entre contributeurs + frais
-/// avant validation. Reproduction fidèle de
-/// `mockups/cooperative/distribution_detail.html`.
+/// Page Distribution détail — items réels du `PayoutBatch`.
 ///
 /// CRITIQUE — règle 3b : la coop voit ses membres FULL (nom complet).
-class DistributionDetailPage extends StatelessWidget {
+/// Mais les items du batch ne portent qu'un `userId` + montant côté API ;
+/// l'enrichissement nom/photo nécessitera un endpoint dédié.
+class DistributionDetailPage extends ConsumerWidget {
   const DistributionDetailPage({super.key, required this.payoutId});
 
-  /// Identifiant du payout (pour future API
-  /// `financeService.getPayout(id)`).
+  /// Identifiant du payout batch.
   final String payoutId;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(_payoutDetailProvider(payoutId));
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -94,25 +50,71 @@ class DistributionDetailPage extends StatelessWidget {
           children: [
             const _Header(),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(
-                  AppDimens.pagePaddingH,
-                  0,
-                  AppDimens.pagePaddingH,
-                  AppDimens.space16,
+              child: async.when(
+                loading: () => const Padding(
+                  padding: EdgeInsets.only(top: 48),
+                  child: Chargement(size: 22),
                 ),
-                children: const [
-                  _HeroInfo(),
-                  AppDimens.vGap24,
-                  _SectionContribs(),
-                  AppDimens.vGap24,
-                  _SectionFrais(),
-                ],
+                error: (e, _) => Padding(
+                  padding: const EdgeInsets.all(AppDimens.pagePaddingH),
+                  child: VueErreur(
+                    message: 'Impossible de charger ce batch. $e',
+                    onRetry: () =>
+                        ref.invalidate(_payoutDetailProvider(payoutId)),
+                  ),
+                ),
+                data: (batch) {
+                  if (batch == null) {
+                    return _NotFound();
+                  }
+                  return _Body(batch: batch);
+                },
               ),
             ),
-            _StickyConfirm(payoutId: payoutId),
+            async.maybeWhen(
+              data: (b) => b != null
+                  ? _StickyConfirm(payoutId: payoutId)
+                  : const SizedBox.shrink(),
+              orElse: () => const SizedBox.shrink(),
+            ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _Body extends StatelessWidget {
+  const _Body({required this.batch});
+
+  final PayoutBatch batch;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(
+        AppDimens.pagePaddingH,
+        0,
+        AppDimens.pagePaddingH,
+        AppDimens.space16,
+      ),
+      children: [
+        _HeroInfo(batch: batch),
+        AppDimens.vGap24,
+        _SectionContribs(batch: batch),
+      ],
+    );
+  }
+}
+
+class _NotFound extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(AppDimens.pagePaddingH),
+      child: Text(
+        'Distribution introuvable.',
+        style: AppTextStyles.bodyMedium,
       ),
     );
   }
@@ -151,7 +153,7 @@ class _Header extends StatelessWidget {
           ),
           Expanded(
             child: Text(
-              'Distribution Maïs blanc',
+              'Détail de la distribution',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: AppTextStyles.titleSmall.copyWith(
@@ -160,69 +162,7 @@ class _Header extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(
-            width: 40,
-            height: 40,
-            child: Icon(Icons.search, size: 20, color: AppColors.text),
-          ),
-          _NotifsButton(
-            onTap: () => context.push(RouteNames.cooperativeNotificationsPath),
-          ),
         ],
-      ),
-    );
-  }
-}
-
-class _NotifsButton extends StatelessWidget {
-  const _NotifsButton({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: SizedBox(
-        width: 40,
-        height: 40,
-        child: Stack(
-          children: [
-            const Center(
-              child: Icon(
-                Icons.notifications_none,
-                size: 22,
-                color: AppColors.text,
-              ),
-            ),
-            Positioned(
-              top: 6,
-              right: 6,
-              child: Container(
-                constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.error,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: AppColors.background,
-                    width: 1.5,
-                  ),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  '5',
-                  style: AppTextStyles.labelSmall.copyWith(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.onPrimary,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -231,10 +171,15 @@ class _NotifsButton extends StatelessWidget {
 // ─── Hero info ───────────────────────────────────────────────────────────
 
 class _HeroInfo extends StatelessWidget {
-  const _HeroInfo();
+  const _HeroInfo({required this.batch});
+
+  final PayoutBatch batch;
 
   @override
   Widget build(BuildContext context) {
+    final dateStr = batch.createdAt != null
+        ? 'Créé le ${DateFormat('dd/MM/yyyy').format(batch.createdAt!.toLocal())}'
+        : 'Date inconnue';
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -250,7 +195,7 @@ class _HeroInfo extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            'Vente du 12/05/2026',
+            dateStr,
             style: AppTextStyles.bodySmall.copyWith(
               fontSize: 12,
               color: AppColors.textSecondary,
@@ -258,7 +203,7 @@ class _HeroInfo extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            '500 kg @ 350 F/kg',
+            '${batch.items.length} bénéficiaire(s)',
             style: AppTextStyles.titleLarge.copyWith(
               fontSize: 18,
               fontWeight: FontWeight.w700,
@@ -267,22 +212,66 @@ class _HeroInfo extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            '175 000 F net',
+            '${_fmt(batch.totalAmount)} F au total',
             style: AppTextStyles.bodySmall.copyWith(
               fontSize: 12,
               color: AppColors.textSecondary,
             ),
           ),
+          const SizedBox(height: 10),
+          _StatusChip(status: batch.status),
         ],
       ),
     );
   }
 }
 
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({required this.status});
+
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: _kPrimarySoft,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        _statusLabel(status),
+        style: AppTextStyles.labelSmall.copyWith(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: AppColors.primary,
+        ),
+      ),
+    );
+  }
+}
+
+String _statusLabel(String s) {
+  switch (s.toUpperCase()) {
+    case 'PENDING':
+      return 'En attente';
+    case 'PROCESSING':
+      return 'En cours';
+    case 'COMPLETED':
+      return 'Complétée';
+    case 'FAILED':
+      return 'Échouée';
+    default:
+      return s;
+  }
+}
+
 // ─── Section contributeurs ───────────────────────────────────────────────
 
 class _SectionContribs extends StatelessWidget {
-  const _SectionContribs();
+  const _SectionContribs({required this.batch});
+
+  final PayoutBatch batch;
 
   @override
   Widget build(BuildContext context) {
@@ -292,16 +281,28 @@ class _SectionContribs extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(bottom: 12),
           child: Text(
-            'Répartition entre contributeurs',
+            'Bénéficiaires',
             style: AppTextStyles.titleSmall.copyWith(
               fontSize: 15,
               fontWeight: FontWeight.w600,
             ),
           ),
         ),
-        _ContribsCard(items: _kContribs),
-        const SizedBox(height: 10),
-        const _TotalRow(label: 'Total contributeurs', value: '175 000 F'),
+        if (batch.items.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Text(
+              'Aucun bénéficiaire dans ce batch.',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          )
+        else ...[
+          _ContribsCard(items: batch.items),
+          const SizedBox(height: 10),
+          _TotalRow(label: 'Total', value: '${_fmt(batch.totalAmount)} F'),
+        ],
       ],
     );
   }
@@ -310,7 +311,7 @@ class _SectionContribs extends StatelessWidget {
 class _ContribsCard extends StatelessWidget {
   const _ContribsCard({required this.items});
 
-  final List<_ContribMock> items;
+  final List<PayoutItem> items;
 
   @override
   Widget build(BuildContext context) {
@@ -336,7 +337,7 @@ class _ContribsCard extends StatelessWidget {
 class _ContribRow extends StatelessWidget {
   const _ContribRow({required this.item, required this.isLast});
 
-  final _ContribMock item;
+  final PayoutItem item;
   final bool isLast;
 
   @override
@@ -353,7 +354,6 @@ class _ContribRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Avatar 36x36 (Unsplash, fallback initiales)
           Container(
             width: 36,
             height: 36,
@@ -365,20 +365,11 @@ class _ContribRow extends StatelessWidget {
                 width: AppDimens.borderThin,
               ),
             ),
-            clipBehavior: Clip.antiAlias,
-            child: CachedNetworkImage(
-              imageUrl: item.photo,
-              fit: BoxFit.cover,
-              placeholder: (_, _) => const ColoredBox(color: _kPrimarySoft),
-              errorWidget: (_, _, _) => Center(
-                child: Text(
-                  _initiales(item.nom),
-                  style: AppTextStyles.labelSmall.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ),
+            alignment: Alignment.center,
+            child: const Icon(
+              Icons.person_outline,
+              size: 18,
+              color: AppColors.primary,
             ),
           ),
           const SizedBox(width: 12),
@@ -388,8 +379,7 @@ class _ContribRow extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  // FULL — coop voit ses membres en clair
-                  item.nom,
+                  'Bénéficiaire #${_shortId(item.userId)}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.titleSmall.copyWith(
@@ -398,36 +388,22 @@ class _ContribRow extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text.rich(
-                  TextSpan(
-                    children: [
-                      TextSpan(
-                        text: '${item.qty} · ',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          fontSize: 11,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                      TextSpan(
-                        text: item.pct,
-                        style: AppTextStyles.bodySmall.copyWith(
-                          fontSize: 11,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
+                Text(
+                  '${_providerLabel(item.provider.apiValue)} · ${_statusLabel(item.status)}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),
           ),
           const SizedBox(width: 8),
           Text(
-            item.montant,
+            '${_fmt(item.amount)} F',
             style: AppTextStyles.titleSmall.copyWith(
-              fontFamily: AppTextStyles.displayLarge.fontFamily,
               fontSize: 13,
               fontWeight: FontWeight.w600,
               color: AppColors.primary,
@@ -437,6 +413,30 @@ class _ContribRow extends StatelessWidget {
       ),
     );
   }
+}
+
+String _providerLabel(String s) {
+  switch (s) {
+    case 'ORANGE_MONEY':
+      return 'Orange Money';
+    case 'MTN_MOMO':
+      return 'MTN MoMo';
+    case 'WAVE':
+      return 'Wave';
+    case 'MOOV':
+      return 'Moov';
+    case 'WALLET':
+      return 'Wallet';
+    case 'VIREMENT':
+      return 'Virement';
+    default:
+      return s;
+  }
+}
+
+String _shortId(String id) {
+  if (id.length <= 6) return id;
+  return id.substring(0, 6);
 }
 
 class _TotalRow extends StatelessWidget {
@@ -471,107 +471,9 @@ class _TotalRow extends StatelessWidget {
           Text(
             value,
             style: AppTextStyles.titleLarge.copyWith(
-              fontFamily: AppTextStyles.displayLarge.fontFamily,
               fontSize: 16,
               fontWeight: FontWeight.w700,
               color: AppColors.primary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Section frais ───────────────────────────────────────────────────────
-
-class _SectionFrais extends StatelessWidget {
-  const _SectionFrais();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: Text(
-            'Frais déduits',
-            style: AppTextStyles.titleSmall.copyWith(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.background,
-            borderRadius: AppDimens.brCard,
-            border: Border.all(
-              color: AppColors.border,
-              width: AppDimens.borderThin,
-            ),
-          ),
-          clipBehavior: Clip.hardEdge,
-          child: const Column(
-            children: [
-              _FeeRow(label: 'Commission plateforme 3%', value: '-5 250 F'),
-              _FeeRow(
-                label: 'Net distribuable',
-                value: '169 750 F',
-                isNet: true,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _FeeRow extends StatelessWidget {
-  const _FeeRow({
-    required this.label,
-    required this.value,
-    this.isNet = false,
-  });
-
-  final String label;
-  final String value;
-  final bool isNet;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: isNet ? AppColors.surfaceSoft : AppColors.background,
-        border: Border(
-          bottom: BorderSide(
-            color: isNet ? Colors.transparent : AppColors.border,
-            width: AppDimens.borderThin,
-          ),
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: AppTextStyles.bodyMedium.copyWith(
-                fontSize: 13,
-                fontWeight: isNet ? FontWeight.w600 : FontWeight.w400,
-                color: AppColors.text,
-              ),
-            ),
-          ),
-          Text(
-            value,
-            style: AppTextStyles.titleSmall.copyWith(
-              fontFamily: AppTextStyles.displayLarge.fontFamily,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: isNet ? AppColors.primary : AppColors.text,
             ),
           ),
         ],
@@ -635,13 +537,14 @@ class _StickyConfirm extends StatelessWidget {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────
 
-String _initiales(String s) {
-  final t = s.trim();
-  if (t.isEmpty) return '?';
-  final parts = t.split(RegExp(r'[\s\-_]+'))..removeWhere((p) => p.isEmpty);
-  if (parts.length >= 2) {
-    return (parts[0].substring(0, 1) + parts[1].substring(0, 1)).toUpperCase();
+String _fmt(double v) {
+  final i = v.round();
+  if (i < 1000) return '$i';
+  final s = '$i';
+  final buf = StringBuffer();
+  for (var k = 0; k < s.length; k++) {
+    if (k > 0 && (s.length - k) % 3 == 0) buf.write(' ');
+    buf.write(s[k]);
   }
-  if (t.length == 1) return t.toUpperCase();
-  return t.substring(0, 2).toUpperCase();
+  return buf.toString();
 }

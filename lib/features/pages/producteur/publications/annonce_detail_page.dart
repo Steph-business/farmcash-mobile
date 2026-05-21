@@ -1,10 +1,14 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../api_client/api_exception.dart';
 import '../../../../models/annonce_vente.dart';
 import '../../../../models/enums.dart';
+import '../../../../models/negociation.dart';
+import '../../../../routing/route_names.dart';
 import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
@@ -20,45 +24,20 @@ const Color _kPrimarySoft = Color(0xFFE8F5E9);
 const String _kHeroPhotoFallback =
     'https://images.unsplash.com/photo-1601493700631-2b16ec4b4716?w=600&h=400&fit=crop&auto=format';
 
-// ─── Mock acheteurs intéressés (calqué sur la maquette) ──────────────────
-
-class _MockBuyer {
-  final String nom;
-  final String demande;
-  final String avatarUrl;
-
-  const _MockBuyer({
-    required this.nom,
-    required this.demande,
-    required this.avatarUrl,
-  });
-}
-
-const List<_MockBuyer> _kMockBuyers = [
-  _MockBuyer(
-    nom: 'Restaurant Le Baoulé',
-    demande: 'Demande 100 kg',
-    avatarUrl:
-        'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&h=200&fit=crop&auto=format',
-  ),
-  _MockBuyer(
-    nom: 'Marie Yao',
-    demande: 'Demande 100 kg',
-    avatarUrl:
-        'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop&auto=format',
-  ),
-  _MockBuyer(
-    nom: 'Hôtel Beau Rivage',
-    demande: 'Demande 100 kg',
-    avatarUrl:
-        'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=200&h=200&fit=crop&auto=format',
-  ),
-];
-
 /// Provider familial : récupère une annonce de vente par id.
 final _annonceDetailProvider = FutureProvider.autoDispose
     .family<AnnonceVente, String>((ref, id) async {
   return ref.watch(marketplaceServiceProvider).getAnnonceVente(id);
+});
+
+/// Provider familial : candidatures reçues sur l'annonce (filtre côté
+/// client sur `annonceId` car l'endpoint backend retourne toutes les
+/// candidatures incoming du farmer connecté).
+final _candidaturesProvider = FutureProvider.autoDispose
+    .family<List<Candidature>, String>((ref, annonceId) async {
+  final svc = ref.watch(negotiationServiceProvider);
+  final all = await svc.listCandidatures(direction: 'incoming');
+  return all.where((c) => c.annonceId == annonceId).toList(growable: false);
 });
 
 /// Détail d'une annonce de vente côté producteur — hero, KPIs, caracs,
@@ -105,12 +84,91 @@ class AnnonceDetailPage extends ConsumerWidget {
   }
 }
 
+// ─── Actions sur l'annonce ───────────────────────────────────────────────
+
+Future<void> _confirmAndPause(
+  BuildContext context,
+  WidgetRef ref,
+  AnnonceVente annonce,
+) async {
+  final paused = annonce.status == ProductStatus.paused;
+  final newStatus = paused ? ProductStatus.active : ProductStatus.paused;
+  final label = paused ? 'Réactiver' : 'Mettre en pause';
+  try {
+    await ref
+        .read(marketplaceServiceProvider)
+        .updateAnnonceVente(annonce.id, status: newStatus);
+    if (!context.mounted) return;
+    ref.invalidate(_annonceDetailProvider(annonce.id));
+    Snackbars.showSucces(
+      context,
+      paused ? 'Annonce réactivée.' : 'Annonce mise en pause.',
+    );
+  } on ApiException catch (e) {
+    if (!context.mounted) return;
+    Snackbars.showErreur(context, e.message);
+  } catch (_) {
+    if (!context.mounted) return;
+    Snackbars.showErreur(context, 'Impossible de $label cette annonce.');
+  }
+}
+
+Future<void> _confirmAndDelete(
+  BuildContext context,
+  WidgetRef ref,
+  AnnonceVente annonce,
+) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Supprimer cette annonce ?'),
+      content: const Text(
+        'Cette action est définitive. Les acheteurs ne pourront plus la voir.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(false),
+          child: const Text('Annuler'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(true),
+          child: Text(
+            'Supprimer',
+            style: TextStyle(color: AppColors.error),
+          ),
+        ),
+      ],
+    ),
+  );
+  if (ok != true || !context.mounted) return;
+  try {
+    await ref
+        .read(marketplaceServiceProvider)
+        .deleteAnnonceVente(annonce.id);
+    if (!context.mounted) return;
+    Snackbars.showSucces(context, 'Annonce supprimée.');
+    Navigator.of(context).pop(true);
+  } on ApiException catch (e) {
+    if (!context.mounted) return;
+    Snackbars.showErreur(context, e.message);
+  } catch (_) {
+    if (!context.mounted) return;
+    Snackbars.showErreur(context, 'Impossible de supprimer l\'annonce.');
+  }
+}
+
 // ─── Header (fond blanc, border-bottom) ──────────────────────────────────
 
 class _Header extends StatelessWidget {
-  const _Header({this.onEdit});
+  const _Header({
+    this.onEdit,
+    this.editIcon = Icons.edit_outlined,
+    this.editTooltip,
+  });
 
   final VoidCallback? onEdit;
+  final IconData editIcon;
+  final String? editTooltip;
 
   @override
   Widget build(BuildContext context) {
@@ -155,16 +213,19 @@ class _Header extends StatelessWidget {
             ),
           ),
           if (onEdit != null)
-            InkWell(
-              onTap: onEdit,
-              borderRadius: BorderRadius.circular(20),
-              child: const SizedBox(
-                width: 40,
-                height: 40,
-                child: Icon(
-                  Icons.edit_outlined,
-                  size: 20,
-                  color: AppColors.text,
+            Tooltip(
+              message: editTooltip ?? 'Action',
+              child: InkWell(
+                onTap: onEdit,
+                borderRadius: BorderRadius.circular(20),
+                child: SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: Icon(
+                    editIcon,
+                    size: 20,
+                    color: AppColors.text,
+                  ),
                 ),
               ),
             ),
@@ -176,20 +237,26 @@ class _Header extends StatelessWidget {
 
 // ─── Contenu ─────────────────────────────────────────────────────────────
 
-class _Content extends StatelessWidget {
+class _Content extends ConsumerWidget {
   const _Content({required this.annonce});
 
   final AnnonceVente annonce;
 
   @override
-  Widget build(BuildContext context) {
-    final messagesCount = 5;
-    final commandesCount = 2;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final candidaturesAsync =
+        ref.watch(_candidaturesProvider(annonce.id));
+    final candidatures = candidaturesAsync.maybeWhen(
+      data: (list) => list,
+      orElse: () => const <Candidature>[],
+    );
 
     return Column(
       children: [
         _Header(
-          onEdit: () => Snackbars.showInfo(context, 'Édition — à venir'),
+          onEdit: () => _confirmAndDelete(context, ref, annonce),
+          editIcon: Icons.delete_outline,
+          editTooltip: 'Supprimer',
         ),
         Expanded(
           child: ListView(
@@ -198,23 +265,29 @@ class _Content extends StatelessWidget {
               _Hero(annonce: annonce),
               _KpiRow(
                 vues: annonce.viewsCount,
-                messages: messagesCount,
-                commandes: commandesCount,
+                messages: candidatures.length,
+                commandes: candidatures
+                    .where((c) => c.status == NegotiationStatus.accepted)
+                    .length,
               ),
               _SectionCaracteristiques(annonce: annonce),
               _SectionAcheteursInteresses(
-                buyers: _kMockBuyers,
-                onRepondre: (b) => Snackbars.showInfo(
-                  context,
-                  'Répondre à ${b.nom} — à venir',
-                ),
+                async: candidaturesAsync,
+                onRetry: () =>
+                    ref.invalidate(_candidaturesProvider(annonce.id)),
+                onRepondre: (c) =>
+                    context.push(RouteNames.producteurMessagesPath),
               ),
             ],
           ),
         ),
         _StickyButtons(
-          onPause: () => Snackbars.showInfo(context, 'Mise en pause — à venir'),
-          onModifier: () => Snackbars.showInfo(context, 'Modifier — à venir'),
+          paused: annonce.status == ProductStatus.paused,
+          onPause: () => _confirmAndPause(context, ref, annonce),
+          onModifier: () => Snackbars.showInfo(
+            context,
+            'Édition — à venir',
+          ),
         ),
       ],
     );
@@ -426,10 +499,10 @@ class _SectionCaracteristiques extends StatelessWidget {
   Widget build(BuildContext context) {
     final qte = NumberFormat('#,##0', 'fr_FR').format(annonce.quantiteKg);
     final prix = NumberFormat('#,##0', 'fr_FR').format(annonce.prixParKg);
-    final dispoDate = annonce.dateRecolte;
+    final dispoDate = annonce.disponibleJusqu;
     final dispoTexte = dispoDate == null
         ? 'Immédiate'
-        : DateFormat('d MMM y', 'fr_FR').format(dispoDate);
+        : 'Jusqu\'au ${DateFormat('d MMM y', 'fr_FR').format(dispoDate)}';
 
     return _SectionCard(
       title: 'Caractéristiques',
@@ -491,28 +564,72 @@ class _Feat extends StatelessWidget {
   }
 }
 
-// ─── Section acheteurs intéressés ────────────────────────────────────────
+// ─── Section "Mes propositions" (candidatures incoming) ──────────────────
 
 class _SectionAcheteursInteresses extends StatelessWidget {
   const _SectionAcheteursInteresses({
-    required this.buyers,
+    required this.async,
+    required this.onRetry,
     required this.onRepondre,
   });
 
-  final List<_MockBuyer> buyers;
-  final ValueChanged<_MockBuyer> onRepondre;
+  final AsyncValue<List<Candidature>> async;
+  final VoidCallback onRetry;
+  final ValueChanged<Candidature> onRepondre;
 
   @override
   Widget build(BuildContext context) {
     return _SectionCard(
-      title: 'Acheteurs intéressés',
+      title: 'Mes propositions',
       children: [
-        for (var i = 0; i < buyers.length; i++)
-          _BuyerRow(
-            buyer: buyers[i],
-            isLast: i == buyers.length - 1,
-            onRepondre: () => onRepondre(buyers[i]),
+        async.when(
+          loading: () => const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Chargement(size: 18),
           ),
+          error: (_, _) => Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Impossible de charger les propositions.',
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.error,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: onRetry,
+                  child: const Text('Réessayer'),
+                ),
+              ],
+            ),
+          ),
+          data: (list) {
+            if (list.isEmpty) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  'Aucune proposition pour l\'instant.',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              );
+            }
+            return Column(
+              children: [
+                for (var i = 0; i < list.length; i++)
+                  _BuyerRow(
+                    candidature: list[i],
+                    isLast: i == list.length - 1,
+                    onRepondre: () => onRepondre(list[i]),
+                  ),
+              ],
+            );
+          },
+        ),
       ],
     );
   }
@@ -520,18 +637,21 @@ class _SectionAcheteursInteresses extends StatelessWidget {
 
 class _BuyerRow extends StatelessWidget {
   const _BuyerRow({
-    required this.buyer,
+    required this.candidature,
     required this.isLast,
     required this.onRepondre,
   });
 
-  final _MockBuyer buyer;
+  final Candidature candidature;
   final bool isLast;
   final VoidCallback onRepondre;
 
   @override
   Widget build(BuildContext context) {
-    final nomTronque = _troncTrop(buyer.nom);
+    final qte =
+        NumberFormat('#,##0', 'fr_FR').format(candidature.quantiteKg);
+    final prix =
+        NumberFormat('#,##0', 'fr_FR').format(candidature.prixProposeKg);
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10),
       decoration: BoxDecoration(
@@ -548,19 +668,18 @@ class _BuyerRow extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
+              color: _kPrimarySoft,
               shape: BoxShape.circle,
               border: Border.all(
                 color: AppColors.border,
                 width: AppDimens.borderThin,
               ),
             ),
-            clipBehavior: Clip.hardEdge,
-            child: CachedNetworkImage(
-              imageUrl: buyer.avatarUrl,
-              fit: BoxFit.cover,
-              placeholder: (_, _) => Container(color: AppColors.surfaceSoft),
-              errorWidget: (_, _, _) =>
-                  Container(color: AppColors.surfaceSoft),
+            alignment: Alignment.center,
+            child: const Icon(
+              Icons.person_outline,
+              size: 18,
+              color: AppColors.primary,
             ),
           ),
           const SizedBox(width: 12),
@@ -570,7 +689,7 @@ class _BuyerRow extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  nomTronque,
+                  'Acheteur ${_short(candidature.buyerId)}',
                   style: AppTextStyles.bodyMedium.copyWith(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -580,7 +699,7 @@ class _BuyerRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  buyer.demande,
+                  '$qte kg · $prix F/kg · ${_statusLabelNeg(candidature.status)}',
                   style: AppTextStyles.labelSmall.copyWith(
                     fontSize: 11,
                     color: AppColors.textSecondary,
@@ -618,22 +737,37 @@ class _BuyerRow extends StatelessWidget {
     );
   }
 
-  /// Tronque "Restaurant Le Baoulé" → tel quel, mais raccourcit "Aya Roberta"
-  /// → "Aya R." si > 14 caractères pour suivre le pattern de la maquette
-  /// (exemple : "Aya R.").
-  String _troncTrop(String n) {
-    if (n.length <= 18) return n;
-    final parts = n.split(' ');
-    if (parts.length < 2) return '${n.substring(0, 16)}…';
-    return '${parts.first} ${parts.last.substring(0, 1)}.';
+  String _short(String uuid) =>
+      uuid.length >= 6 ? uuid.substring(0, 6) : uuid;
+}
+
+String _statusLabelNeg(NegotiationStatus s) {
+  switch (s) {
+    case NegotiationStatus.pending:
+      return 'En attente';
+    case NegotiationStatus.accepted:
+      return 'Accepté';
+    case NegotiationStatus.rejected:
+      return 'Refusé';
+    case NegotiationStatus.counterOffered:
+      return 'Contre-offre';
+    case NegotiationStatus.cancelled:
+      return 'Annulé';
+    case NegotiationStatus.unknown:
+      return '—';
   }
 }
 
 // ─── Sticky bouttons ─────────────────────────────────────────────────────
 
 class _StickyButtons extends StatelessWidget {
-  const _StickyButtons({required this.onPause, required this.onModifier});
+  const _StickyButtons({
+    required this.paused,
+    required this.onPause,
+    required this.onModifier,
+  });
 
+  final bool paused;
   final VoidCallback onPause;
   final VoidCallback onModifier;
 
@@ -668,7 +802,7 @@ class _StickyButtons extends StatelessWidget {
                 ),
                 alignment: Alignment.center,
                 child: Text(
-                  'Mettre en pause',
+                  paused ? 'Réactiver' : 'Mettre en pause',
                   style: AppTextStyles.button.copyWith(
                     fontSize: 14,
                     color: AppColors.text,

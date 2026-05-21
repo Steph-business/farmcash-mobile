@@ -26,24 +26,34 @@ mixin _$Livraison {
   String? get transporterId => throw _privateConstructorUsedError;
   @JsonKey(unknownEnumValue: ShipmentStatus.unknown)
   ShipmentStatus get status => throw _privateConstructorUsedError;
-  String? get pickupLocation => throw _privateConstructorUsedError;
-  String? get deliveryLocation => throw _privateConstructorUsedError;
-  @FlexDoubleN()
-  double? get pickupLat => throw _privateConstructorUsedError;
-  @FlexDoubleN()
-  double? get pickupLng => throw _privateConstructorUsedError;
-  @FlexDoubleN()
-  double? get deliveryLat => throw _privateConstructorUsedError;
-  @FlexDoubleN()
-  double? get deliveryLng => throw _privateConstructorUsedError;
+  String? get vehicleType => throw _privateConstructorUsedError;
+  @JsonKey(name: 'origin_zone')
+  String? get origineZone => throw _privateConstructorUsedError;
+  @JsonKey(name: 'destination_zone')
+  String? get destinationZone => throw _privateConstructorUsedError;
+  String? get pickupAddress => throw _privateConstructorUsedError;
+  String? get deliveryAddress => throw _privateConstructorUsedError;
   @FlexDoubleN()
   double? get prixDevis => throw _privateConstructorUsedError;
   @FlexDoubleN()
   double? get prixFinal => throw _privateConstructorUsedError;
+  @FlexDoubleN()
+  double? get quantiteKg => throw _privateConstructorUsedError;
   String? get photoPreuveUrl => throw _privateConstructorUsedError;
+  String? get notes => throw _privateConstructorUsedError;
   DateTime? get scheduledAt => throw _privateConstructorUsedError;
   DateTime? get deliveredAt => throw _privateConstructorUsedError;
   DateTime? get createdAt => throw _privateConstructorUsedError;
+  DateTime? get pickupScannedAt => throw _privateConstructorUsedError;
+
+  /// Champ joint `commandes_vente` quand le backend l'expose
+  /// (notamment `GET /logistics/missions/available`).
+  @JsonKey(
+    name: 'commandes_vente',
+    fromJson: _commandeApercuFromJson,
+    toJson: _commandeApercuToJson,
+  )
+  CommandeApercu? get commande => throw _privateConstructorUsedError;
 
   /// Serializes this Livraison to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -65,18 +75,26 @@ abstract class $LivraisonCopyWith<$Res> {
     String commandeId,
     String? transporterId,
     @JsonKey(unknownEnumValue: ShipmentStatus.unknown) ShipmentStatus status,
-    String? pickupLocation,
-    String? deliveryLocation,
-    @FlexDoubleN() double? pickupLat,
-    @FlexDoubleN() double? pickupLng,
-    @FlexDoubleN() double? deliveryLat,
-    @FlexDoubleN() double? deliveryLng,
+    String? vehicleType,
+    @JsonKey(name: 'origin_zone') String? origineZone,
+    @JsonKey(name: 'destination_zone') String? destinationZone,
+    String? pickupAddress,
+    String? deliveryAddress,
     @FlexDoubleN() double? prixDevis,
     @FlexDoubleN() double? prixFinal,
+    @FlexDoubleN() double? quantiteKg,
     String? photoPreuveUrl,
+    String? notes,
     DateTime? scheduledAt,
     DateTime? deliveredAt,
     DateTime? createdAt,
+    DateTime? pickupScannedAt,
+    @JsonKey(
+      name: 'commandes_vente',
+      fromJson: _commandeApercuFromJson,
+      toJson: _commandeApercuToJson,
+    )
+    CommandeApercu? commande,
   });
 }
 
@@ -99,18 +117,21 @@ class _$LivraisonCopyWithImpl<$Res, $Val extends Livraison>
     Object? commandeId = null,
     Object? transporterId = freezed,
     Object? status = null,
-    Object? pickupLocation = freezed,
-    Object? deliveryLocation = freezed,
-    Object? pickupLat = freezed,
-    Object? pickupLng = freezed,
-    Object? deliveryLat = freezed,
-    Object? deliveryLng = freezed,
+    Object? vehicleType = freezed,
+    Object? origineZone = freezed,
+    Object? destinationZone = freezed,
+    Object? pickupAddress = freezed,
+    Object? deliveryAddress = freezed,
     Object? prixDevis = freezed,
     Object? prixFinal = freezed,
+    Object? quantiteKg = freezed,
     Object? photoPreuveUrl = freezed,
+    Object? notes = freezed,
     Object? scheduledAt = freezed,
     Object? deliveredAt = freezed,
     Object? createdAt = freezed,
+    Object? pickupScannedAt = freezed,
+    Object? commande = freezed,
   }) {
     return _then(
       _value.copyWith(
@@ -130,30 +151,26 @@ class _$LivraisonCopyWithImpl<$Res, $Val extends Livraison>
                 ? _value.status
                 : status // ignore: cast_nullable_to_non_nullable
                       as ShipmentStatus,
-            pickupLocation: freezed == pickupLocation
-                ? _value.pickupLocation
-                : pickupLocation // ignore: cast_nullable_to_non_nullable
+            vehicleType: freezed == vehicleType
+                ? _value.vehicleType
+                : vehicleType // ignore: cast_nullable_to_non_nullable
                       as String?,
-            deliveryLocation: freezed == deliveryLocation
-                ? _value.deliveryLocation
-                : deliveryLocation // ignore: cast_nullable_to_non_nullable
+            origineZone: freezed == origineZone
+                ? _value.origineZone
+                : origineZone // ignore: cast_nullable_to_non_nullable
                       as String?,
-            pickupLat: freezed == pickupLat
-                ? _value.pickupLat
-                : pickupLat // ignore: cast_nullable_to_non_nullable
-                      as double?,
-            pickupLng: freezed == pickupLng
-                ? _value.pickupLng
-                : pickupLng // ignore: cast_nullable_to_non_nullable
-                      as double?,
-            deliveryLat: freezed == deliveryLat
-                ? _value.deliveryLat
-                : deliveryLat // ignore: cast_nullable_to_non_nullable
-                      as double?,
-            deliveryLng: freezed == deliveryLng
-                ? _value.deliveryLng
-                : deliveryLng // ignore: cast_nullable_to_non_nullable
-                      as double?,
+            destinationZone: freezed == destinationZone
+                ? _value.destinationZone
+                : destinationZone // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            pickupAddress: freezed == pickupAddress
+                ? _value.pickupAddress
+                : pickupAddress // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            deliveryAddress: freezed == deliveryAddress
+                ? _value.deliveryAddress
+                : deliveryAddress // ignore: cast_nullable_to_non_nullable
+                      as String?,
             prixDevis: freezed == prixDevis
                 ? _value.prixDevis
                 : prixDevis // ignore: cast_nullable_to_non_nullable
@@ -162,9 +179,17 @@ class _$LivraisonCopyWithImpl<$Res, $Val extends Livraison>
                 ? _value.prixFinal
                 : prixFinal // ignore: cast_nullable_to_non_nullable
                       as double?,
+            quantiteKg: freezed == quantiteKg
+                ? _value.quantiteKg
+                : quantiteKg // ignore: cast_nullable_to_non_nullable
+                      as double?,
             photoPreuveUrl: freezed == photoPreuveUrl
                 ? _value.photoPreuveUrl
                 : photoPreuveUrl // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            notes: freezed == notes
+                ? _value.notes
+                : notes // ignore: cast_nullable_to_non_nullable
                       as String?,
             scheduledAt: freezed == scheduledAt
                 ? _value.scheduledAt
@@ -178,6 +203,14 @@ class _$LivraisonCopyWithImpl<$Res, $Val extends Livraison>
                 ? _value.createdAt
                 : createdAt // ignore: cast_nullable_to_non_nullable
                       as DateTime?,
+            pickupScannedAt: freezed == pickupScannedAt
+                ? _value.pickupScannedAt
+                : pickupScannedAt // ignore: cast_nullable_to_non_nullable
+                      as DateTime?,
+            commande: freezed == commande
+                ? _value.commande
+                : commande // ignore: cast_nullable_to_non_nullable
+                      as CommandeApercu?,
           )
           as $Val,
     );
@@ -198,18 +231,26 @@ abstract class _$$LivraisonImplCopyWith<$Res>
     String commandeId,
     String? transporterId,
     @JsonKey(unknownEnumValue: ShipmentStatus.unknown) ShipmentStatus status,
-    String? pickupLocation,
-    String? deliveryLocation,
-    @FlexDoubleN() double? pickupLat,
-    @FlexDoubleN() double? pickupLng,
-    @FlexDoubleN() double? deliveryLat,
-    @FlexDoubleN() double? deliveryLng,
+    String? vehicleType,
+    @JsonKey(name: 'origin_zone') String? origineZone,
+    @JsonKey(name: 'destination_zone') String? destinationZone,
+    String? pickupAddress,
+    String? deliveryAddress,
     @FlexDoubleN() double? prixDevis,
     @FlexDoubleN() double? prixFinal,
+    @FlexDoubleN() double? quantiteKg,
     String? photoPreuveUrl,
+    String? notes,
     DateTime? scheduledAt,
     DateTime? deliveredAt,
     DateTime? createdAt,
+    DateTime? pickupScannedAt,
+    @JsonKey(
+      name: 'commandes_vente',
+      fromJson: _commandeApercuFromJson,
+      toJson: _commandeApercuToJson,
+    )
+    CommandeApercu? commande,
   });
 }
 
@@ -231,18 +272,21 @@ class __$$LivraisonImplCopyWithImpl<$Res>
     Object? commandeId = null,
     Object? transporterId = freezed,
     Object? status = null,
-    Object? pickupLocation = freezed,
-    Object? deliveryLocation = freezed,
-    Object? pickupLat = freezed,
-    Object? pickupLng = freezed,
-    Object? deliveryLat = freezed,
-    Object? deliveryLng = freezed,
+    Object? vehicleType = freezed,
+    Object? origineZone = freezed,
+    Object? destinationZone = freezed,
+    Object? pickupAddress = freezed,
+    Object? deliveryAddress = freezed,
     Object? prixDevis = freezed,
     Object? prixFinal = freezed,
+    Object? quantiteKg = freezed,
     Object? photoPreuveUrl = freezed,
+    Object? notes = freezed,
     Object? scheduledAt = freezed,
     Object? deliveredAt = freezed,
     Object? createdAt = freezed,
+    Object? pickupScannedAt = freezed,
+    Object? commande = freezed,
   }) {
     return _then(
       _$LivraisonImpl(
@@ -262,30 +306,26 @@ class __$$LivraisonImplCopyWithImpl<$Res>
             ? _value.status
             : status // ignore: cast_nullable_to_non_nullable
                   as ShipmentStatus,
-        pickupLocation: freezed == pickupLocation
-            ? _value.pickupLocation
-            : pickupLocation // ignore: cast_nullable_to_non_nullable
+        vehicleType: freezed == vehicleType
+            ? _value.vehicleType
+            : vehicleType // ignore: cast_nullable_to_non_nullable
                   as String?,
-        deliveryLocation: freezed == deliveryLocation
-            ? _value.deliveryLocation
-            : deliveryLocation // ignore: cast_nullable_to_non_nullable
+        origineZone: freezed == origineZone
+            ? _value.origineZone
+            : origineZone // ignore: cast_nullable_to_non_nullable
                   as String?,
-        pickupLat: freezed == pickupLat
-            ? _value.pickupLat
-            : pickupLat // ignore: cast_nullable_to_non_nullable
-                  as double?,
-        pickupLng: freezed == pickupLng
-            ? _value.pickupLng
-            : pickupLng // ignore: cast_nullable_to_non_nullable
-                  as double?,
-        deliveryLat: freezed == deliveryLat
-            ? _value.deliveryLat
-            : deliveryLat // ignore: cast_nullable_to_non_nullable
-                  as double?,
-        deliveryLng: freezed == deliveryLng
-            ? _value.deliveryLng
-            : deliveryLng // ignore: cast_nullable_to_non_nullable
-                  as double?,
+        destinationZone: freezed == destinationZone
+            ? _value.destinationZone
+            : destinationZone // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        pickupAddress: freezed == pickupAddress
+            ? _value.pickupAddress
+            : pickupAddress // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        deliveryAddress: freezed == deliveryAddress
+            ? _value.deliveryAddress
+            : deliveryAddress // ignore: cast_nullable_to_non_nullable
+                  as String?,
         prixDevis: freezed == prixDevis
             ? _value.prixDevis
             : prixDevis // ignore: cast_nullable_to_non_nullable
@@ -294,9 +334,17 @@ class __$$LivraisonImplCopyWithImpl<$Res>
             ? _value.prixFinal
             : prixFinal // ignore: cast_nullable_to_non_nullable
                   as double?,
+        quantiteKg: freezed == quantiteKg
+            ? _value.quantiteKg
+            : quantiteKg // ignore: cast_nullable_to_non_nullable
+                  as double?,
         photoPreuveUrl: freezed == photoPreuveUrl
             ? _value.photoPreuveUrl
             : photoPreuveUrl // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        notes: freezed == notes
+            ? _value.notes
+            : notes // ignore: cast_nullable_to_non_nullable
                   as String?,
         scheduledAt: freezed == scheduledAt
             ? _value.scheduledAt
@@ -310,6 +358,14 @@ class __$$LivraisonImplCopyWithImpl<$Res>
             ? _value.createdAt
             : createdAt // ignore: cast_nullable_to_non_nullable
                   as DateTime?,
+        pickupScannedAt: freezed == pickupScannedAt
+            ? _value.pickupScannedAt
+            : pickupScannedAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime?,
+        commande: freezed == commande
+            ? _value.commande
+            : commande // ignore: cast_nullable_to_non_nullable
+                  as CommandeApercu?,
       ),
     );
   }
@@ -317,26 +373,34 @@ class __$$LivraisonImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$LivraisonImpl implements _Livraison {
+class _$LivraisonImpl extends _Livraison {
   const _$LivraisonImpl({
     required this.id,
     required this.commandeId,
     this.transporterId,
     @JsonKey(unknownEnumValue: ShipmentStatus.unknown)
     this.status = ShipmentStatus.unknown,
-    this.pickupLocation,
-    this.deliveryLocation,
-    @FlexDoubleN() this.pickupLat,
-    @FlexDoubleN() this.pickupLng,
-    @FlexDoubleN() this.deliveryLat,
-    @FlexDoubleN() this.deliveryLng,
+    this.vehicleType,
+    @JsonKey(name: 'origin_zone') this.origineZone,
+    @JsonKey(name: 'destination_zone') this.destinationZone,
+    this.pickupAddress,
+    this.deliveryAddress,
     @FlexDoubleN() this.prixDevis,
     @FlexDoubleN() this.prixFinal,
+    @FlexDoubleN() this.quantiteKg,
     this.photoPreuveUrl,
+    this.notes,
     this.scheduledAt,
     this.deliveredAt,
     this.createdAt,
-  });
+    this.pickupScannedAt,
+    @JsonKey(
+      name: 'commandes_vente',
+      fromJson: _commandeApercuFromJson,
+      toJson: _commandeApercuToJson,
+    )
+    this.commande,
+  }) : super._();
 
   factory _$LivraisonImpl.fromJson(Map<String, dynamic> json) =>
       _$$LivraisonImplFromJson(json);
@@ -351,21 +415,17 @@ class _$LivraisonImpl implements _Livraison {
   @JsonKey(unknownEnumValue: ShipmentStatus.unknown)
   final ShipmentStatus status;
   @override
-  final String? pickupLocation;
+  final String? vehicleType;
   @override
-  final String? deliveryLocation;
+  @JsonKey(name: 'origin_zone')
+  final String? origineZone;
   @override
-  @FlexDoubleN()
-  final double? pickupLat;
+  @JsonKey(name: 'destination_zone')
+  final String? destinationZone;
   @override
-  @FlexDoubleN()
-  final double? pickupLng;
+  final String? pickupAddress;
   @override
-  @FlexDoubleN()
-  final double? deliveryLat;
-  @override
-  @FlexDoubleN()
-  final double? deliveryLng;
+  final String? deliveryAddress;
   @override
   @FlexDoubleN()
   final double? prixDevis;
@@ -373,17 +433,34 @@ class _$LivraisonImpl implements _Livraison {
   @FlexDoubleN()
   final double? prixFinal;
   @override
+  @FlexDoubleN()
+  final double? quantiteKg;
+  @override
   final String? photoPreuveUrl;
+  @override
+  final String? notes;
   @override
   final DateTime? scheduledAt;
   @override
   final DateTime? deliveredAt;
   @override
   final DateTime? createdAt;
+  @override
+  final DateTime? pickupScannedAt;
+
+  /// Champ joint `commandes_vente` quand le backend l'expose
+  /// (notamment `GET /logistics/missions/available`).
+  @override
+  @JsonKey(
+    name: 'commandes_vente',
+    fromJson: _commandeApercuFromJson,
+    toJson: _commandeApercuToJson,
+  )
+  final CommandeApercu? commande;
 
   @override
   String toString() {
-    return 'Livraison(id: $id, commandeId: $commandeId, transporterId: $transporterId, status: $status, pickupLocation: $pickupLocation, deliveryLocation: $deliveryLocation, pickupLat: $pickupLat, pickupLng: $pickupLng, deliveryLat: $deliveryLat, deliveryLng: $deliveryLng, prixDevis: $prixDevis, prixFinal: $prixFinal, photoPreuveUrl: $photoPreuveUrl, scheduledAt: $scheduledAt, deliveredAt: $deliveredAt, createdAt: $createdAt)';
+    return 'Livraison(id: $id, commandeId: $commandeId, transporterId: $transporterId, status: $status, vehicleType: $vehicleType, origineZone: $origineZone, destinationZone: $destinationZone, pickupAddress: $pickupAddress, deliveryAddress: $deliveryAddress, prixDevis: $prixDevis, prixFinal: $prixFinal, quantiteKg: $quantiteKg, photoPreuveUrl: $photoPreuveUrl, notes: $notes, scheduledAt: $scheduledAt, deliveredAt: $deliveredAt, createdAt: $createdAt, pickupScannedAt: $pickupScannedAt, commande: $commande)';
   }
 
   @override
@@ -397,53 +474,61 @@ class _$LivraisonImpl implements _Livraison {
             (identical(other.transporterId, transporterId) ||
                 other.transporterId == transporterId) &&
             (identical(other.status, status) || other.status == status) &&
-            (identical(other.pickupLocation, pickupLocation) ||
-                other.pickupLocation == pickupLocation) &&
-            (identical(other.deliveryLocation, deliveryLocation) ||
-                other.deliveryLocation == deliveryLocation) &&
-            (identical(other.pickupLat, pickupLat) ||
-                other.pickupLat == pickupLat) &&
-            (identical(other.pickupLng, pickupLng) ||
-                other.pickupLng == pickupLng) &&
-            (identical(other.deliveryLat, deliveryLat) ||
-                other.deliveryLat == deliveryLat) &&
-            (identical(other.deliveryLng, deliveryLng) ||
-                other.deliveryLng == deliveryLng) &&
+            (identical(other.vehicleType, vehicleType) ||
+                other.vehicleType == vehicleType) &&
+            (identical(other.origineZone, origineZone) ||
+                other.origineZone == origineZone) &&
+            (identical(other.destinationZone, destinationZone) ||
+                other.destinationZone == destinationZone) &&
+            (identical(other.pickupAddress, pickupAddress) ||
+                other.pickupAddress == pickupAddress) &&
+            (identical(other.deliveryAddress, deliveryAddress) ||
+                other.deliveryAddress == deliveryAddress) &&
             (identical(other.prixDevis, prixDevis) ||
                 other.prixDevis == prixDevis) &&
             (identical(other.prixFinal, prixFinal) ||
                 other.prixFinal == prixFinal) &&
+            (identical(other.quantiteKg, quantiteKg) ||
+                other.quantiteKg == quantiteKg) &&
             (identical(other.photoPreuveUrl, photoPreuveUrl) ||
                 other.photoPreuveUrl == photoPreuveUrl) &&
+            (identical(other.notes, notes) || other.notes == notes) &&
             (identical(other.scheduledAt, scheduledAt) ||
                 other.scheduledAt == scheduledAt) &&
             (identical(other.deliveredAt, deliveredAt) ||
                 other.deliveredAt == deliveredAt) &&
             (identical(other.createdAt, createdAt) ||
-                other.createdAt == createdAt));
+                other.createdAt == createdAt) &&
+            (identical(other.pickupScannedAt, pickupScannedAt) ||
+                other.pickupScannedAt == pickupScannedAt) &&
+            (identical(other.commande, commande) ||
+                other.commande == commande));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     runtimeType,
     id,
     commandeId,
     transporterId,
     status,
-    pickupLocation,
-    deliveryLocation,
-    pickupLat,
-    pickupLng,
-    deliveryLat,
-    deliveryLng,
+    vehicleType,
+    origineZone,
+    destinationZone,
+    pickupAddress,
+    deliveryAddress,
     prixDevis,
     prixFinal,
+    quantiteKg,
     photoPreuveUrl,
+    notes,
     scheduledAt,
     deliveredAt,
     createdAt,
-  );
+    pickupScannedAt,
+    commande,
+  ]);
 
   /// Create a copy of Livraison
   /// with the given fields replaced by the non-null parameter values.
@@ -459,26 +544,35 @@ class _$LivraisonImpl implements _Livraison {
   }
 }
 
-abstract class _Livraison implements Livraison {
+abstract class _Livraison extends Livraison {
   const factory _Livraison({
     required final String id,
     required final String commandeId,
     final String? transporterId,
     @JsonKey(unknownEnumValue: ShipmentStatus.unknown)
     final ShipmentStatus status,
-    final String? pickupLocation,
-    final String? deliveryLocation,
-    @FlexDoubleN() final double? pickupLat,
-    @FlexDoubleN() final double? pickupLng,
-    @FlexDoubleN() final double? deliveryLat,
-    @FlexDoubleN() final double? deliveryLng,
+    final String? vehicleType,
+    @JsonKey(name: 'origin_zone') final String? origineZone,
+    @JsonKey(name: 'destination_zone') final String? destinationZone,
+    final String? pickupAddress,
+    final String? deliveryAddress,
     @FlexDoubleN() final double? prixDevis,
     @FlexDoubleN() final double? prixFinal,
+    @FlexDoubleN() final double? quantiteKg,
     final String? photoPreuveUrl,
+    final String? notes,
     final DateTime? scheduledAt,
     final DateTime? deliveredAt,
     final DateTime? createdAt,
+    final DateTime? pickupScannedAt,
+    @JsonKey(
+      name: 'commandes_vente',
+      fromJson: _commandeApercuFromJson,
+      toJson: _commandeApercuToJson,
+    )
+    final CommandeApercu? commande,
   }) = _$LivraisonImpl;
+  const _Livraison._() : super._();
 
   factory _Livraison.fromJson(Map<String, dynamic> json) =
       _$LivraisonImpl.fromJson;
@@ -493,21 +587,17 @@ abstract class _Livraison implements Livraison {
   @JsonKey(unknownEnumValue: ShipmentStatus.unknown)
   ShipmentStatus get status;
   @override
-  String? get pickupLocation;
+  String? get vehicleType;
   @override
-  String? get deliveryLocation;
+  @JsonKey(name: 'origin_zone')
+  String? get origineZone;
   @override
-  @FlexDoubleN()
-  double? get pickupLat;
+  @JsonKey(name: 'destination_zone')
+  String? get destinationZone;
   @override
-  @FlexDoubleN()
-  double? get pickupLng;
+  String? get pickupAddress;
   @override
-  @FlexDoubleN()
-  double? get deliveryLat;
-  @override
-  @FlexDoubleN()
-  double? get deliveryLng;
+  String? get deliveryAddress;
   @override
   @FlexDoubleN()
   double? get prixDevis;
@@ -515,13 +605,30 @@ abstract class _Livraison implements Livraison {
   @FlexDoubleN()
   double? get prixFinal;
   @override
+  @FlexDoubleN()
+  double? get quantiteKg;
+  @override
   String? get photoPreuveUrl;
+  @override
+  String? get notes;
   @override
   DateTime? get scheduledAt;
   @override
   DateTime? get deliveredAt;
   @override
   DateTime? get createdAt;
+  @override
+  DateTime? get pickupScannedAt;
+
+  /// Champ joint `commandes_vente` quand le backend l'expose
+  /// (notamment `GET /logistics/missions/available`).
+  @override
+  @JsonKey(
+    name: 'commandes_vente',
+    fromJson: _commandeApercuFromJson,
+    toJson: _commandeApercuToJson,
+  )
+  CommandeApercu? get commande;
 
   /// Create a copy of Livraison
   /// with the given fields replaced by the non-null parameter values.
@@ -539,14 +646,17 @@ TransporterRoute _$TransporterRouteFromJson(Map<String, dynamic> json) {
 mixin _$TransporterRoute {
   String get id => throw _privateConstructorUsedError;
   String get transporterId => throw _privateConstructorUsedError;
-  String get origineVilleId => throw _privateConstructorUsedError;
-  String get destinationVilleId => throw _privateConstructorUsedError;
+  @JsonKey(name: 'origin_zone')
+  String get origineZone => throw _privateConstructorUsedError;
+  @JsonKey(name: 'destination_zone')
+  String get destinationZone => throw _privateConstructorUsedError;
   @FlexDouble()
-  double get capaciteKg => throw _privateConstructorUsedError;
+  double get capaciteMaxKg => throw _privateConstructorUsedError;
   @FlexDouble()
-  double get prixParKm => throw _privateConstructorUsedError;
-  @FlexDoubleN()
-  double? get prixForfait => throw _privateConstructorUsedError;
+  double get tarifKg => throw _privateConstructorUsedError;
+  @FlexDouble()
+  double get tarifMinimum => throw _privateConstructorUsedError;
+  String? get delaiTypique => throw _privateConstructorUsedError;
   bool get isActive => throw _privateConstructorUsedError;
   DateTime? get createdAt => throw _privateConstructorUsedError;
 
@@ -570,11 +680,12 @@ abstract class $TransporterRouteCopyWith<$Res> {
   $Res call({
     String id,
     String transporterId,
-    String origineVilleId,
-    String destinationVilleId,
-    @FlexDouble() double capaciteKg,
-    @FlexDouble() double prixParKm,
-    @FlexDoubleN() double? prixForfait,
+    @JsonKey(name: 'origin_zone') String origineZone,
+    @JsonKey(name: 'destination_zone') String destinationZone,
+    @FlexDouble() double capaciteMaxKg,
+    @FlexDouble() double tarifKg,
+    @FlexDouble() double tarifMinimum,
+    String? delaiTypique,
     bool isActive,
     DateTime? createdAt,
   });
@@ -597,11 +708,12 @@ class _$TransporterRouteCopyWithImpl<$Res, $Val extends TransporterRoute>
   $Res call({
     Object? id = null,
     Object? transporterId = null,
-    Object? origineVilleId = null,
-    Object? destinationVilleId = null,
-    Object? capaciteKg = null,
-    Object? prixParKm = null,
-    Object? prixForfait = freezed,
+    Object? origineZone = null,
+    Object? destinationZone = null,
+    Object? capaciteMaxKg = null,
+    Object? tarifKg = null,
+    Object? tarifMinimum = null,
+    Object? delaiTypique = freezed,
     Object? isActive = null,
     Object? createdAt = freezed,
   }) {
@@ -615,26 +727,30 @@ class _$TransporterRouteCopyWithImpl<$Res, $Val extends TransporterRoute>
                 ? _value.transporterId
                 : transporterId // ignore: cast_nullable_to_non_nullable
                       as String,
-            origineVilleId: null == origineVilleId
-                ? _value.origineVilleId
-                : origineVilleId // ignore: cast_nullable_to_non_nullable
+            origineZone: null == origineZone
+                ? _value.origineZone
+                : origineZone // ignore: cast_nullable_to_non_nullable
                       as String,
-            destinationVilleId: null == destinationVilleId
-                ? _value.destinationVilleId
-                : destinationVilleId // ignore: cast_nullable_to_non_nullable
+            destinationZone: null == destinationZone
+                ? _value.destinationZone
+                : destinationZone // ignore: cast_nullable_to_non_nullable
                       as String,
-            capaciteKg: null == capaciteKg
-                ? _value.capaciteKg
-                : capaciteKg // ignore: cast_nullable_to_non_nullable
+            capaciteMaxKg: null == capaciteMaxKg
+                ? _value.capaciteMaxKg
+                : capaciteMaxKg // ignore: cast_nullable_to_non_nullable
                       as double,
-            prixParKm: null == prixParKm
-                ? _value.prixParKm
-                : prixParKm // ignore: cast_nullable_to_non_nullable
+            tarifKg: null == tarifKg
+                ? _value.tarifKg
+                : tarifKg // ignore: cast_nullable_to_non_nullable
                       as double,
-            prixForfait: freezed == prixForfait
-                ? _value.prixForfait
-                : prixForfait // ignore: cast_nullable_to_non_nullable
-                      as double?,
+            tarifMinimum: null == tarifMinimum
+                ? _value.tarifMinimum
+                : tarifMinimum // ignore: cast_nullable_to_non_nullable
+                      as double,
+            delaiTypique: freezed == delaiTypique
+                ? _value.delaiTypique
+                : delaiTypique // ignore: cast_nullable_to_non_nullable
+                      as String?,
             isActive: null == isActive
                 ? _value.isActive
                 : isActive // ignore: cast_nullable_to_non_nullable
@@ -661,11 +777,12 @@ abstract class _$$TransporterRouteImplCopyWith<$Res>
   $Res call({
     String id,
     String transporterId,
-    String origineVilleId,
-    String destinationVilleId,
-    @FlexDouble() double capaciteKg,
-    @FlexDouble() double prixParKm,
-    @FlexDoubleN() double? prixForfait,
+    @JsonKey(name: 'origin_zone') String origineZone,
+    @JsonKey(name: 'destination_zone') String destinationZone,
+    @FlexDouble() double capaciteMaxKg,
+    @FlexDouble() double tarifKg,
+    @FlexDouble() double tarifMinimum,
+    String? delaiTypique,
     bool isActive,
     DateTime? createdAt,
   });
@@ -687,11 +804,12 @@ class __$$TransporterRouteImplCopyWithImpl<$Res>
   $Res call({
     Object? id = null,
     Object? transporterId = null,
-    Object? origineVilleId = null,
-    Object? destinationVilleId = null,
-    Object? capaciteKg = null,
-    Object? prixParKm = null,
-    Object? prixForfait = freezed,
+    Object? origineZone = null,
+    Object? destinationZone = null,
+    Object? capaciteMaxKg = null,
+    Object? tarifKg = null,
+    Object? tarifMinimum = null,
+    Object? delaiTypique = freezed,
     Object? isActive = null,
     Object? createdAt = freezed,
   }) {
@@ -705,26 +823,30 @@ class __$$TransporterRouteImplCopyWithImpl<$Res>
             ? _value.transporterId
             : transporterId // ignore: cast_nullable_to_non_nullable
                   as String,
-        origineVilleId: null == origineVilleId
-            ? _value.origineVilleId
-            : origineVilleId // ignore: cast_nullable_to_non_nullable
+        origineZone: null == origineZone
+            ? _value.origineZone
+            : origineZone // ignore: cast_nullable_to_non_nullable
                   as String,
-        destinationVilleId: null == destinationVilleId
-            ? _value.destinationVilleId
-            : destinationVilleId // ignore: cast_nullable_to_non_nullable
+        destinationZone: null == destinationZone
+            ? _value.destinationZone
+            : destinationZone // ignore: cast_nullable_to_non_nullable
                   as String,
-        capaciteKg: null == capaciteKg
-            ? _value.capaciteKg
-            : capaciteKg // ignore: cast_nullable_to_non_nullable
+        capaciteMaxKg: null == capaciteMaxKg
+            ? _value.capaciteMaxKg
+            : capaciteMaxKg // ignore: cast_nullable_to_non_nullable
                   as double,
-        prixParKm: null == prixParKm
-            ? _value.prixParKm
-            : prixParKm // ignore: cast_nullable_to_non_nullable
+        tarifKg: null == tarifKg
+            ? _value.tarifKg
+            : tarifKg // ignore: cast_nullable_to_non_nullable
                   as double,
-        prixForfait: freezed == prixForfait
-            ? _value.prixForfait
-            : prixForfait // ignore: cast_nullable_to_non_nullable
-                  as double?,
+        tarifMinimum: null == tarifMinimum
+            ? _value.tarifMinimum
+            : tarifMinimum // ignore: cast_nullable_to_non_nullable
+                  as double,
+        delaiTypique: freezed == delaiTypique
+            ? _value.delaiTypique
+            : delaiTypique // ignore: cast_nullable_to_non_nullable
+                  as String?,
         isActive: null == isActive
             ? _value.isActive
             : isActive // ignore: cast_nullable_to_non_nullable
@@ -744,11 +866,12 @@ class _$TransporterRouteImpl implements _TransporterRoute {
   const _$TransporterRouteImpl({
     required this.id,
     required this.transporterId,
-    required this.origineVilleId,
-    required this.destinationVilleId,
-    @FlexDouble() required this.capaciteKg,
-    @FlexDouble() required this.prixParKm,
-    @FlexDoubleN() this.prixForfait,
+    @JsonKey(name: 'origin_zone') required this.origineZone,
+    @JsonKey(name: 'destination_zone') required this.destinationZone,
+    @FlexDouble() required this.capaciteMaxKg,
+    @FlexDouble() required this.tarifKg,
+    @FlexDouble() this.tarifMinimum = 0,
+    this.delaiTypique,
     this.isActive = true,
     this.createdAt,
   });
@@ -761,18 +884,23 @@ class _$TransporterRouteImpl implements _TransporterRoute {
   @override
   final String transporterId;
   @override
-  final String origineVilleId;
+  @JsonKey(name: 'origin_zone')
+  final String origineZone;
   @override
-  final String destinationVilleId;
+  @JsonKey(name: 'destination_zone')
+  final String destinationZone;
   @override
   @FlexDouble()
-  final double capaciteKg;
+  final double capaciteMaxKg;
   @override
   @FlexDouble()
-  final double prixParKm;
+  final double tarifKg;
   @override
-  @FlexDoubleN()
-  final double? prixForfait;
+  @JsonKey()
+  @FlexDouble()
+  final double tarifMinimum;
+  @override
+  final String? delaiTypique;
   @override
   @JsonKey()
   final bool isActive;
@@ -781,7 +909,7 @@ class _$TransporterRouteImpl implements _TransporterRoute {
 
   @override
   String toString() {
-    return 'TransporterRoute(id: $id, transporterId: $transporterId, origineVilleId: $origineVilleId, destinationVilleId: $destinationVilleId, capaciteKg: $capaciteKg, prixParKm: $prixParKm, prixForfait: $prixForfait, isActive: $isActive, createdAt: $createdAt)';
+    return 'TransporterRoute(id: $id, transporterId: $transporterId, origineZone: $origineZone, destinationZone: $destinationZone, capaciteMaxKg: $capaciteMaxKg, tarifKg: $tarifKg, tarifMinimum: $tarifMinimum, delaiTypique: $delaiTypique, isActive: $isActive, createdAt: $createdAt)';
   }
 
   @override
@@ -792,16 +920,17 @@ class _$TransporterRouteImpl implements _TransporterRoute {
             (identical(other.id, id) || other.id == id) &&
             (identical(other.transporterId, transporterId) ||
                 other.transporterId == transporterId) &&
-            (identical(other.origineVilleId, origineVilleId) ||
-                other.origineVilleId == origineVilleId) &&
-            (identical(other.destinationVilleId, destinationVilleId) ||
-                other.destinationVilleId == destinationVilleId) &&
-            (identical(other.capaciteKg, capaciteKg) ||
-                other.capaciteKg == capaciteKg) &&
-            (identical(other.prixParKm, prixParKm) ||
-                other.prixParKm == prixParKm) &&
-            (identical(other.prixForfait, prixForfait) ||
-                other.prixForfait == prixForfait) &&
+            (identical(other.origineZone, origineZone) ||
+                other.origineZone == origineZone) &&
+            (identical(other.destinationZone, destinationZone) ||
+                other.destinationZone == destinationZone) &&
+            (identical(other.capaciteMaxKg, capaciteMaxKg) ||
+                other.capaciteMaxKg == capaciteMaxKg) &&
+            (identical(other.tarifKg, tarifKg) || other.tarifKg == tarifKg) &&
+            (identical(other.tarifMinimum, tarifMinimum) ||
+                other.tarifMinimum == tarifMinimum) &&
+            (identical(other.delaiTypique, delaiTypique) ||
+                other.delaiTypique == delaiTypique) &&
             (identical(other.isActive, isActive) ||
                 other.isActive == isActive) &&
             (identical(other.createdAt, createdAt) ||
@@ -814,11 +943,12 @@ class _$TransporterRouteImpl implements _TransporterRoute {
     runtimeType,
     id,
     transporterId,
-    origineVilleId,
-    destinationVilleId,
-    capaciteKg,
-    prixParKm,
-    prixForfait,
+    origineZone,
+    destinationZone,
+    capaciteMaxKg,
+    tarifKg,
+    tarifMinimum,
+    delaiTypique,
     isActive,
     createdAt,
   );
@@ -844,11 +974,12 @@ abstract class _TransporterRoute implements TransporterRoute {
   const factory _TransporterRoute({
     required final String id,
     required final String transporterId,
-    required final String origineVilleId,
-    required final String destinationVilleId,
-    @FlexDouble() required final double capaciteKg,
-    @FlexDouble() required final double prixParKm,
-    @FlexDoubleN() final double? prixForfait,
+    @JsonKey(name: 'origin_zone') required final String origineZone,
+    @JsonKey(name: 'destination_zone') required final String destinationZone,
+    @FlexDouble() required final double capaciteMaxKg,
+    @FlexDouble() required final double tarifKg,
+    @FlexDouble() final double tarifMinimum,
+    final String? delaiTypique,
     final bool isActive,
     final DateTime? createdAt,
   }) = _$TransporterRouteImpl;
@@ -861,18 +992,22 @@ abstract class _TransporterRoute implements TransporterRoute {
   @override
   String get transporterId;
   @override
-  String get origineVilleId;
+  @JsonKey(name: 'origin_zone')
+  String get origineZone;
   @override
-  String get destinationVilleId;
+  @JsonKey(name: 'destination_zone')
+  String get destinationZone;
   @override
   @FlexDouble()
-  double get capaciteKg;
+  double get capaciteMaxKg;
   @override
   @FlexDouble()
-  double get prixParKm;
+  double get tarifKg;
   @override
-  @FlexDoubleN()
-  double? get prixForfait;
+  @FlexDouble()
+  double get tarifMinimum;
+  @override
+  String? get delaiTypique;
   @override
   bool get isActive;
   @override
@@ -886,6 +1021,292 @@ abstract class _TransporterRoute implements TransporterRoute {
       throw _privateConstructorUsedError;
 }
 
+TransportQuote _$TransportQuoteFromJson(Map<String, dynamic> json) {
+  return _TransportQuote.fromJson(json);
+}
+
+/// @nodoc
+mixin _$TransportQuote {
+  String get routeId => throw _privateConstructorUsedError;
+  String get transporterId => throw _privateConstructorUsedError;
+  String get transporterName => throw _privateConstructorUsedError;
+  @FlexDouble()
+  double get rating => throw _privateConstructorUsedError;
+  @FlexDouble()
+  double get tarifTotal => throw _privateConstructorUsedError;
+  String? get delaiTypique => throw _privateConstructorUsedError;
+
+  /// Serializes this TransportQuote to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+
+  /// Create a copy of TransportQuote
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $TransportQuoteCopyWith<TransportQuote> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $TransportQuoteCopyWith<$Res> {
+  factory $TransportQuoteCopyWith(
+    TransportQuote value,
+    $Res Function(TransportQuote) then,
+  ) = _$TransportQuoteCopyWithImpl<$Res, TransportQuote>;
+  @useResult
+  $Res call({
+    String routeId,
+    String transporterId,
+    String transporterName,
+    @FlexDouble() double rating,
+    @FlexDouble() double tarifTotal,
+    String? delaiTypique,
+  });
+}
+
+/// @nodoc
+class _$TransportQuoteCopyWithImpl<$Res, $Val extends TransportQuote>
+    implements $TransportQuoteCopyWith<$Res> {
+  _$TransportQuoteCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of TransportQuote
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? routeId = null,
+    Object? transporterId = null,
+    Object? transporterName = null,
+    Object? rating = null,
+    Object? tarifTotal = null,
+    Object? delaiTypique = freezed,
+  }) {
+    return _then(
+      _value.copyWith(
+            routeId: null == routeId
+                ? _value.routeId
+                : routeId // ignore: cast_nullable_to_non_nullable
+                      as String,
+            transporterId: null == transporterId
+                ? _value.transporterId
+                : transporterId // ignore: cast_nullable_to_non_nullable
+                      as String,
+            transporterName: null == transporterName
+                ? _value.transporterName
+                : transporterName // ignore: cast_nullable_to_non_nullable
+                      as String,
+            rating: null == rating
+                ? _value.rating
+                : rating // ignore: cast_nullable_to_non_nullable
+                      as double,
+            tarifTotal: null == tarifTotal
+                ? _value.tarifTotal
+                : tarifTotal // ignore: cast_nullable_to_non_nullable
+                      as double,
+            delaiTypique: freezed == delaiTypique
+                ? _value.delaiTypique
+                : delaiTypique // ignore: cast_nullable_to_non_nullable
+                      as String?,
+          )
+          as $Val,
+    );
+  }
+}
+
+/// @nodoc
+abstract class _$$TransportQuoteImplCopyWith<$Res>
+    implements $TransportQuoteCopyWith<$Res> {
+  factory _$$TransportQuoteImplCopyWith(
+    _$TransportQuoteImpl value,
+    $Res Function(_$TransportQuoteImpl) then,
+  ) = __$$TransportQuoteImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({
+    String routeId,
+    String transporterId,
+    String transporterName,
+    @FlexDouble() double rating,
+    @FlexDouble() double tarifTotal,
+    String? delaiTypique,
+  });
+}
+
+/// @nodoc
+class __$$TransportQuoteImplCopyWithImpl<$Res>
+    extends _$TransportQuoteCopyWithImpl<$Res, _$TransportQuoteImpl>
+    implements _$$TransportQuoteImplCopyWith<$Res> {
+  __$$TransportQuoteImplCopyWithImpl(
+    _$TransportQuoteImpl _value,
+    $Res Function(_$TransportQuoteImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of TransportQuote
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? routeId = null,
+    Object? transporterId = null,
+    Object? transporterName = null,
+    Object? rating = null,
+    Object? tarifTotal = null,
+    Object? delaiTypique = freezed,
+  }) {
+    return _then(
+      _$TransportQuoteImpl(
+        routeId: null == routeId
+            ? _value.routeId
+            : routeId // ignore: cast_nullable_to_non_nullable
+                  as String,
+        transporterId: null == transporterId
+            ? _value.transporterId
+            : transporterId // ignore: cast_nullable_to_non_nullable
+                  as String,
+        transporterName: null == transporterName
+            ? _value.transporterName
+            : transporterName // ignore: cast_nullable_to_non_nullable
+                  as String,
+        rating: null == rating
+            ? _value.rating
+            : rating // ignore: cast_nullable_to_non_nullable
+                  as double,
+        tarifTotal: null == tarifTotal
+            ? _value.tarifTotal
+            : tarifTotal // ignore: cast_nullable_to_non_nullable
+                  as double,
+        delaiTypique: freezed == delaiTypique
+            ? _value.delaiTypique
+            : delaiTypique // ignore: cast_nullable_to_non_nullable
+                  as String?,
+      ),
+    );
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _$TransportQuoteImpl implements _TransportQuote {
+  const _$TransportQuoteImpl({
+    required this.routeId,
+    required this.transporterId,
+    this.transporterName = '',
+    @FlexDouble() this.rating = 0,
+    @FlexDouble() required this.tarifTotal,
+    this.delaiTypique,
+  });
+
+  factory _$TransportQuoteImpl.fromJson(Map<String, dynamic> json) =>
+      _$$TransportQuoteImplFromJson(json);
+
+  @override
+  final String routeId;
+  @override
+  final String transporterId;
+  @override
+  @JsonKey()
+  final String transporterName;
+  @override
+  @JsonKey()
+  @FlexDouble()
+  final double rating;
+  @override
+  @FlexDouble()
+  final double tarifTotal;
+  @override
+  final String? delaiTypique;
+
+  @override
+  String toString() {
+    return 'TransportQuote(routeId: $routeId, transporterId: $transporterId, transporterName: $transporterName, rating: $rating, tarifTotal: $tarifTotal, delaiTypique: $delaiTypique)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$TransportQuoteImpl &&
+            (identical(other.routeId, routeId) || other.routeId == routeId) &&
+            (identical(other.transporterId, transporterId) ||
+                other.transporterId == transporterId) &&
+            (identical(other.transporterName, transporterName) ||
+                other.transporterName == transporterName) &&
+            (identical(other.rating, rating) || other.rating == rating) &&
+            (identical(other.tarifTotal, tarifTotal) ||
+                other.tarifTotal == tarifTotal) &&
+            (identical(other.delaiTypique, delaiTypique) ||
+                other.delaiTypique == delaiTypique));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(
+    runtimeType,
+    routeId,
+    transporterId,
+    transporterName,
+    rating,
+    tarifTotal,
+    delaiTypique,
+  );
+
+  /// Create a copy of TransportQuote
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$TransportQuoteImplCopyWith<_$TransportQuoteImpl> get copyWith =>
+      __$$TransportQuoteImplCopyWithImpl<_$TransportQuoteImpl>(
+        this,
+        _$identity,
+      );
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$TransportQuoteImplToJson(this);
+  }
+}
+
+abstract class _TransportQuote implements TransportQuote {
+  const factory _TransportQuote({
+    required final String routeId,
+    required final String transporterId,
+    final String transporterName,
+    @FlexDouble() final double rating,
+    @FlexDouble() required final double tarifTotal,
+    final String? delaiTypique,
+  }) = _$TransportQuoteImpl;
+
+  factory _TransportQuote.fromJson(Map<String, dynamic> json) =
+      _$TransportQuoteImpl.fromJson;
+
+  @override
+  String get routeId;
+  @override
+  String get transporterId;
+  @override
+  String get transporterName;
+  @override
+  @FlexDouble()
+  double get rating;
+  @override
+  @FlexDouble()
+  double get tarifTotal;
+  @override
+  String? get delaiTypique;
+
+  /// Create a copy of TransportQuote
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$TransportQuoteImplCopyWith<_$TransportQuoteImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
 TrackingEvent _$TrackingEventFromJson(Map<String, dynamic> json) {
   return _TrackingEvent.fromJson(json);
 }
@@ -896,6 +1317,7 @@ mixin _$TrackingEvent {
   String get shipmentId => throw _privateConstructorUsedError;
   TrackingLocation? get location => throw _privateConstructorUsedError;
   String? get status => throw _privateConstructorUsedError;
+  String? get note => throw _privateConstructorUsedError;
   DateTime? get createdAt => throw _privateConstructorUsedError;
 
   /// Serializes this TrackingEvent to a JSON map.
@@ -920,6 +1342,7 @@ abstract class $TrackingEventCopyWith<$Res> {
     String shipmentId,
     TrackingLocation? location,
     String? status,
+    String? note,
     DateTime? createdAt,
   });
 
@@ -945,6 +1368,7 @@ class _$TrackingEventCopyWithImpl<$Res, $Val extends TrackingEvent>
     Object? shipmentId = null,
     Object? location = freezed,
     Object? status = freezed,
+    Object? note = freezed,
     Object? createdAt = freezed,
   }) {
     return _then(
@@ -964,6 +1388,10 @@ class _$TrackingEventCopyWithImpl<$Res, $Val extends TrackingEvent>
             status: freezed == status
                 ? _value.status
                 : status // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            note: freezed == note
+                ? _value.note
+                : note // ignore: cast_nullable_to_non_nullable
                       as String?,
             createdAt: freezed == createdAt
                 ? _value.createdAt
@@ -1003,6 +1431,7 @@ abstract class _$$TrackingEventImplCopyWith<$Res>
     String shipmentId,
     TrackingLocation? location,
     String? status,
+    String? note,
     DateTime? createdAt,
   });
 
@@ -1028,6 +1457,7 @@ class __$$TrackingEventImplCopyWithImpl<$Res>
     Object? shipmentId = null,
     Object? location = freezed,
     Object? status = freezed,
+    Object? note = freezed,
     Object? createdAt = freezed,
   }) {
     return _then(
@@ -1048,6 +1478,10 @@ class __$$TrackingEventImplCopyWithImpl<$Res>
             ? _value.status
             : status // ignore: cast_nullable_to_non_nullable
                   as String?,
+        note: freezed == note
+            ? _value.note
+            : note // ignore: cast_nullable_to_non_nullable
+                  as String?,
         createdAt: freezed == createdAt
             ? _value.createdAt
             : createdAt // ignore: cast_nullable_to_non_nullable
@@ -1065,6 +1499,7 @@ class _$TrackingEventImpl extends _TrackingEvent {
     required this.shipmentId,
     this.location,
     this.status,
+    this.note,
     this.createdAt,
   }) : super._();
 
@@ -1080,11 +1515,13 @@ class _$TrackingEventImpl extends _TrackingEvent {
   @override
   final String? status;
   @override
+  final String? note;
+  @override
   final DateTime? createdAt;
 
   @override
   String toString() {
-    return 'TrackingEvent(id: $id, shipmentId: $shipmentId, location: $location, status: $status, createdAt: $createdAt)';
+    return 'TrackingEvent(id: $id, shipmentId: $shipmentId, location: $location, status: $status, note: $note, createdAt: $createdAt)';
   }
 
   @override
@@ -1098,14 +1535,22 @@ class _$TrackingEventImpl extends _TrackingEvent {
             (identical(other.location, location) ||
                 other.location == location) &&
             (identical(other.status, status) || other.status == status) &&
+            (identical(other.note, note) || other.note == note) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, id, shipmentId, location, status, createdAt);
+  int get hashCode => Object.hash(
+    runtimeType,
+    id,
+    shipmentId,
+    location,
+    status,
+    note,
+    createdAt,
+  );
 
   /// Create a copy of TrackingEvent
   /// with the given fields replaced by the non-null parameter values.
@@ -1127,6 +1572,7 @@ abstract class _TrackingEvent extends TrackingEvent {
     required final String shipmentId,
     final TrackingLocation? location,
     final String? status,
+    final String? note,
     final DateTime? createdAt,
   }) = _$TrackingEventImpl;
   const _TrackingEvent._() : super._();
@@ -1142,6 +1588,8 @@ abstract class _TrackingEvent extends TrackingEvent {
   TrackingLocation? get location;
   @override
   String? get status;
+  @override
+  String? get note;
   @override
   DateTime? get createdAt;
 

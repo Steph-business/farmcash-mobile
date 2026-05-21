@@ -1,109 +1,51 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
+import '../../../models/commande.dart';
+import '../../../models/enums.dart';
+import '../../../models/pagination.dart';
 import '../../../routing/route_names.dart';
+import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
 import '../../../theme/app_text_styles.dart';
+import '../../widgets/communs/chargement.dart';
 import '../../widgets/communs/header_utilisateur.dart';
+import '../../widgets/communs/vue_erreur.dart';
 
-// ─── Couleurs locales (alignées sur la maquette) ────────────────────────
+// ─── Couleurs locales ─────────────────────────────────────────────────
 
 const Color _kPrimarySoft = Color(0xFFE8F5E9);
 const Color _kWarnSoft = Color(0xFFFFF8E1);
 const Color _kWarn = Color(0xFFB45309);
 
-/// Tabs en haut de la page Commandes acheteur.
-enum _OrderTab { enCours, aNoter, toutes }
+enum _OrderTab { enCours, livrees, toutes }
 
-/// Type sémantique de chip statut.
-enum _ChipKind { warn, green }
+// Statuts considérés comme "en cours" pour le filtre côté UI. Les statuts
+// "completed" / "delivered" sont considérés comme livrés (avant escrow ou
+// après notation).
+const Set<OrderStatus> _kEnCoursStatus = {
+  OrderStatus.sent,
+  OrderStatus.accepted,
+  OrderStatus.inProgress,
+  OrderStatus.disputed,
+};
 
-/// Action contextuelle sur une commande (boutons additionnels).
-enum _OrderAction { none, suivre }
+const Set<OrderStatus> _kLivreesStatus = {
+  OrderStatus.delivered,
+  OrderStatus.completed,
+};
 
-/// Modèle local pour une commande mock — calqué sur la maquette HTML.
-///
-/// NB anti-contournement : noms producteurs tronqués (« Yao K. », « Aya N. »,
-/// « Marie Y. ») — l'acheteur ne doit pas pouvoir contacter le producteur
-/// en dehors de la plateforme.
-class _MockOrder {
-  final String id;
-  final String photoUrl;
-  final String titre;
-  final String montant;
-  final String chipLabel;
-  final _ChipKind chipKind;
-  final String sousTexte;
-  final _OrderAction action;
-  final _OrderTab tab;
+final _commandesAcheteurProvider =
+    FutureProvider.autoDispose<List<Commande>>((ref) async {
+  final svc = ref.read(ordersServiceProvider);
+  final Paginated<Commande> page =
+      await svc.listMyOrders(role: 'BUYER', limit: 50);
+  return page.data;
+});
 
-  const _MockOrder({
-    required this.id,
-    required this.photoUrl,
-    required this.titre,
-    required this.montant,
-    required this.chipLabel,
-    required this.chipKind,
-    required this.sousTexte,
-    required this.action,
-    required this.tab,
-  });
-}
-
-/// Liste mock alignée 1:1 sur `mockups/acheteur/commandes.html`.
-const List<_MockOrder> _kMockOrders = [
-  _MockOrder(
-    id: 'ord_mais_yaok',
-    photoUrl:
-        'https://images.unsplash.com/photo-1601493700631-2b16ec4b4716'
-        '?w=200&h=200&fit=crop&auto=format',
-    titre: 'Yao K. · 500 kg Maïs blanc',
-    montant: '175 000 F',
-    chipLabel: 'En préparation',
-    chipKind: _ChipKind.warn,
-    sousTexte: 'Livraison prévue le 18 mai',
-    action: _OrderAction.none,
-    tab: _OrderTab.enCours,
-  ),
-  _MockOrder(
-    id: 'ord_manioc_ayan',
-    photoUrl:
-        'https://images.unsplash.com/photo-1574484284002-952d92456975'
-        '?w=200&h=200&fit=crop&auto=format',
-    titre: 'Aya N. · 200 kg Manioc',
-    montant: '76 000 F',
-    chipLabel: 'En transit',
-    chipKind: _ChipKind.green,
-    sousTexte: "ETA 14h aujourd'hui",
-    action: _OrderAction.suivre,
-    tab: _OrderTab.enCours,
-  ),
-  _MockOrder(
-    id: 'ord_tomate_mariey',
-    photoUrl:
-        'https://images.unsplash.com/photo-1518977956812-cd3dbadaaf31'
-        '?w=200&h=200&fit=crop&auto=format',
-    titre: 'Marie Y. · 60 kg Tomate',
-    montant: '72 000 F',
-    chipLabel: 'Payée · à expédier',
-    chipKind: _ChipKind.green,
-    sousTexte: 'Producteur prépare ta commande',
-    action: _OrderAction.none,
-    tab: _OrderTab.enCours,
-  ),
-];
-
-/// Onglet Commandes de l'acheteur — accessible via le bottom-nav (shell).
-///
-/// Reproduction fidèle de `mockups/acheteur/commandes.html` : header
-/// acheteur (panier + notif), titre, compteur récap, tab bar
-/// « En cours »/« À noter »/« Toutes », liste de cards commande avec
-/// photo, montant, chip statut, sous-texte d'état.
-///
-/// Mock-first : aucun endpoint dédié pour V1.
 class CommandesAcheteurPage extends ConsumerStatefulWidget {
   const CommandesAcheteurPage({super.key});
 
@@ -116,64 +58,88 @@ class _CommandesAcheteurPageState
     extends ConsumerState<CommandesAcheteurPage> {
   _OrderTab _tab = _OrderTab.enCours;
 
-  List<_MockOrder> get _filtered =>
-      _kMockOrders.where((o) => o.tab == _tab).toList(growable: false);
-
-  int get _countEnCours =>
-      _kMockOrders.where((o) => o.tab == _OrderTab.enCours).length;
-
-  void _ouvrirCommande(_MockOrder o) {
-    context.push(RouteNames.acheteurCommandeDetailPathFor(o.id));
+  Future<void> _refresh() async {
+    ref.invalidate(_commandesAcheteurProvider);
+    await ref.read(_commandesAcheteurProvider.future);
   }
 
-  void _suivre(_MockOrder o) {
-    // Pour V1 on ouvre simplement le détail de la commande (livraison QR
-    // est branchée depuis le détail).
-    _ouvrirCommande(o);
+  List<Commande> _filter(List<Commande> all) {
+    switch (_tab) {
+      case _OrderTab.enCours:
+        return all.where((c) => _kEnCoursStatus.contains(c.status)).toList();
+      case _OrderTab.livrees:
+        return all.where((c) => _kLivreesStatus.contains(c.status)).toList();
+      case _OrderTab.toutes:
+        return all;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final orders = _filtered;
+    final async = ref.watch(_commandesAcheteurProvider);
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         bottom: false,
         child: Column(
           children: [
-            const HeaderUtilisateur(
-              variant: HeaderVariant.acheteur,
-              cartCount: 3,
-              unreadNotifications: 1,
-            ),
+            const HeaderUtilisateur(variant: HeaderVariant.acheteur),
             const _PageTitle(),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, AppDimens.space16),
-                children: [
-                  const _CounterBox(
-                    valeur: '3 en cours',
-                    sousTexte: '5 livrées ce mois',
+              child: async.when(
+                loading: () => const Padding(
+                  padding: EdgeInsets.only(top: 48),
+                  child: Chargement(size: 22),
+                ),
+                error: (e, _) => Padding(
+                  padding: const EdgeInsets.all(AppDimens.pagePaddingH),
+                  child: VueErreur(
+                    message: 'Impossible de charger les commandes. $e',
+                    onRetry: _refresh,
                   ),
-                  AppDimens.vGap16,
-                  _Tabs(
-                    current: _tab,
-                    enCoursCount: _countEnCours,
-                    aNoterCount: 2,
-                    onSelect: (t) => setState(() => _tab = t),
-                  ),
-                  AppDimens.vGap16,
-                  if (orders.isEmpty)
-                    const _EmptyState()
-                  else
-                    ...orders.map(
-                      (o) => _OrderCard(
-                        order: o,
-                        onTap: () => _ouvrirCommande(o),
-                        onSuivre: () => _suivre(o),
-                      ),
+                ),
+                data: (all) {
+                  final orders = _filter(all);
+                  final enCoursCount =
+                      all.where((c) => _kEnCoursStatus.contains(c.status))
+                          .length;
+                  final livreesCount =
+                      all.where((c) => _kLivreesStatus.contains(c.status))
+                          .length;
+                  return RefreshIndicator(
+                    color: AppColors.primary,
+                    onRefresh: _refresh,
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(
+                          20, 0, 20, AppDimens.space16),
+                      children: [
+                        _CounterBox(
+                          valeur: '$enCoursCount en cours',
+                          sousTexte: '$livreesCount livrées',
+                        ),
+                        AppDimens.vGap16,
+                        _Tabs(
+                          current: _tab,
+                          enCoursCount: enCoursCount,
+                          livreesCount: livreesCount,
+                          onSelect: (t) => setState(() => _tab = t),
+                        ),
+                        AppDimens.vGap16,
+                        if (orders.isEmpty)
+                          const _EmptyState()
+                        else
+                          ...orders.map(
+                            (c) => _OrderCard(
+                              commande: c,
+                              onTap: () => context.push(
+                                RouteNames.acheteurCommandeDetailPathFor(c.id),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
-                ],
+                  );
+                },
               ),
             ),
           ],
@@ -183,20 +149,15 @@ class _CommandesAcheteurPageState
   }
 }
 
-// ─── Titre de page ──────────────────────────────────────────────────────
+// ─── Page title ──────────────────────────────────────────────────────
 
 class _PageTitle extends StatelessWidget {
   const _PageTitle();
-
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        20,
-        AppDimens.space8,
-        20,
-        AppDimens.space12,
-      ),
+          20, AppDimens.space8, 20, AppDimens.space12),
       child: Row(
         children: [
           Expanded(
@@ -214,14 +175,12 @@ class _PageTitle extends StatelessWidget {
   }
 }
 
-// ─── Counter box ────────────────────────────────────────────────────────
+// ─── Counter box ─────────────────────────────────────────────────────
 
 class _CounterBox extends StatelessWidget {
   const _CounterBox({required this.valeur, required this.sousTexte});
-
   final String valeur;
   final String sousTexte;
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -229,10 +188,7 @@ class _CounterBox extends StatelessWidget {
       decoration: BoxDecoration(
         color: _kPrimarySoft,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.border,
-          width: AppDimens.borderThin,
-        ),
+        border: Border.all(color: AppColors.border, width: AppDimens.borderThin),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -260,19 +216,18 @@ class _CounterBox extends StatelessWidget {
   }
 }
 
-// ─── Tabs ───────────────────────────────────────────────────────────────
+// ─── Tabs ─────────────────────────────────────────────────────────────
 
 class _Tabs extends StatelessWidget {
   const _Tabs({
     required this.current,
     required this.enCoursCount,
-    required this.aNoterCount,
+    required this.livreesCount,
     required this.onSelect,
   });
-
   final _OrderTab current;
   final int enCoursCount;
-  final int aNoterCount;
+  final int livreesCount;
   final ValueChanged<_OrderTab> onSelect;
 
   @override
@@ -281,15 +236,13 @@ class _Tabs extends StatelessWidget {
       decoration: const BoxDecoration(
         border: Border(
           bottom: BorderSide(
-            color: AppColors.border,
-            width: AppDimens.borderThin,
-          ),
+              color: AppColors.border, width: AppDimens.borderThin),
         ),
       ),
       child: Row(
         children: [
           _tab(_OrderTab.enCours, 'En cours ($enCoursCount)'),
-          _tab(_OrderTab.aNoter, 'À noter ($aNoterCount)'),
+          _tab(_OrderTab.livrees, 'Livrées ($livreesCount)'),
           _tab(_OrderTab.toutes, 'Toutes'),
         ],
       ),
@@ -326,21 +279,22 @@ class _Tabs extends StatelessWidget {
   }
 }
 
-// ─── Order card ─────────────────────────────────────────────────────────
+// ─── Order card ───────────────────────────────────────────────────────
 
 class _OrderCard extends StatelessWidget {
-  const _OrderCard({
-    required this.order,
-    required this.onTap,
-    required this.onSuivre,
-  });
-
-  final _MockOrder order;
+  const _OrderCard({required this.commande, required this.onTap});
+  final Commande commande;
   final VoidCallback onTap;
-  final VoidCallback onSuivre;
 
   @override
   Widget build(BuildContext context) {
+    final ref = commande.reference.isNotEmpty
+        ? '#${commande.reference}'
+        : '#${commande.id.substring(0, 8).toUpperCase()}';
+    final df = DateFormat('d MMM', 'fr_FR');
+    final qte = '${_nf.format(commande.quantiteKg.round())} kg';
+    final montant = '${_nf.format(commande.montantTotal.round())} F';
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: InkWell(
@@ -352,35 +306,26 @@ class _OrderCard extends StatelessWidget {
             color: AppColors.background,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: AppColors.border,
-              width: AppDimens.borderThin,
-            ),
+                color: AppColors.border, width: AppDimens.borderThin),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // ── Top : photo + titre/montant + chip ───────────────────
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Container(
-                    width: 54,
-                    height: 54,
+                    width: 48,
+                    height: 48,
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceSoft,
+                      color: _kPrimarySoft,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    clipBehavior: Clip.antiAlias,
-                    child: CachedNetworkImage(
-                      imageUrl: order.photoUrl,
-                      fit: BoxFit.cover,
-                      placeholder: (_, _) =>
-                          const ColoredBox(color: AppColors.surfaceSoft),
-                      errorWidget: (_, _, _) => const Icon(
-                        Icons.image_outlined,
-                        color: AppColors.textSubtle,
-                        size: 24,
-                      ),
+                    alignment: Alignment.center,
+                    child: const Icon(
+                      Icons.local_shipping_outlined,
+                      size: 22,
+                      color: AppColors.primary,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -390,59 +335,82 @@ class _OrderCard extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          order.titre,
+                          'Commande $ref',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: AppTextStyles.bodyMedium.copyWith(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: AppColors.text,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          qte,
+                          style: AppTextStyles.labelSmall.copyWith(
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
                           ),
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          order.montant,
+                          montant,
                           style: AppTextStyles.headlineSmall.copyWith(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
                             color: AppColors.primary,
+                            fontFamily: 'Poppins',
                           ),
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(width: 8),
-                  _ChipStatut(label: order.chipLabel, kind: order.chipKind),
+                  _ChipStatut(status: commande.status),
                 ],
               ),
-              // ── Separator ────────────────────────────────────────────
-              const SizedBox(height: 10),
-              const Divider(
-                height: 1,
-                thickness: AppDimens.borderThin,
-                color: AppColors.border,
-              ),
-              const SizedBox(height: 10),
-              // ── Bottom : sous-texte + bouton "Suivre" optionnel ──────
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      order.sousTexte,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.labelSmall.copyWith(
-                        fontSize: 11,
-                        color: AppColors.textSecondary,
+              if (commande.livraisonDate != null ||
+                  commande.createdAt != null) ...[
+                const SizedBox(height: 10),
+                const Divider(
+                  height: 1,
+                  thickness: AppDimens.borderThin,
+                  color: AppColors.border,
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    if (commande.livraisonDate != null) ...[
+                      const Icon(
+                        Icons.event_outlined,
+                        size: 14,
+                        color: AppColors.textSubtle,
                       ),
-                    ),
-                  ),
-                  if (order.action == _OrderAction.suivre) ...[
-                    const SizedBox(width: 8),
-                    _BtnTrack(onTap: onSuivre),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Livraison ${df.format(commande.livraisonDate!)}',
+                        style: AppTextStyles.labelSmall.copyWith(
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ] else if (commande.createdAt != null) ...[
+                      const Icon(
+                        Icons.calendar_today_outlined,
+                        size: 14,
+                        color: AppColors.textSubtle,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Passée ${df.format(commande.createdAt!)}',
+                        style: AppTextStyles.labelSmall.copyWith(
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
                   ],
-                ],
-              ),
+                ),
+              ],
             ],
           ),
         ),
@@ -452,23 +420,17 @@ class _OrderCard extends StatelessWidget {
 }
 
 class _ChipStatut extends StatelessWidget {
-  const _ChipStatut({required this.label, required this.kind});
-
-  final String label;
-  final _ChipKind kind;
+  const _ChipStatut({required this.status});
+  final OrderStatus status;
 
   @override
   Widget build(BuildContext context) {
-    final (bg, fg) = switch (kind) {
-      _ChipKind.warn => (_kWarnSoft, _kWarn),
-      _ChipKind.green => (_kPrimarySoft, AppColors.primary),
-    };
+    final (bg, fg, label) = _spec(status);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: bg, width: AppDimens.borderThin),
       ),
       child: Text(
         label,
@@ -481,46 +443,43 @@ class _ChipStatut extends StatelessWidget {
       ),
     );
   }
-}
 
-class _BtnTrack extends StatelessWidget {
-  const _BtnTrack({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(
-          color: AppColors.background,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: AppColors.primary,
-            width: AppDimens.borderThin,
-          ),
-        ),
-        child: Text(
-          'Suivre',
-          style: AppTextStyles.labelSmall.copyWith(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: AppColors.primary,
-          ),
-        ),
-      ),
-    );
+  (Color, Color, String) _spec(OrderStatus s) {
+    switch (s) {
+      case OrderStatus.sent:
+        return (_kWarnSoft, _kWarn, 'Envoyée');
+      case OrderStatus.accepted:
+        return (_kPrimarySoft, AppColors.primary, 'Acceptée');
+      case OrderStatus.rejected:
+        return (const Color(0xFFFEE2E2), AppColors.error, 'Refusée');
+      case OrderStatus.inProgress:
+        return (_kPrimarySoft, AppColors.primary, 'En cours');
+      case OrderStatus.delivered:
+        return (_kPrimarySoft, AppColors.primary, 'Livrée');
+      case OrderStatus.completed:
+        return (_kPrimarySoft, AppColors.primary, 'Clôturée');
+      case OrderStatus.disputed:
+        return (_kWarnSoft, _kWarn, 'Litige');
+      case OrderStatus.cancelled:
+        return (
+          const Color(0xFFE5E7EB),
+          AppColors.textSecondary,
+          'Annulée',
+        );
+      case OrderStatus.unknown:
+        return (
+          const Color(0xFFE5E7EB),
+          AppColors.textSecondary,
+          '—',
+        );
+    }
   }
 }
 
-// ─── État vide ──────────────────────────────────────────────────────────
+// ─── Empty state ─────────────────────────────────────────────────────
 
 class _EmptyState extends StatelessWidget {
   const _EmptyState();
-
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -543,3 +502,5 @@ class _EmptyState extends StatelessWidget {
     );
   }
 }
+
+final _nf = NumberFormat('#,##0', 'fr_FR');

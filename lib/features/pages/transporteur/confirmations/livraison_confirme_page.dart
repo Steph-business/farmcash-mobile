@@ -1,17 +1,29 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
+import '../../../../models/livraison.dart';
 import '../../../../routing/route_names.dart';
+import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
-import '../../../widgets/communs/snackbars.dart';
+import '../../../widgets/communs/chargement.dart';
 
 const Color _kPrimarySoft = Color(0xFFE8F5E9);
-const String _kPhoto =
-    'https://images.unsplash.com/photo-1601493700631-2b16ec4b4716?w=200&h=200&fit=crop&auto=format';
+
+/// Provider qui cherche la mission livrée parmi les missions du
+/// transporteur (statut DELIVERED).
+final _missionLivreeProvider = FutureProvider.autoDispose
+    .family<Livraison?, String>((ref, id) async {
+  final svc = ref.read(logisticsServiceProvider);
+  final list = await svc.getMyMissions();
+  for (final m in list) {
+    if (m.id == id) return m;
+  }
+  return null;
+});
 
 /// Confirmation finale de livraison + crédit wallet transporteur.
 class LivraisonConfirmePage extends ConsumerWidget {
@@ -21,6 +33,7 @@ class LivraisonConfirmePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(_missionLivreeProvider(missionId));
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -29,37 +42,57 @@ class LivraisonConfirmePage extends ConsumerWidget {
           children: [
             const _Header(title: 'Livraison confirmée'),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
-                children: const [
-                  _HeroCheck(
-                    title: 'Livraison confirmée !',
-                    subtitle: '+18 500 F crédités sur ton wallet',
-                  ),
-                  AppDimens.vGap24,
-                  _RecapCard(),
-                  AppDimens.vGap16,
-                  _CommissionBanner(),
-                  AppDimens.vGap16,
-                  _SectionTitle('Étapes complétées'),
-                  AppDimens.vGap8,
-                  _MiniTimeline(
-                    items: [
-                      _TlData(
-                          icon: Icons.check,
-                          label: 'Enlèvement confirmé'),
-                      _TlData(
-                          icon: Icons.check,
-                          label: 'Livraison confirmée chez acheteur'),
-                    ],
-                  ),
-                ],
+              child: async.when(
+                loading: () => const Padding(
+                  padding: EdgeInsets.only(top: 48),
+                  child: Chargement(size: 22),
+                ),
+                error: (_, _) => _Contenu(mission: null),
+                data: (m) => _Contenu(mission: m),
               ),
             ),
-            const _StickyBar(),
+            _StickyBar(missionId: missionId),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _Contenu extends StatelessWidget {
+  const _Contenu({required this.mission});
+
+  final Livraison? mission;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = mission;
+    final prix = m?.prixFinal ?? m?.prixDevis;
+    final montantTxt = prix != null
+        ? '+${_nf.format(prix.round())} F crédités sur ton wallet'
+        : 'Paiement en cours de crédit sur ton wallet';
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+      children: [
+        _HeroCheck(
+          title: 'Livraison confirmée !',
+          subtitle: montantTxt,
+        ),
+        AppDimens.vGap24,
+        if (m != null) _RecapCard(mission: m),
+        AppDimens.vGap16,
+        if (prix != null) _CommissionBanner(montant: prix),
+        if (prix != null) AppDimens.vGap16,
+        const _SectionTitle('Étapes complétées'),
+        AppDimens.vGap8,
+        const _MiniTimeline(
+          items: [
+            _TlData(icon: Icons.check, label: 'Enlèvement confirmé'),
+            _TlData(
+                icon: Icons.check, label: 'Livraison confirmée chez acheteur'),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -164,10 +197,18 @@ class _HeroCheck extends StatelessWidget {
 // ─── Recap card ─────────────────────────────────────────────────────────
 
 class _RecapCard extends StatelessWidget {
-  const _RecapCard();
+  const _RecapCard({required this.mission});
+
+  final Livraison mission;
 
   @override
   Widget build(BuildContext context) {
+    final qte = mission.quantiteKg != null
+        ? '${_nf.format(mission.quantiteKg!.round())} kg'
+        : null;
+    final ref = mission.reference;
+    final trajet = mission.itineraireLabel ??
+        '${mission.pickupAddress ?? '—'} → ${mission.deliveryAddress ?? '—'}';
     return Container(
       decoration: BoxDecoration(
         color: AppColors.background,
@@ -178,22 +219,18 @@ class _RecapCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: CachedNetworkImage(
-              imageUrl: _kPhoto,
-              width: 64,
-              height: 64,
-              fit: BoxFit.cover,
-              placeholder: (_, _) => Container(
-                  width: 64, height: 64, color: AppColors.surfaceSoft),
-              errorWidget: (_, _, _) => Container(
-                width: 64,
-                height: 64,
-                color: AppColors.surfaceSoft,
-                child: const Icon(Icons.image_outlined,
-                    size: 22, color: AppColors.textSubtle),
-              ),
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: _kPrimarySoft,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            alignment: Alignment.center,
+            child: const Icon(
+              Icons.check_circle,
+              size: 26,
+              color: AppColors.primary,
             ),
           ),
           const SizedBox(width: 12),
@@ -203,23 +240,25 @@ class _RecapCard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Maïs grain blanc',
+                  ref != null ? 'Commande #$ref' : 'Mission livrée',
                   style: AppTextStyles.bodyMedium.copyWith(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  '500 kg · Yao Konan',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
+                if (qte != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    qte,
+                    style: AppTextStyles.bodySmall.copyWith(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
-                ),
+                ],
                 const SizedBox(height: 2),
                 Text(
-                  'Livré · Restaurant Le Baoulé · Cocody',
+                  'Livrée · $trajet',
                   style: AppTextStyles.bodySmall.copyWith(
                     fontSize: 12,
                     color: AppColors.textSecondary,
@@ -237,7 +276,9 @@ class _RecapCard extends StatelessWidget {
 // ─── Commission banner ──────────────────────────────────────────────────
 
 class _CommissionBanner extends StatelessWidget {
-  const _CommissionBanner();
+  const _CommissionBanner({required this.montant});
+
+  final double montant;
 
   @override
   Widget build(BuildContext context) {
@@ -268,7 +309,7 @@ class _CommissionBanner extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '+18 500 F',
+                  '+${_nf.format(montant.round())} F',
                   style: AppTextStyles.displayLarge.copyWith(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
@@ -373,13 +414,16 @@ class _MiniTimeline extends StatelessWidget {
   }
 }
 
-// ─── Sticky bar (2 boutons verticaux) ───────────────────────────────────
+// ─── Sticky bar (3 actions : évaluation, wallet, missions) ──────────────
 
 class _StickyBar extends StatelessWidget {
-  const _StickyBar();
+  const _StickyBar({required this.missionId});
+
+  final String missionId;
 
   @override
   Widget build(BuildContext context) {
+    final id = missionId;
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.background,
@@ -392,25 +436,51 @@ class _StickyBar extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (id.isNotEmpty)
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: () => context.push(
+                  RouteNames.transporteurMissionEvaluationPathFor(id),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+                child: Text(
+                  'Évaluer le client',
+                  style: AppTextStyles.button.copyWith(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          const SizedBox(height: 8),
           SizedBox(
             width: double.infinity,
-            height: 50,
-            child: ElevatedButton(
+            height: 44,
+            child: OutlinedButton(
               onPressed: () =>
-                  Snackbars.showInfo(context, 'Wallet à venir'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                elevation: 0,
+                  context.push(RouteNames.transporteurWalletPath),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(
+                    color: AppColors.primary, width: AppDimens.borderThin),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10)),
               ),
               child: Text(
                 'Voir mon wallet',
                 style: AppTextStyles.button.copyWith(
-                  fontSize: 15,
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: Colors.white,
+                  color: AppColors.primary,
                 ),
               ),
             ),
@@ -434,3 +504,4 @@ class _StickyBar extends StatelessWidget {
   }
 }
 
+final _nf = NumberFormat('#,##0', 'fr_FR');

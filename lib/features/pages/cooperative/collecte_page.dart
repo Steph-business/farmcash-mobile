@@ -1,160 +1,105 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../models/annonce_vente.dart';
+import '../../../models/enums.dart';
 import '../../../routing/route_names.dart';
+import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
 import '../../../theme/app_text_styles.dart';
+import '../../widgets/communs/chargement.dart';
+import '../../widgets/communs/vue_erreur.dart';
 
 // ─── Constantes locales ─────────────────────────────────────────────────
 const Color _kPrimarySoft = Color(0xFFE8F5E9);
 const BorderRadius _kBrCard14 = BorderRadius.all(Radius.circular(14));
 const BorderRadius _kBrThumb = BorderRadius.all(Radius.circular(10));
 
-/// Statut d'une livraison farmer.
-enum _Statut { enRoute, arrive }
+/// Annonces de vente en attente de validation / pesée par la coop.
+final _collecteProvider =
+    FutureProvider.autoDispose<List<AnnonceVente>>((ref) {
+  return ref
+      .read(cooperativesServiceProvider)
+      .listAssignedAnnoncesVente(coopStatus: CoopAnnonceStatus.pending);
+});
 
-/// Modèle local d'une livraison à peser (mock).
-class _LivraisonMock {
-  final String id;
-  final String produit;
-  final String qteEstimee;
-  final String farmer;
-  final String distance;
-  final _Statut statut;
-  final String photoUrl;
-  const _LivraisonMock({
-    required this.id,
-    required this.produit,
-    required this.qteEstimee,
-    required this.farmer,
-    required this.distance,
-    required this.statut,
-    required this.photoUrl,
-  });
-}
-
-const List<_LivraisonMock> _kLivraisons = [
-  _LivraisonMock(
-    id: 'liv-001',
-    produit: 'Maïs blanc',
-    qteEstimee: '~250 kg',
-    farmer: 'Yao Konan',
-    distance: '2.4 km',
-    statut: _Statut.enRoute,
-    photoUrl:
-        'https://images.unsplash.com/photo-1601493700631-2b16ec4b4716'
-        '?w=200&h=200&fit=crop&auto=format',
-  ),
-  _LivraisonMock(
-    id: 'liv-002',
-    produit: 'Manioc',
-    qteEstimee: '~400 kg',
-    farmer: "Aya N'Guessan",
-    distance: '3.1 km',
-    statut: _Statut.arrive,
-    photoUrl:
-        'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b'
-        '?w=200&h=200&fit=crop&auto=format',
-  ),
-  _LivraisonMock(
-    id: 'liv-003',
-    produit: 'Cacao',
-    qteEstimee: '~120 kg',
-    farmer: 'Kouassi Bamba',
-    distance: '5.7 km',
-    statut: _Statut.enRoute,
-    photoUrl:
-        'https://images.unsplash.com/photo-1606937763571-29b3f3f7a85b'
-        '?w=200&h=200&fit=crop&auto=format',
-  ),
-  _LivraisonMock(
-    id: 'liv-004',
-    produit: 'Maïs jaune',
-    qteEstimee: '~300 kg',
-    farmer: 'Adjoua Koffi',
-    distance: '1.8 km',
-    statut: _Statut.arrive,
-    photoUrl:
-        'https://images.unsplash.com/photo-1601493700631-2b16ec4b4716'
-        '?w=200&h=200&fit=crop&auto=format',
-  ),
-  _LivraisonMock(
-    id: 'liv-005',
-    produit: 'Manioc',
-    qteEstimee: '~550 kg',
-    farmer: 'Moussa Diabaté',
-    distance: '4.2 km',
-    statut: _Statut.enRoute,
-    photoUrl:
-        'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b'
-        '?w=200&h=200&fit=crop&auto=format',
-  ),
-  _LivraisonMock(
-    id: 'liv-006',
-    produit: 'Cacao',
-    qteEstimee: '~180 kg',
-    farmer: 'Awa Touré',
-    distance: '6.3 km',
-    statut: _Statut.enRoute,
-    photoUrl:
-        'https://images.unsplash.com/photo-1606937763571-29b3f3f7a85b'
-        '?w=200&h=200&fit=crop&auto=format',
-  ),
-  _LivraisonMock(
-    id: 'liv-007',
-    produit: 'Maïs blanc',
-    qteEstimee: '~220 kg',
-    farmer: 'Ibrahim Cissé',
-    distance: '2.9 km',
-    statut: _Statut.arrive,
-    photoUrl:
-        'https://images.unsplash.com/photo-1601493700631-2b16ec4b4716'
-        '?w=200&h=200&fit=crop&auto=format',
-  ),
-  _LivraisonMock(
-    id: 'liv-008',
-    produit: 'Manioc',
-    qteEstimee: '~340 kg',
-    farmer: 'Fatou Bakayoko',
-    distance: '7.1 km',
-    statut: _Statut.enRoute,
-    photoUrl:
-        'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b'
-        '?w=200&h=200&fit=crop&auto=format',
-  ),
-];
-
-/// Page Collecte coopérative — liste des livraisons farmers à peser.
-/// Reproduction fidèle de `mockups/cooperative/collecte.html`.
-class CollecteCooperativePage extends StatelessWidget {
+/// Page Collecte coopérative — livraisons farmer en attente de pesée.
+///
+/// Le backend n'a pas d'endpoint dédié "collecte du jour". On utilise
+/// `listAssignedAnnoncesVente(coopStatus: PENDING)` qui liste les
+/// annonces que la coop doit encore valider — équivalent fonctionnel
+/// pour "j'attends de peser chez moi".
+class CollecteCooperativePage extends ConsumerWidget {
   const CollecteCooperativePage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(_collecteProvider);
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         bottom: false,
         child: Column(
           children: [
-            _Header(count: _kLivraisons.length),
+            _Header(
+              count: async.maybeWhen(
+                data: (l) => l.length,
+                orElse: () => 0,
+              ),
+            ),
             Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.fromLTRB(
-                  AppDimens.pagePaddingH,
-                  AppDimens.space8,
-                  AppDimens.pagePaddingH,
-                  AppDimens.space16,
+              child: async.when(
+                loading: () => const Padding(
+                  padding: EdgeInsets.only(top: 48),
+                  child: Chargement(size: 22),
                 ),
-                itemCount: _kLivraisons.length,
-                itemBuilder: (_, i) {
-                  final l = _kLivraisons[i];
-                  return _CollecteCard(
-                    livraison: l,
-                    onPeser: () => context.push(
-                      RouteNames.cooperativePeseePathFor(l.id),
+                error: (e, _) => Padding(
+                  padding: const EdgeInsets.all(AppDimens.pagePaddingH),
+                  child: VueErreur(
+                    message: 'Impossible de charger la collecte. $e',
+                    onRetry: () => ref.invalidate(_collecteProvider),
+                  ),
+                ),
+                data: (annonces) {
+                  if (annonces.isEmpty) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(AppDimens.space24),
+                        child: Text(
+                          'Aucune livraison à peser pour le moment.',
+                          textAlign: TextAlign.center,
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+                  return RefreshIndicator(
+                    color: AppColors.primary,
+                    onRefresh: () async {
+                      ref.invalidate(_collecteProvider);
+                      await ref.read(_collecteProvider.future);
+                    },
+                    child: ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppDimens.pagePaddingH,
+                        AppDimens.space8,
+                        AppDimens.pagePaddingH,
+                        AppDimens.space16,
+                      ),
+                      itemCount: annonces.length,
+                      itemBuilder: (_, i) {
+                        final a = annonces[i];
+                        return _CollecteCard(
+                          annonce: a,
+                          onPeser: () => context.push(
+                            RouteNames.cooperativePeseePathFor(a.id),
+                          ),
+                        );
+                      },
                     ),
                   );
                 },
@@ -202,7 +147,9 @@ class _Header extends StatelessWidget {
           ),
           Expanded(
             child: Text(
-              'Collecte du jour · $count produits',
+              count == 0
+                  ? 'Collecte du jour'
+                  : 'Collecte du jour · $count produit${count > 1 ? 's' : ''}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: AppTextStyles.titleSmall.copyWith(
@@ -211,65 +158,7 @@ class _Header extends StatelessWidget {
               ),
             ),
           ),
-          _NotifsButton(
-            onTap: () =>
-                context.push(RouteNames.cooperativeNotificationsPath),
-          ),
         ],
-      ),
-    );
-  }
-}
-
-class _NotifsButton extends StatelessWidget {
-  const _NotifsButton({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: SizedBox(
-        width: 40,
-        height: 40,
-        child: Stack(
-          children: [
-            const Center(
-              child: Icon(
-                Icons.notifications_none,
-                size: 22,
-                color: AppColors.text,
-              ),
-            ),
-            Positioned(
-              top: 6,
-              right: 6,
-              child: Container(
-                constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.error,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: AppColors.background,
-                    width: 1.5,
-                  ),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  '5',
-                  style: AppTextStyles.labelSmall.copyWith(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.onPrimary,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -278,13 +167,16 @@ class _NotifsButton extends StatelessWidget {
 // ─── Card d'une livraison ───────────────────────────────────────────────
 
 class _CollecteCard extends StatelessWidget {
-  const _CollecteCard({required this.livraison, required this.onPeser});
+  const _CollecteCard({required this.annonce, required this.onPeser});
 
-  final _LivraisonMock livraison;
+  final AnnonceVente annonce;
   final VoidCallback onPeser;
 
   @override
   Widget build(BuildContext context) {
+    final produit = annonce.produitNom ?? annonce.titre;
+    final farmer = annonce.vendeurNom ?? 'Producteur';
+    final qte = '${_fmtKg(annonce.quantiteKg)} kg';
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
@@ -298,25 +190,22 @@ class _CollecteCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          ClipRRect(
-            borderRadius: _kBrThumb,
-            child: Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: AppColors.border,
-                  width: AppDimens.borderThin,
-                ),
-                borderRadius: _kBrThumb,
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: _kPrimarySoft,
+              borderRadius: _kBrThumb,
+              border: Border.all(
+                color: AppColors.border,
+                width: AppDimens.borderThin,
               ),
-              child: CachedNetworkImage(
-                imageUrl: livraison.photoUrl,
-                fit: BoxFit.cover,
-                placeholder: (_, __) => const ColoredBox(color: _kPrimarySoft),
-                errorWidget: (_, __, ___) =>
-                    const ColoredBox(color: _kPrimarySoft),
-              ),
+            ),
+            alignment: Alignment.center,
+            child: const Icon(
+              Icons.inventory_2_outlined,
+              color: AppColors.primary,
+              size: 24,
             ),
           ),
           const SizedBox(width: 12),
@@ -326,7 +215,7 @@ class _CollecteCard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  livraison.produit,
+                  produit,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.titleSmall.copyWith(
@@ -336,7 +225,7 @@ class _CollecteCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  livraison.qteEstimee,
+                  qte,
                   style: AppTextStyles.titleSmall.copyWith(
                     fontFamily: 'Poppins',
                     fontSize: 12,
@@ -345,33 +234,19 @@ class _CollecteCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Text(
-                      livraison.farmer,
-                      style: AppTextStyles.labelSmall.copyWith(
-                        fontSize: 11,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    Text(
-                      '· ${livraison.distance}',
-                      style: AppTextStyles.labelSmall.copyWith(
-                        fontSize: 11,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    _StatutChip(statut: livraison.statut),
-                  ],
+                Text(
+                  farmer,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.labelSmall.copyWith(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),
           ),
           const SizedBox(width: 8),
-          // ── Bouton "Peser" ───────────────────────────────────────────
           ElevatedButton(
             onPressed: onPeser,
             style: ElevatedButton.styleFrom(
@@ -401,34 +276,14 @@ class _CollecteCard extends StatelessWidget {
   }
 }
 
-class _StatutChip extends StatelessWidget {
-  const _StatutChip({required this.statut});
-
-  final _Statut statut;
-
-  @override
-  Widget build(BuildContext context) {
-    final isArrive = statut == _Statut.arrive;
-    final bg = isArrive ? _kPrimarySoft : AppColors.background;
-    final fg = isArrive ? AppColors.primary : AppColors.textSecondary;
-    final border = isArrive ? _kPrimarySoft : AppColors.border;
-    final label = isArrive ? 'Arrivé' : 'En route';
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: border, width: AppDimens.borderThin),
-      ),
-      child: Text(
-        label,
-        style: AppTextStyles.labelSmall.copyWith(
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-          color: fg,
-        ),
-      ),
-    );
+String _fmtKg(double kg) {
+  final i = kg.round();
+  if (i < 1000) return '$i';
+  final s = '$i';
+  final buf = StringBuffer();
+  for (var k = 0; k < s.length; k++) {
+    if (k > 0 && (s.length - k) % 3 == 0) buf.write(' ');
+    buf.write(s[k]);
   }
+  return buf.toString();
 }
-

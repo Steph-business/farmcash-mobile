@@ -8,7 +8,8 @@ import '../../../theme/app_text_styles.dart';
 /// 4 actions critiques (Collecte, Inviter, Avancer, Publier).
 ///
 /// Conforme DESIGN.md : fond blanc, bordure 1px, radius 12, sans ombre.
-/// Icône en vert primaire mais texte en noir → max 2 couleurs.
+/// L'icône peut être affichée dans un cercle coloré (32×32) en passant
+/// `accentColor` — sinon, icône simple en vert primaire (fallback historique).
 class TileRaccourci extends StatelessWidget {
   const TileRaccourci({
     required this.icon,
@@ -16,6 +17,7 @@ class TileRaccourci extends StatelessWidget {
     required this.onTap,
     this.sousTitre,
     this.badge,
+    this.accentColor,
     super.key,
   });
 
@@ -28,8 +30,25 @@ class TileRaccourci extends StatelessWidget {
   /// collecter). Caché si null.
   final String? badge;
 
+  /// Si fourni, l'icône est placée dans un cercle plein de cette couleur
+  /// (icône blanche dessus). Permet de différencier visuellement les tiles.
+  final Color? accentColor;
+
   @override
   Widget build(BuildContext context) {
+    final Widget iconWidget = accentColor != null
+        ? Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: accentColor,
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: Icon(icon, color: AppColors.onPrimary, size: 18),
+          )
+        : Icon(icon, color: AppColors.primary, size: 28);
+
     return Material(
       color: AppColors.surface,
       borderRadius: AppDimens.brCard,
@@ -49,7 +68,7 @@ class TileRaccourci extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(icon, color: AppColors.primary, size: 28),
+                  iconWidget,
                   AppDimens.vGap12,
                   Text(
                     titre,

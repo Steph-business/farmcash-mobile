@@ -26,27 +26,11 @@ _$LivraisonImpl _$$LivraisonImplFromJson(
             ) ??
             ShipmentStatus.unknown,
       ),
-      pickupLocation: $checkedConvert('pickup_location', (v) => v as String?),
-      deliveryLocation: $checkedConvert(
-        'delivery_location',
-        (v) => v as String?,
-      ),
-      pickupLat: $checkedConvert(
-        'pickup_lat',
-        (v) => const FlexDoubleN().fromJson(v),
-      ),
-      pickupLng: $checkedConvert(
-        'pickup_lng',
-        (v) => const FlexDoubleN().fromJson(v),
-      ),
-      deliveryLat: $checkedConvert(
-        'delivery_lat',
-        (v) => const FlexDoubleN().fromJson(v),
-      ),
-      deliveryLng: $checkedConvert(
-        'delivery_lng',
-        (v) => const FlexDoubleN().fromJson(v),
-      ),
+      vehicleType: $checkedConvert('vehicle_type', (v) => v as String?),
+      origineZone: $checkedConvert('origin_zone', (v) => v as String?),
+      destinationZone: $checkedConvert('destination_zone', (v) => v as String?),
+      pickupAddress: $checkedConvert('pickup_address', (v) => v as String?),
+      deliveryAddress: $checkedConvert('delivery_address', (v) => v as String?),
       prixDevis: $checkedConvert(
         'prix_devis',
         (v) => const FlexDoubleN().fromJson(v),
@@ -55,7 +39,12 @@ _$LivraisonImpl _$$LivraisonImplFromJson(
         'prix_final',
         (v) => const FlexDoubleN().fromJson(v),
       ),
+      quantiteKg: $checkedConvert(
+        'quantite_kg',
+        (v) => const FlexDoubleN().fromJson(v),
+      ),
       photoPreuveUrl: $checkedConvert('photo_preuve_url', (v) => v as String?),
+      notes: $checkedConvert('notes', (v) => v as String?),
       scheduledAt: $checkedConvert(
         'scheduled_at',
         (v) => v == null ? null : DateTime.parse(v as String),
@@ -68,56 +57,67 @@ _$LivraisonImpl _$$LivraisonImplFromJson(
         'created_at',
         (v) => v == null ? null : DateTime.parse(v as String),
       ),
+      pickupScannedAt: $checkedConvert(
+        'pickup_scanned_at',
+        (v) => v == null ? null : DateTime.parse(v as String),
+      ),
+      commande: $checkedConvert(
+        'commandes_vente',
+        (v) => _commandeApercuFromJson(v),
+      ),
     );
     return val;
   },
   fieldKeyMap: const {
     'commandeId': 'commande_id',
     'transporterId': 'transporter_id',
-    'pickupLocation': 'pickup_location',
-    'deliveryLocation': 'delivery_location',
-    'pickupLat': 'pickup_lat',
-    'pickupLng': 'pickup_lng',
-    'deliveryLat': 'delivery_lat',
-    'deliveryLng': 'delivery_lng',
+    'vehicleType': 'vehicle_type',
+    'origineZone': 'origin_zone',
+    'destinationZone': 'destination_zone',
+    'pickupAddress': 'pickup_address',
+    'deliveryAddress': 'delivery_address',
     'prixDevis': 'prix_devis',
     'prixFinal': 'prix_final',
+    'quantiteKg': 'quantite_kg',
     'photoPreuveUrl': 'photo_preuve_url',
     'scheduledAt': 'scheduled_at',
     'deliveredAt': 'delivered_at',
     'createdAt': 'created_at',
+    'pickupScannedAt': 'pickup_scanned_at',
+    'commande': 'commandes_vente',
   },
 );
 
-Map<String, dynamic> _$$LivraisonImplToJson(
-  _$LivraisonImpl instance,
-) => <String, dynamic>{
-  'id': instance.id,
-  'commande_id': instance.commandeId,
-  if (instance.transporterId case final value?) 'transporter_id': value,
-  'status': _$ShipmentStatusEnumMap[instance.status]!,
-  if (instance.pickupLocation case final value?) 'pickup_location': value,
-  if (instance.deliveryLocation case final value?) 'delivery_location': value,
-  if (const FlexDoubleN().toJson(instance.pickupLat) case final value?)
-    'pickup_lat': value,
-  if (const FlexDoubleN().toJson(instance.pickupLng) case final value?)
-    'pickup_lng': value,
-  if (const FlexDoubleN().toJson(instance.deliveryLat) case final value?)
-    'delivery_lat': value,
-  if (const FlexDoubleN().toJson(instance.deliveryLng) case final value?)
-    'delivery_lng': value,
-  if (const FlexDoubleN().toJson(instance.prixDevis) case final value?)
-    'prix_devis': value,
-  if (const FlexDoubleN().toJson(instance.prixFinal) case final value?)
-    'prix_final': value,
-  if (instance.photoPreuveUrl case final value?) 'photo_preuve_url': value,
-  if (instance.scheduledAt?.toIso8601String() case final value?)
-    'scheduled_at': value,
-  if (instance.deliveredAt?.toIso8601String() case final value?)
-    'delivered_at': value,
-  if (instance.createdAt?.toIso8601String() case final value?)
-    'created_at': value,
-};
+Map<String, dynamic> _$$LivraisonImplToJson(_$LivraisonImpl instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'commande_id': instance.commandeId,
+      if (instance.transporterId case final value?) 'transporter_id': value,
+      'status': _$ShipmentStatusEnumMap[instance.status]!,
+      if (instance.vehicleType case final value?) 'vehicle_type': value,
+      if (instance.origineZone case final value?) 'origin_zone': value,
+      if (instance.destinationZone case final value?) 'destination_zone': value,
+      if (instance.pickupAddress case final value?) 'pickup_address': value,
+      if (instance.deliveryAddress case final value?) 'delivery_address': value,
+      if (const FlexDoubleN().toJson(instance.prixDevis) case final value?)
+        'prix_devis': value,
+      if (const FlexDoubleN().toJson(instance.prixFinal) case final value?)
+        'prix_final': value,
+      if (const FlexDoubleN().toJson(instance.quantiteKg) case final value?)
+        'quantite_kg': value,
+      if (instance.photoPreuveUrl case final value?) 'photo_preuve_url': value,
+      if (instance.notes case final value?) 'notes': value,
+      if (instance.scheduledAt?.toIso8601String() case final value?)
+        'scheduled_at': value,
+      if (instance.deliveredAt?.toIso8601String() case final value?)
+        'delivered_at': value,
+      if (instance.createdAt?.toIso8601String() case final value?)
+        'created_at': value,
+      if (instance.pickupScannedAt?.toIso8601String() case final value?)
+        'pickup_scanned_at': value,
+      if (_commandeApercuToJson(instance.commande) case final value?)
+        'commandes_vente': value,
+    };
 
 const _$ShipmentStatusEnumMap = {
   ShipmentStatus.requested: 'REQUESTED',
@@ -138,23 +138,21 @@ _$TransporterRouteImpl _$$TransporterRouteImplFromJson(
     final val = _$TransporterRouteImpl(
       id: $checkedConvert('id', (v) => v as String),
       transporterId: $checkedConvert('transporter_id', (v) => v as String),
-      origineVilleId: $checkedConvert('origine_ville_id', (v) => v as String),
-      destinationVilleId: $checkedConvert(
-        'destination_ville_id',
-        (v) => v as String,
-      ),
-      capaciteKg: $checkedConvert(
-        'capacite_kg',
+      origineZone: $checkedConvert('origin_zone', (v) => v as String),
+      destinationZone: $checkedConvert('destination_zone', (v) => v as String),
+      capaciteMaxKg: $checkedConvert(
+        'capacite_max_kg',
         (v) => const FlexDouble().fromJson(v),
       ),
-      prixParKm: $checkedConvert(
-        'prix_par_km',
+      tarifKg: $checkedConvert(
+        'tarif_kg',
         (v) => const FlexDouble().fromJson(v),
       ),
-      prixForfait: $checkedConvert(
-        'prix_forfait',
-        (v) => const FlexDoubleN().fromJson(v),
+      tarifMinimum: $checkedConvert(
+        'tarif_minimum',
+        (v) => v == null ? 0 : const FlexDouble().fromJson(v),
       ),
+      delaiTypique: $checkedConvert('delai_typique', (v) => v as String?),
       isActive: $checkedConvert('is_active', (v) => v as bool? ?? true),
       createdAt: $checkedConvert(
         'created_at',
@@ -165,11 +163,12 @@ _$TransporterRouteImpl _$$TransporterRouteImplFromJson(
   },
   fieldKeyMap: const {
     'transporterId': 'transporter_id',
-    'origineVilleId': 'origine_ville_id',
-    'destinationVilleId': 'destination_ville_id',
-    'capaciteKg': 'capacite_kg',
-    'prixParKm': 'prix_par_km',
-    'prixForfait': 'prix_forfait',
+    'origineZone': 'origin_zone',
+    'destinationZone': 'destination_zone',
+    'capaciteMaxKg': 'capacite_max_kg',
+    'tarifKg': 'tarif_kg',
+    'tarifMinimum': 'tarif_minimum',
+    'delaiTypique': 'delai_typique',
     'isActive': 'is_active',
     'createdAt': 'created_at',
   },
@@ -180,17 +179,64 @@ Map<String, dynamic> _$$TransporterRouteImplToJson(
 ) => <String, dynamic>{
   'id': instance.id,
   'transporter_id': instance.transporterId,
-  'origine_ville_id': instance.origineVilleId,
-  'destination_ville_id': instance.destinationVilleId,
-  if (const FlexDouble().toJson(instance.capaciteKg) case final value?)
-    'capacite_kg': value,
-  if (const FlexDouble().toJson(instance.prixParKm) case final value?)
-    'prix_par_km': value,
-  if (const FlexDoubleN().toJson(instance.prixForfait) case final value?)
-    'prix_forfait': value,
+  'origin_zone': instance.origineZone,
+  'destination_zone': instance.destinationZone,
+  if (const FlexDouble().toJson(instance.capaciteMaxKg) case final value?)
+    'capacite_max_kg': value,
+  if (const FlexDouble().toJson(instance.tarifKg) case final value?)
+    'tarif_kg': value,
+  if (const FlexDouble().toJson(instance.tarifMinimum) case final value?)
+    'tarif_minimum': value,
+  if (instance.delaiTypique case final value?) 'delai_typique': value,
   'is_active': instance.isActive,
   if (instance.createdAt?.toIso8601String() case final value?)
     'created_at': value,
+};
+
+_$TransportQuoteImpl _$$TransportQuoteImplFromJson(Map<String, dynamic> json) =>
+    $checkedCreate(
+      r'_$TransportQuoteImpl',
+      json,
+      ($checkedConvert) {
+        final val = _$TransportQuoteImpl(
+          routeId: $checkedConvert('route_id', (v) => v as String),
+          transporterId: $checkedConvert('transporter_id', (v) => v as String),
+          transporterName: $checkedConvert(
+            'transporter_name',
+            (v) => v as String? ?? '',
+          ),
+          rating: $checkedConvert(
+            'rating',
+            (v) => v == null ? 0 : const FlexDouble().fromJson(v),
+          ),
+          tarifTotal: $checkedConvert(
+            'tarif_total',
+            (v) => const FlexDouble().fromJson(v),
+          ),
+          delaiTypique: $checkedConvert('delai_typique', (v) => v as String?),
+        );
+        return val;
+      },
+      fieldKeyMap: const {
+        'routeId': 'route_id',
+        'transporterId': 'transporter_id',
+        'transporterName': 'transporter_name',
+        'tarifTotal': 'tarif_total',
+        'delaiTypique': 'delai_typique',
+      },
+    );
+
+Map<String, dynamic> _$$TransportQuoteImplToJson(
+  _$TransportQuoteImpl instance,
+) => <String, dynamic>{
+  'route_id': instance.routeId,
+  'transporter_id': instance.transporterId,
+  'transporter_name': instance.transporterName,
+  if (const FlexDouble().toJson(instance.rating) case final value?)
+    'rating': value,
+  if (const FlexDouble().toJson(instance.tarifTotal) case final value?)
+    'tarif_total': value,
+  if (instance.delaiTypique case final value?) 'delai_typique': value,
 };
 
 _$TrackingEventImpl _$$TrackingEventImplFromJson(Map<String, dynamic> json) =>
@@ -208,6 +254,7 @@ _$TrackingEventImpl _$$TrackingEventImplFromJson(Map<String, dynamic> json) =>
                 : TrackingLocation.fromJson(v as Map<String, dynamic>),
           ),
           status: $checkedConvert('status', (v) => v as String?),
+          note: $checkedConvert('note', (v) => v as String?),
           createdAt: $checkedConvert(
             'created_at',
             (v) => v == null ? null : DateTime.parse(v as String),
@@ -227,6 +274,7 @@ Map<String, dynamic> _$$TrackingEventImplToJson(_$TrackingEventImpl instance) =>
       'shipment_id': instance.shipmentId,
       if (instance.location case final value?) 'location': value,
       if (instance.status case final value?) 'status': value,
+      if (instance.note case final value?) 'note': value,
       if (instance.createdAt?.toIso8601String() case final value?)
         'created_at': value,
     };

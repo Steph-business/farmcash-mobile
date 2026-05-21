@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../../../models/annonce_vente.dart';
 import '../../../../models/pagination.dart';
 import '../../../../models/prevision.dart';
+import '../../../../models/produit.dart';
 import '../../../../routing/route_names.dart';
 import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
@@ -20,22 +21,6 @@ import '../../../widgets/communs/vue_erreur.dart';
 
 const BorderRadius _kBrCard = BorderRadius.all(Radius.circular(12));
 
-/// Catégorie affichée dans le filtre horizontal de la maquette.
-class _CategorieFiltre {
-  const _CategorieFiltre({required this.label, required this.emoji});
-  final String label;
-  final String emoji;
-}
-
-const List<_CategorieFiltre> _kCategories = [
-  _CategorieFiltre(label: 'Tous', emoji: '🌾'),
-  _CategorieFiltre(label: 'Céréales', emoji: '🌽'),
-  _CategorieFiltre(label: 'Tubercules', emoji: '🥔'),
-  _CategorieFiltre(label: 'Fruits', emoji: '🍌'),
-  _CategorieFiltre(label: 'Légumes', emoji: '🥬'),
-  _CategorieFiltre(label: 'Légumineuses', emoji: '🌰'),
-];
-
 const List<String> _kFiltresSecondaires = [
   'Bio',
   'Près de moi',
@@ -44,132 +29,29 @@ const List<String> _kFiltresSecondaires = [
   '+ Filtres',
 ];
 
-/// Mock annonces : aligné mot-à-mot sur la maquette HTML.
-class _MockAnnonce {
-  const _MockAnnonce({
-    required this.id,
-    required this.nom,
-    required this.vendeur,
-    required this.ville,
-    required this.prix,
-    required this.qte,
-    required this.photoUrl,
-  });
-
-  final String id;
-  final String nom;
-  final String vendeur;
-  final String ville;
-  final String prix;
-  final String qte;
-  final String photoUrl;
-}
-
-const List<_MockAnnonce> _kMockAnnonces = [
-  _MockAnnonce(
-    id: 'mock-1',
-    nom: 'Maïs blanc',
-    vendeur: 'Yao Konan',
-    ville: 'Yopougon',
-    prix: '350 F/kg',
-    qte: '500 kg dispo',
-    photoUrl:
-        'https://images.unsplash.com/photo-1601493700631-2b16ec4b4716?w=400&h=300&fit=crop&auto=format',
-  ),
-  _MockAnnonce(
-    id: 'mock-2',
-    nom: 'Manioc frais',
-    vendeur: 'Aya N\'Guessan',
-    ville: 'Cocody',
-    prix: '95 F/kg',
-    qte: '1 000 kg dispo',
-    photoUrl:
-        'https://images.unsplash.com/photo-1574484284002-952d92456975?w=400&h=300&fit=crop&auto=format',
-  ),
-  _MockAnnonce(
-    id: 'mock-3',
-    nom: 'Tomate',
-    vendeur: 'Marie Yao',
-    ville: 'Yopougon',
-    prix: '1 200 F/kg',
-    qte: '60 kg dispo',
-    photoUrl:
-        'https://images.unsplash.com/photo-1518977956812-cd3dbadaaf31?w=400&h=300&fit=crop&auto=format',
-  ),
-  _MockAnnonce(
-    id: 'mock-4',
-    nom: 'Arachide',
-    vendeur: 'COOP-AGRI',
-    ville: 'Bouaké',
-    prix: '600 F/kg',
-    qte: '220 kg dispo',
-    photoUrl:
-        'https://images.unsplash.com/photo-1567521464027-f127ff144326?w=400&h=300&fit=crop&auto=format',
-  ),
-  _MockAnnonce(
-    id: 'mock-5',
-    nom: 'Banane plantain',
-    vendeur: 'Mariam Koné',
-    ville: 'Cocody',
-    prix: '600 F/kg',
-    qte: '80 kg dispo',
-    photoUrl:
-        'https://images.unsplash.com/photo-1488459716781-31db52582fe9?w=400&h=300&fit=crop&auto=format',
-  ),
-  _MockAnnonce(
-    id: 'mock-6',
-    nom: 'Igname pilable',
-    vendeur: 'Kouamé Bi',
-    ville: 'Bouaké',
-    prix: '160 F/kg',
-    qte: '300 kg dispo',
-    photoUrl:
-        'https://images.unsplash.com/photo-1574484284002-952d92456975?w=400&h=300&fit=crop&auto=format',
-  ),
-  _MockAnnonce(
-    id: 'mock-7',
-    nom: 'Maïs jaune Bio',
-    vendeur: 'COOP Lagunes',
-    ville: 'Daloa',
-    prix: '420 F/kg',
-    qte: '800 kg dispo',
-    photoUrl:
-        'https://images.unsplash.com/photo-1601493700631-2b16ec4b4716?w=400&h=300&fit=crop&auto=format',
-  ),
-  _MockAnnonce(
-    id: 'mock-8',
-    nom: 'Tomate cerise',
-    vendeur: 'Fatim N.',
-    ville: 'Adzopé',
-    prix: '1 400 F/kg',
-    qte: '25 kg dispo',
-    photoUrl:
-        'https://images.unsplash.com/photo-1518977956812-cd3dbadaaf31?w=400&h=300&fit=crop&auto=format',
-  ),
-];
-
-/// Photos rotatives pour les prévisions (l'API n'en renvoie pas).
-const List<String> _kPhotosPrevisions = [
-  'https://images.unsplash.com/photo-1601493700631-2b16ec4b4716?w=400&h=300&fit=crop&auto=format',
-  'https://images.unsplash.com/photo-1574484284002-952d92456975?w=400&h=300&fit=crop&auto=format',
-  'https://images.unsplash.com/photo-1518977956812-cd3dbadaaf31?w=400&h=300&fit=crop&auto=format',
-  'https://images.unsplash.com/photo-1488459716781-31db52582fe9?w=400&h=300&fit=crop&auto=format',
-];
-
 enum _Segment { annonces, previsions }
 
-/// Bundle retourné par le provider d'écran.
+/// Bundle retourné par le provider d'écran : annonces + prévisions + le
+/// catalogue produit (pour résoudre `produit_id` côté prévisions, et pour
+/// les chips de filtre catégorie).
 class _MarcheData {
-  const _MarcheData({required this.annonces, required this.previsions});
+  const _MarcheData({
+    required this.annonces,
+    required this.previsions,
+    required this.produitsParId,
+    required this.categories,
+  });
   final List<AnnonceVente> annonces;
   final List<Prevision> previsions;
+  final Map<String, Produit> produitsParId;
+  final List<Categorie> categories;
 }
 
 final _marcheAcheteurDataProvider =
     FutureProvider.autoDispose<_MarcheData>((ref) async {
   final svc = ref.watch(marketplaceServiceProvider);
   final results = await Future.wait<dynamic>([
-    svc.listAnnoncesVente(limit: 20).then<Object?>((v) => v).catchError(
+    svc.listAnnoncesVente(limit: 40).then<Object?>((v) => v).catchError(
           (_) => const Paginated<AnnonceVente>(
             data: [],
             total: 0,
@@ -181,11 +63,27 @@ final _marcheAcheteurDataProvider =
     svc.listPrevisions().then<Object?>((v) => v).catchError(
           (_) => const <Prevision>[],
         ),
+    svc.listProduits().then<Object?>((v) => v).catchError(
+          (_) => const <Produit>[],
+        ),
+    svc.listCategories().then<Object?>((v) => v).catchError(
+          (_) => const <Categorie>[],
+        ),
   ]);
 
   final annoncesPage = results[0] as Paginated<AnnonceVente>;
   final previsions = results[1] as List<Prevision>;
-  return _MarcheData(annonces: annoncesPage.data, previsions: previsions);
+  final produits = results[2] as List<Produit>;
+  final categories = results[3] as List<Categorie>;
+  final produitsParId = <String, Produit>{
+    for (final p in produits) p.id: p,
+  };
+  return _MarcheData(
+    annonces: annoncesPage.data,
+    previsions: previsions,
+    produitsParId: produitsParId,
+    categories: categories,
+  );
 });
 
 /// Onglet Marché de l'acheteur — annonces directes + prévisions à venir.
@@ -198,7 +96,8 @@ class MarchePage extends ConsumerStatefulWidget {
 
 class _MarchePageState extends ConsumerState<MarchePage> {
   _Segment _segment = _Segment.annonces;
-  int _categorieIndex = 0; // "Tous" par défaut
+  // `null` = "Tous"
+  String? _categorieIdSelectionnee;
 
   @override
   Widget build(BuildContext context) {
@@ -212,8 +111,6 @@ class _MarchePageState extends ConsumerState<MarchePage> {
           children: [
             const HeaderUtilisateur(
               variant: HeaderVariant.acheteur,
-              cartCount: 2,
-              unreadNotifications: 1,
               bottomChild: _SearchBar(),
             ),
             Expanded(
@@ -230,7 +127,14 @@ class _MarchePageState extends ConsumerState<MarchePage> {
                         ref.invalidate(_marcheAcheteurDataProvider),
                   ),
                 ),
-                data: (data) => _buildContent(data),
+                data: (data) => RefreshIndicator(
+                  color: AppColors.primary,
+                  onRefresh: () async {
+                    ref.invalidate(_marcheAcheteurDataProvider);
+                    await ref.read(_marcheAcheteurDataProvider.future);
+                  },
+                  child: _buildContent(data),
+                ),
               ),
             ),
           ],
@@ -240,40 +144,56 @@ class _MarchePageState extends ConsumerState<MarchePage> {
   }
 
   Widget _buildContent(_MarcheData data) {
-    final annoncesCount = data.annonces.isEmpty ? 47 : data.annonces.length;
-    final previsionsCount =
-        data.previsions.isEmpty ? 12 : data.previsions.length;
+    final annoncesFiltrees = _filtrerParCategorie(data.annonces, data);
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
       children: [
-        // Segmented control
         _SegmentedControl(
           segment: _segment,
-          annoncesCount: annoncesCount,
-          previsionsCount: previsionsCount,
+          annoncesCount: annoncesFiltrees.length,
+          previsionsCount: data.previsions.length,
           onChanged: (s) => setState(() => _segment = s),
         ),
         const SizedBox(height: 14),
-
-        // Chips catégories
         _ChipsCategories(
-          selectedIndex: _categorieIndex,
-          onChanged: (i) => setState(() => _categorieIndex = i),
+          categories: data.categories,
+          selectionId: _categorieIdSelectionnee,
+          onChanged: (id) => setState(() => _categorieIdSelectionnee = id),
         ),
         const SizedBox(height: 12),
-
-        // Filtres secondaires
         const _FiltresSecondaires(),
         const SizedBox(height: 16),
-
-        // Grille produits
         if (_segment == _Segment.annonces)
-          _GridAnnonces(annonces: data.annonces)
+          _GridAnnonces(
+            annonces: annoncesFiltrees,
+            produitsParId: data.produitsParId,
+          )
         else
-          _GridPrevisions(previsions: data.previsions),
+          _GridPrevisions(
+            previsions: data.previsions,
+            produitsParId: data.produitsParId,
+          ),
       ],
     );
+  }
+
+  List<AnnonceVente> _filtrerParCategorie(
+    List<AnnonceVente> annonces,
+    _MarcheData data,
+  ) {
+    if (_categorieIdSelectionnee == null) return annonces;
+    final cat = data.categories.firstWhere(
+      (c) => c.id == _categorieIdSelectionnee,
+      orElse: () => const Categorie(id: '', slug: '', nom: ''),
+    );
+    if (cat.id.isEmpty) return annonces;
+    final sousCategoriesIds = cat.sousCategories.map((sc) => sc.id).toSet();
+    return annonces.where((a) {
+      final p = data.produitsParId[a.produitId];
+      return p?.sousCategorieId != null &&
+          sousCategoriesIds.contains(p!.sousCategorieId);
+    }).toList(growable: false);
   }
 }
 
@@ -404,27 +324,34 @@ class _SegmentItem extends StatelessWidget {
 
 class _ChipsCategories extends StatelessWidget {
   const _ChipsCategories({
-    required this.selectedIndex,
+    required this.categories,
+    required this.selectionId,
     required this.onChanged,
   });
 
-  final int selectedIndex;
-  final ValueChanged<int> onChanged;
+  final List<Categorie> categories;
+  final String? selectionId;
+  final ValueChanged<String?> onChanged;
 
   @override
   Widget build(BuildContext context) {
+    final items = <_ChipData>[
+      const _ChipData(label: 'Tous', value: null),
+      ...categories.map((c) => _ChipData(label: c.nom, value: c.id)),
+    ];
+
     return SizedBox(
       height: 34,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
-        itemCount: _kCategories.length,
+        itemCount: items.length,
         separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (context, i) {
-          final cat = _kCategories[i];
-          final active = i == selectedIndex;
+          final it = items[i];
+          final active = it.value == selectionId;
           return InkWell(
-            onTap: () => onChanged(i),
+            onTap: () => onChanged(it.value),
             borderRadius: BorderRadius.circular(18),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -436,24 +363,14 @@ class _ChipsCategories extends StatelessWidget {
                   width: AppDimens.borderThin,
                 ),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    cat.emoji,
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                  const SizedBox(width: 5),
-                  Text(
-                    cat.label,
-                    style: AppTextStyles.labelMedium.copyWith(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color:
-                          active ? AppColors.onPrimary : AppColors.textSecondary,
-                    ),
-                  ),
-                ],
+              child: Text(
+                it.label,
+                style: AppTextStyles.labelMedium.copyWith(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color:
+                      active ? AppColors.onPrimary : AppColors.textSecondary,
+                ),
               ),
             ),
           );
@@ -461,6 +378,12 @@ class _ChipsCategories extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ChipData {
+  const _ChipData({required this.label, required this.value});
+  final String label;
+  final String? value;
 }
 
 // ─── Filtres secondaires ───────────────────────────────────────────────
@@ -506,15 +429,21 @@ class _FiltresSecondaires extends StatelessWidget {
 // ─── Grille annonces ──────────────────────────────────────────────────
 
 class _GridAnnonces extends StatelessWidget {
-  const _GridAnnonces({required this.annonces});
+  const _GridAnnonces({
+    required this.annonces,
+    required this.produitsParId,
+  });
 
   final List<AnnonceVente> annonces;
+  final Map<String, Produit> produitsParId;
 
   @override
   Widget build(BuildContext context) {
-    // Si le backend renvoie de la donnée, on l'utilise. Sinon : mock fidèle.
-    final useBackend = annonces.isNotEmpty;
-
+    if (annonces.isEmpty) {
+      return _EmptyMarche(
+        message: 'Aucune annonce disponible pour le moment.',
+      );
+    }
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -522,36 +451,17 @@ class _GridAnnonces extends StatelessWidget {
         crossAxisCount: 2,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
-        mainAxisExtent: 220,
+        mainAxisExtent: 270,
       ),
-      itemCount: useBackend
-          ? annonces.length
-          : _kMockAnnonces.length,
+      itemCount: annonces.length,
       itemBuilder: (context, i) {
-        if (useBackend) {
-          final a = annonces[i];
-          final photo = a.photos.isNotEmpty
-              ? a.photos.first
-              : _kMockAnnonces[i % _kMockAnnonces.length].photoUrl;
-          return _AnnonceCard(
-            id: a.id,
-            nom: a.titre,
-            vendeur: 'Vendeur',
-            ville: a.regionId ?? 'CI',
-            prix: _formatPrix(a.prixParKg),
-            qte: '${_formatKg(a.quantiteKg)} dispo',
-            photoUrl: photo,
-          );
-        }
-        final m = _kMockAnnonces[i];
+        final a = annonces[i];
+        final nomProduit = a.produitNom ?? produitsParId[a.produitId]?.nom;
         return _AnnonceCard(
-          id: m.id,
-          nom: m.nom,
-          vendeur: m.vendeur,
-          ville: m.ville,
-          prix: m.prix,
-          qte: m.qte,
-          photoUrl: m.photoUrl,
+          annonce: a,
+          nomProduit: nomProduit,
+          onTap: () =>
+              context.push(RouteNames.acheteurAnnonceDetailPathFor(a.id)),
         );
       },
     );
@@ -560,58 +470,55 @@ class _GridAnnonces extends StatelessWidget {
 
 class _AnnonceCard extends StatelessWidget {
   const _AnnonceCard({
-    required this.id,
-    required this.nom,
-    required this.vendeur,
-    required this.ville,
-    required this.prix,
-    required this.qte,
-    required this.photoUrl,
+    required this.annonce,
+    required this.nomProduit,
+    required this.onTap,
   });
 
-  final String id;
-  final String nom;
-  final String vendeur;
-  final String ville;
-  final String prix;
-  final String qte;
-  final String photoUrl;
+  final AnnonceVente annonce;
+  final String? nomProduit;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final photoUrl =
+        annonce.photos.isNotEmpty ? annonce.photos.first : null;
+    final titre = nomProduit ?? annonce.titre;
+    final vendeur = annonce.vendeurNom ?? 'Vendeur';
+    final loc = annonce.localisationLabel ?? '—';
+    final publie = annonce.createdAt;
+    final publieLigne = publie != null
+        ? 'Publié ${DateFormat('d MMM', 'fr_FR').format(publie)}'
+        : null;
+
     return InkWell(
-      onTap: () =>
-          context.push(RouteNames.acheteurAnnonceDetailPathFor(id)),
+      onTap: onTap,
       borderRadius: _kBrCard,
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.background,
           borderRadius: _kBrCard,
-          border: Border.all(color: AppColors.border, width: AppDimens.borderThin),
+          border: Border.all(
+            color: AppColors.border,
+            width: AppDimens.borderThin,
+          ),
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             SizedBox(
-              height: 118,
-              child: CachedNetworkImage(
-                imageUrl: photoUrl,
-                fit: BoxFit.cover,
-                placeholder: (_, _) => Container(color: AppColors.surfaceSoft),
-                errorWidget: (_, _, _) =>
-                    Container(color: AppColors.surfaceSoft),
-              ),
+              height: 110,
+              child: _CardPhoto(url: photoUrl),
             ),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(11, 9, 11, 11),
+                padding: const EdgeInsets.fromLTRB(11, 9, 11, 10),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      nom,
+                      titre,
                       style: AppTextStyles.titleSmall.copyWith(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -622,7 +529,7 @@ class _AnnonceCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      '$vendeur · $ville',
+                      vendeur,
                       style: AppTextStyles.bodySmall.copyWith(
                         fontSize: 11,
                         height: 1.3,
@@ -630,9 +537,31 @@ class _AnnonceCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.location_on_outlined,
+                          size: 11,
+                          color: AppColors.textSubtle,
+                        ),
+                        const SizedBox(width: 3),
+                        Expanded(
+                          child: Text(
+                            loc,
+                            style: AppTextStyles.labelSmall.copyWith(
+                              fontSize: 10,
+                              color: AppColors.textSubtle,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 6),
                     Text(
-                      prix,
+                      _formatPrix(annonce.prixParKg),
                       style: AppTextStyles.titleSmall.copyWith(
                         fontFamily: 'Poppins',
                         fontSize: 15,
@@ -643,7 +572,161 @@ class _AnnonceCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 1),
                     Text(
-                      qte,
+                      '${_formatKg(annonce.quantiteKg)} dispo',
+                      style: AppTextStyles.labelSmall.copyWith(
+                        fontSize: 10,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    if (publieLigne != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        publieLigne,
+                        style: AppTextStyles.labelSmall.copyWith(
+                          fontSize: 9,
+                          color: AppColors.textSubtle,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Grille prévisions ─────────────────────────────────────────────────
+
+class _GridPrevisions extends StatelessWidget {
+  const _GridPrevisions({
+    required this.previsions,
+    required this.produitsParId,
+  });
+
+  final List<Prevision> previsions;
+  final Map<String, Produit> produitsParId;
+
+  @override
+  Widget build(BuildContext context) {
+    if (previsions.isEmpty) {
+      return _EmptyMarche(
+        message:
+            'Aucune prévision pour le moment — reviens dans quelques jours.',
+      );
+    }
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        mainAxisExtent: 230,
+      ),
+      itemCount: previsions.length,
+      itemBuilder: (context, i) {
+        final p = previsions[i];
+        final nomProduit = produitsParId[p.produitId]?.nom ?? 'Prévision';
+        return _PrevisionCard(
+          prevision: p,
+          nomProduit: nomProduit,
+          onTap: () =>
+              context.push(RouteNames.acheteurPrevisionDetailPathFor(p.id)),
+        );
+      },
+    );
+  }
+}
+
+class _PrevisionCard extends StatelessWidget {
+  const _PrevisionCard({
+    required this.prevision,
+    required this.nomProduit,
+    required this.onTap,
+  });
+
+  final Prevision prevision;
+  final String nomProduit;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final dateStr = prevision.dateRecoltePrev != null
+        ? 'Récolte ${DateFormat('d MMM', 'fr_FR').format(prevision.dateRecoltePrev!)}'
+        : 'Récolte à venir';
+    final prix = prevision.prixCibleKg != null
+        ? '${_formatPrix(prevision.prixCibleKg!)} (prévu)'
+        : 'Prix à venir';
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: _kBrCard,
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.background,
+          borderRadius: _kBrCard,
+          border: Border.all(
+            color: AppColors.border,
+            width: AppDimens.borderThin,
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(
+              height: 100,
+              child: Container(
+                color: AppColors.surfaceSoft,
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.event_available_outlined,
+                  size: 32,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(11, 9, 11, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      nomProduit,
+                      style: AppTextStyles.titleSmall.copyWith(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      dateStr,
+                      style: AppTextStyles.bodySmall.copyWith(fontSize: 11),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      prix,
+                      style: AppTextStyles.titleSmall.copyWith(
+                        fontFamily: 'Poppins',
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      '${_formatKg(prevision.quantitePrevKg)} prévus',
                       style: AppTextStyles.labelSmall.copyWith(
                         fontSize: 10,
                         color: AppColors.textSecondary,
@@ -660,59 +743,70 @@ class _AnnonceCard extends StatelessWidget {
   }
 }
 
-// ─── Grille prévisions ─────────────────────────────────────────────────
+// ─── Helpers visuels ───────────────────────────────────────────────────
 
-class _GridPrevisions extends StatelessWidget {
-  const _GridPrevisions({required this.previsions});
-
-  final List<Prevision> previsions;
+class _CardPhoto extends StatelessWidget {
+  const _CardPhoto({required this.url});
+  final String? url;
 
   @override
   Widget build(BuildContext context) {
-    final useBackend = previsions.isNotEmpty;
-    final mockCount = 6;
+    if (url == null || url!.isEmpty) {
+      return Container(
+        color: AppColors.surfaceSoft,
+        alignment: Alignment.center,
+        child: const Icon(
+          Icons.image_outlined,
+          size: 28,
+          color: AppColors.textSubtle,
+        ),
+      );
+    }
+    return CachedNetworkImage(
+      imageUrl: url!,
+      fit: BoxFit.cover,
+      placeholder: (_, _) => Container(color: AppColors.surfaceSoft),
+      errorWidget: (_, _, _) => Container(color: AppColors.surfaceSoft),
+    );
+  }
+}
 
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        mainAxisExtent: 220,
+class _EmptyMarche extends StatelessWidget {
+  const _EmptyMarche({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 32),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceSoft,
+        borderRadius: _kBrCard,
+        border: Border.all(
+          color: AppColors.border,
+          width: AppDimens.borderThin,
+        ),
       ),
-      itemCount: useBackend ? previsions.length : mockCount,
-      itemBuilder: (context, i) {
-        if (useBackend) {
-          final p = previsions[i];
-          final photo = _kPhotosPrevisions[i % _kPhotosPrevisions.length];
-          final dateStr = p.dateRecoltePrev != null
-              ? 'Dispo ${DateFormat('d MMM', 'fr_FR').format(p.dateRecoltePrev!)}'
-              : 'Dispo bientôt';
-          return _AnnonceCard(
-            id: p.id,
-            nom: 'Prévision',
-            vendeur: 'Producteur',
-            ville: dateStr,
-            prix: p.prixCibleKg != null
-                ? '${_formatPrix(p.prixCibleKg!)} prévu'
-                : 'Prix à venir',
-            qte: '${_formatKg(p.quantitePrevKg)} prévus',
-            photoUrl: photo,
-          );
-        }
-        // Mock prévisions
-        final m = _kMockAnnonces[i];
-        return _AnnonceCard(
-          id: 'prev-${i + 1}',
-          nom: m.nom,
-          vendeur: m.vendeur,
-          ville: 'Dispo 15 juin',
-          prix: '${m.prix} prévu',
-          qte: m.qte,
-          photoUrl: m.photoUrl,
-        );
-      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.storefront_outlined,
+            size: 32,
+            color: AppColors.textSubtle,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: AppColors.textSecondary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 }

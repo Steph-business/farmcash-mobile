@@ -26,6 +26,11 @@ mixin _$Commande {
   String get buyerId => throw _privateConstructorUsedError;
   String get sellerId => throw _privateConstructorUsedError;
   String get annonceId => throw _privateConstructorUsedError;
+
+  /// Identifiant du lot physique livré (rempli quand le vendeur lie la
+  /// commande à un lot tracé). Sert à charger la traçabilité publique
+  /// `/ai/traceability/:lotId` côté acheteur.
+  String? get lotId => throw _privateConstructorUsedError;
   @FlexDouble()
   double get quantiteKg => throw _privateConstructorUsedError;
   @FlexDouble()
@@ -63,6 +68,7 @@ abstract class $CommandeCopyWith<$Res> {
     String buyerId,
     String sellerId,
     String annonceId,
+    String? lotId,
     @FlexDouble() double quantiteKg,
     @FlexDouble() double prixUnitaireKg,
     @FlexDouble() double montantTotal,
@@ -97,6 +103,7 @@ class _$CommandeCopyWithImpl<$Res, $Val extends Commande>
     Object? buyerId = null,
     Object? sellerId = null,
     Object? annonceId = null,
+    Object? lotId = freezed,
     Object? quantiteKg = null,
     Object? prixUnitaireKg = null,
     Object? montantTotal = null,
@@ -130,6 +137,10 @@ class _$CommandeCopyWithImpl<$Res, $Val extends Commande>
                 ? _value.annonceId
                 : annonceId // ignore: cast_nullable_to_non_nullable
                       as String,
+            lotId: freezed == lotId
+                ? _value.lotId
+                : lotId // ignore: cast_nullable_to_non_nullable
+                      as String?,
             quantiteKg: null == quantiteKg
                 ? _value.quantiteKg
                 : quantiteKg // ignore: cast_nullable_to_non_nullable
@@ -191,6 +202,7 @@ abstract class _$$CommandeImplCopyWith<$Res>
     String buyerId,
     String sellerId,
     String annonceId,
+    String? lotId,
     @FlexDouble() double quantiteKg,
     @FlexDouble() double prixUnitaireKg,
     @FlexDouble() double montantTotal,
@@ -224,6 +236,7 @@ class __$$CommandeImplCopyWithImpl<$Res>
     Object? buyerId = null,
     Object? sellerId = null,
     Object? annonceId = null,
+    Object? lotId = freezed,
     Object? quantiteKg = null,
     Object? prixUnitaireKg = null,
     Object? montantTotal = null,
@@ -257,6 +270,10 @@ class __$$CommandeImplCopyWithImpl<$Res>
             ? _value.annonceId
             : annonceId // ignore: cast_nullable_to_non_nullable
                   as String,
+        lotId: freezed == lotId
+            ? _value.lotId
+            : lotId // ignore: cast_nullable_to_non_nullable
+                  as String?,
         quantiteKg: null == quantiteKg
             ? _value.quantiteKg
             : quantiteKg // ignore: cast_nullable_to_non_nullable
@@ -311,6 +328,7 @@ class _$CommandeImpl implements _Commande {
     required this.buyerId,
     required this.sellerId,
     required this.annonceId,
+    this.lotId,
     @FlexDouble() required this.quantiteKg,
     @FlexDouble() required this.prixUnitaireKg,
     @FlexDouble() required this.montantTotal,
@@ -338,6 +356,12 @@ class _$CommandeImpl implements _Commande {
   final String sellerId;
   @override
   final String annonceId;
+
+  /// Identifiant du lot physique livré (rempli quand le vendeur lie la
+  /// commande à un lot tracé). Sert à charger la traçabilité publique
+  /// `/ai/traceability/:lotId` côté acheteur.
+  @override
+  final String? lotId;
   @override
   @FlexDouble()
   final double quantiteKg;
@@ -367,7 +391,7 @@ class _$CommandeImpl implements _Commande {
 
   @override
   String toString() {
-    return 'Commande(id: $id, reference: $reference, buyerId: $buyerId, sellerId: $sellerId, annonceId: $annonceId, quantiteKg: $quantiteKg, prixUnitaireKg: $prixUnitaireKg, montantTotal: $montantTotal, status: $status, paymentProvider: $paymentProvider, escrowReleased: $escrowReleased, livraisonAdresse: $livraisonAdresse, livraisonDate: $livraisonDate, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'Commande(id: $id, reference: $reference, buyerId: $buyerId, sellerId: $sellerId, annonceId: $annonceId, lotId: $lotId, quantiteKg: $quantiteKg, prixUnitaireKg: $prixUnitaireKg, montantTotal: $montantTotal, status: $status, paymentProvider: $paymentProvider, escrowReleased: $escrowReleased, livraisonAdresse: $livraisonAdresse, livraisonDate: $livraisonDate, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -383,6 +407,7 @@ class _$CommandeImpl implements _Commande {
                 other.sellerId == sellerId) &&
             (identical(other.annonceId, annonceId) ||
                 other.annonceId == annonceId) &&
+            (identical(other.lotId, lotId) || other.lotId == lotId) &&
             (identical(other.quantiteKg, quantiteKg) ||
                 other.quantiteKg == quantiteKg) &&
             (identical(other.prixUnitaireKg, prixUnitaireKg) ||
@@ -413,6 +438,7 @@ class _$CommandeImpl implements _Commande {
     buyerId,
     sellerId,
     annonceId,
+    lotId,
     quantiteKg,
     prixUnitaireKg,
     montantTotal,
@@ -446,6 +472,7 @@ abstract class _Commande implements Commande {
     required final String buyerId,
     required final String sellerId,
     required final String annonceId,
+    final String? lotId,
     @FlexDouble() required final double quantiteKg,
     @FlexDouble() required final double prixUnitaireKg,
     @FlexDouble() required final double montantTotal,
@@ -472,6 +499,12 @@ abstract class _Commande implements Commande {
   String get sellerId;
   @override
   String get annonceId;
+
+  /// Identifiant du lot physique livré (rempli quand le vendeur lie la
+  /// commande à un lot tracé). Sert à charger la traçabilité publique
+  /// `/ai/traceability/:lotId` côté acheteur.
+  @override
+  String? get lotId;
   @override
   @FlexDouble()
   double get quantiteKg;

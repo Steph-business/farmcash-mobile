@@ -2,10 +2,16 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../models/enums.dart';
+import '../../../models/publication_coop.dart';
+import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
 import '../../../theme/app_text_styles.dart';
+import '../../state/auth_state.dart';
+import '../../widgets/communs/chargement.dart';
 import '../../widgets/communs/header_utilisateur.dart';
+import '../../widgets/communs/vue_erreur.dart';
 
 // ─── Couleurs locales (alignées sur la maquette) ────────────────────────
 
@@ -14,97 +20,37 @@ const Color _kPrimarySoft = Color(0xFFE8F5E9);
 /// Onglets en haut de la page Marché coop.
 enum _PubTab { actives, archivees }
 
-/// Modèle local pour une publication coop mock.
-class _MockPub {
-  final String id;
-  final String produit;
-  final String quantiteLabel;
-  final String prixKgLabel;
-  final int nbContributeurs;
-  final String photoUrl;
-
-  const _MockPub({
-    required this.id,
-    required this.produit,
-    required this.quantiteLabel,
-    required this.prixKgLabel,
-    required this.nbContributeurs,
-    required this.photoUrl,
-  });
+/// Bundle pour la page : publications actives + archivées (filtrées
+/// côté client) + total kg pour le compteur hero.
+class _MarcheBundle {
+  const _MarcheBundle({required this.actives, required this.archivees});
+  final List<PublicationCoop> actives;
+  final List<PublicationCoop> archivees;
 }
 
-/// Liste mock alignée 1:1 sur `mockups/cooperative/marche.html` (6 cards
-/// publication actives).
-const List<_MockPub> _kMockPubs = [
-  _MockPub(
-    id: 'pub_mais',
-    produit: 'Maïs grain blanc',
-    quantiteLabel: '500 kg',
-    prixKgLabel: '350 F/kg',
-    nbContributeurs: 3,
-    photoUrl:
-        'https://images.unsplash.com/photo-1601493700631-2b16ec4b4716'
-        '?w=400&h=300&fit=crop&auto=format',
-  ),
-  _MockPub(
-    id: 'pub_manioc',
-    produit: 'Manioc frais',
-    quantiteLabel: '1 000 kg',
-    prixKgLabel: '95 F/kg',
-    nbContributeurs: 6,
-    photoUrl:
-        'https://images.unsplash.com/photo-1574484284002-952d92456975'
-        '?w=400&h=300&fit=crop&auto=format',
-  ),
-  _MockPub(
-    id: 'pub_riz',
-    produit: 'Riz local',
-    quantiteLabel: '200 kg',
-    prixKgLabel: '360 F/kg',
-    nbContributeurs: 2,
-    photoUrl:
-        'https://images.unsplash.com/photo-1586201375761-83865001e31c'
-        '?w=400&h=300&fit=crop&auto=format',
-  ),
-  _MockPub(
-    id: 'pub_igname',
-    produit: 'Igname pilable',
-    quantiteLabel: '300 kg',
-    prixKgLabel: '160 F/kg',
-    nbContributeurs: 3,
-    photoUrl:
-        'https://images.unsplash.com/photo-1568569350062-ebfa3cb195df'
-        '?w=400&h=300&fit=crop&auto=format',
-  ),
-  _MockPub(
-    id: 'pub_tomate',
-    produit: 'Tomate',
-    quantiteLabel: '80 kg',
-    prixKgLabel: '450 F/kg',
-    nbContributeurs: 2,
-    photoUrl:
-        'https://images.unsplash.com/photo-1518977956812-cd3dbadaaf31'
-        '?w=400&h=300&fit=crop&auto=format',
-  ),
-  _MockPub(
-    id: 'pub_banane',
-    produit: 'Banane plantain',
-    quantiteLabel: '450 kg',
-    prixKgLabel: '180 F/kg',
-    nbContributeurs: 4,
-    photoUrl:
-        'https://images.unsplash.com/photo-1488459716781-31db52582fe9'
-        '?w=400&h=300&fit=crop&auto=format',
-  ),
-];
+bool _isActive(PublicationCoop p) =>
+    p.status == ProductStatus.active || p.status == ProductStatus.unknown;
 
-/// Onglet Marché de la coopérative — accessible via le bottom-nav (shell).
-///
-/// Reproduction fidèle de `mockups/cooperative/marche.html` : header coop,
-/// compteur primary-soft, tab bar « Actives / Archivées », grille 2 col de
-/// cards publication avec photo, quantité, prix kg, nb contributeurs.
-///
-/// Mock-first : à brancher sur `coopSvc.listPublications()` quand prêt.
+final _marcheCoopProvider = FutureProvider.autoDispose
+    .family<_MarcheBundle, String>((ref, cooperativeId) async {
+  final svc = ref.read(cooperativesServiceProvider);
+  final page = await svc.listPublications(
+    cooperativeId: cooperativeId,
+    limit: 100,
+  );
+  final all = page.data;
+  return _MarcheBundle(
+    actives: all.where(_isActive).toList(growable: false),
+    archivees: all
+        .where((p) =>
+            p.status == ProductStatus.sold ||
+            p.status == ProductStatus.expired ||
+            p.status == ProductStatus.paused)
+        .toList(growable: false),
+  );
+});
+
+/// Onglet Marché de la coopérative — branché sur `listPublications`.
 class MarcheCooperativePage extends ConsumerStatefulWidget {
   const MarcheCooperativePage({super.key});
 
@@ -116,15 +62,13 @@ class MarcheCooperativePage extends ConsumerStatefulWidget {
 class _MarcheCooperativePageState extends ConsumerState<MarcheCooperativePage> {
   _PubTab _tab = _PubTab.actives;
 
-  List<_MockPub> get _filtered =>
-      _tab == _PubTab.actives ? _kMockPubs : const [];
-
-  void _ouvrirPub(_MockPub p) {
+  void _ouvrirPub(PublicationCoop p) {
+    // V1 : pas d'écran "détail publication" coop. On informe.
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text('Détail publication ${p.produit} à venir'),
+          content: Text('Détail publication ${p.titre} — à venir'),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -132,7 +76,9 @@ class _MarcheCooperativePageState extends ConsumerState<MarcheCooperativePage> {
 
   @override
   Widget build(BuildContext context) {
-    final pubs = _filtered;
+    final user = ref.watch(currentUserProvider);
+    final coopId = user?.cooperativeId;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -141,50 +87,90 @@ class _MarcheCooperativePageState extends ConsumerState<MarcheCooperativePage> {
           children: [
             const HeaderUtilisateur(variant: HeaderVariant.cooperative),
             const _PageTitle(),
-            const Padding(
-              padding: EdgeInsets.fromLTRB(
+            Expanded(
+              child: coopId == null
+                  ? const _NoCoopState()
+                  : _buildLoaded(coopId),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoaded(String coopId) {
+    final async = ref.watch(_marcheCoopProvider(coopId));
+    return async.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.only(top: 48),
+        child: Chargement(size: 22),
+      ),
+      error: (e, _) => Padding(
+        padding: const EdgeInsets.all(AppDimens.pagePaddingH),
+        child: VueErreur(
+          message: 'Impossible de charger les publications. $e',
+          onRetry: () => ref.invalidate(_marcheCoopProvider(coopId)),
+        ),
+      ),
+      data: (bundle) {
+        final pubs = _tab == _PubTab.actives ? bundle.actives : bundle.archivees;
+        final totalKgActives =
+            bundle.actives.fold<double>(0, (acc, p) => acc + p.quantiteKg);
+        final tonnesLabel = _formatTonnes(totalKgActives);
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
                 AppDimens.pagePaddingH,
                 0,
                 AppDimens.pagePaddingH,
                 AppDimens.space12,
               ),
               child: _CounterHero(
-                titre: '8 publications actives',
-                sousTitre: '4.2 tonnes',
+                titre: '${bundle.actives.length} publications actives',
+                sousTitre: tonnesLabel,
               ),
             ),
             _TabBar(
               current: _tab,
-              activesCount: _kMockPubs.length,
+              activesCount: bundle.actives.length,
+              archiveesCount: bundle.archivees.length,
               onSelect: (t) => setState(() => _tab = t),
             ),
             Expanded(
               child: pubs.isEmpty
-                  ? const _EmptyState()
-                  : GridView.builder(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppDimens.pagePaddingH,
-                        AppDimens.space12,
-                        AppDimens.pagePaddingH,
-                        AppDimens.space16,
-                      ),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        mainAxisSpacing: 12,
-                        crossAxisSpacing: 12,
-                        childAspectRatio: 0.72,
-                      ),
-                      itemCount: pubs.length,
-                      itemBuilder: (_, i) => _PubCard(
-                        pub: pubs[i],
-                        onTap: () => _ouvrirPub(pubs[i]),
+                  ? _EmptyState(tab: _tab)
+                  : RefreshIndicator(
+                      color: AppColors.primary,
+                      onRefresh: () async {
+                        ref.invalidate(_marcheCoopProvider(coopId));
+                        await ref.read(_marcheCoopProvider(coopId).future);
+                      },
+                      child: GridView.builder(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppDimens.pagePaddingH,
+                          AppDimens.space12,
+                          AppDimens.pagePaddingH,
+                          AppDimens.space16,
+                        ),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          mainAxisSpacing: 12,
+                          crossAxisSpacing: 12,
+                          childAspectRatio: 0.72,
+                        ),
+                        itemCount: pubs.length,
+                        itemBuilder: (_, i) => _PubCard(
+                          pub: pubs[i],
+                          onTap: () => _ouvrirPub(pubs[i]),
+                        ),
                       ),
                     ),
             ),
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -268,11 +254,13 @@ class _TabBar extends StatelessWidget {
   const _TabBar({
     required this.current,
     required this.activesCount,
+    required this.archiveesCount,
     required this.onSelect,
   });
 
   final _PubTab current;
   final int activesCount;
+  final int archiveesCount;
   final ValueChanged<_PubTab> onSelect;
 
   @override
@@ -290,7 +278,7 @@ class _TabBar extends StatelessWidget {
       child: Row(
         children: [
           _tab(_PubTab.actives, 'Actives ($activesCount)'),
-          _tab(_PubTab.archivees, 'Archivées'),
+          _tab(_PubTab.archivees, 'Archivées ($archiveesCount)'),
         ],
       ),
     );
@@ -331,11 +319,14 @@ class _TabBar extends StatelessWidget {
 class _PubCard extends StatelessWidget {
   const _PubCard({required this.pub, required this.onTap});
 
-  final _MockPub pub;
+  final PublicationCoop pub;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final photoUrl = pub.photos.isNotEmpty ? pub.photos.first : null;
+    final qteLabel = '${_fmtKg(pub.quantiteKg)} kg';
+    final prixLabel = '${_fmtMontant(pub.prixParKg)} F/kg';
     return Material(
       color: AppColors.surface,
       borderRadius: BorderRadius.circular(12),
@@ -356,21 +347,31 @@ class _PubCard extends StatelessWidget {
             children: [
               AspectRatio(
                 aspectRatio: 16 / 11,
-                child: CachedNetworkImage(
-                  imageUrl: pub.photoUrl,
-                  fit: BoxFit.cover,
-                  placeholder: (_, _) =>
-                      const ColoredBox(color: AppColors.surfaceSoft),
-                  errorWidget: (_, _, _) => Container(
-                    color: AppColors.surfaceSoft,
-                    alignment: Alignment.center,
-                    child: const Icon(
-                      Icons.image_outlined,
-                      color: AppColors.textSubtle,
-                      size: 22,
-                    ),
-                  ),
-                ),
+                child: photoUrl != null
+                    ? CachedNetworkImage(
+                        imageUrl: photoUrl,
+                        fit: BoxFit.cover,
+                        placeholder: (_, _) =>
+                            const ColoredBox(color: AppColors.surfaceSoft),
+                        errorWidget: (_, _, _) => Container(
+                          color: AppColors.surfaceSoft,
+                          alignment: Alignment.center,
+                          child: const Icon(
+                            Icons.image_outlined,
+                            color: AppColors.textSubtle,
+                            size: 22,
+                          ),
+                        ),
+                      )
+                    : Container(
+                        color: AppColors.surfaceSoft,
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.image_outlined,
+                          color: AppColors.textSubtle,
+                          size: 22,
+                        ),
+                      ),
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
@@ -379,7 +380,7 @@ class _PubCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      pub.produit,
+                      pub.titre,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: AppTextStyles.bodyMedium.copyWith(
@@ -390,7 +391,7 @@ class _PubCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      pub.quantiteLabel,
+                      qteLabel,
                       style: AppTextStyles.titleSmall.copyWith(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
@@ -399,7 +400,7 @@ class _PubCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      pub.prixKgLabel,
+                      prixLabel,
                       style: AppTextStyles.bodyMedium.copyWith(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -408,7 +409,7 @@ class _PubCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${pub.nbContributeurs} contributeurs',
+                      _statusLabel(pub.status),
                       style: AppTextStyles.labelSmall.copyWith(
                         fontSize: 11,
                         color: AppColors.textSecondary,
@@ -428,10 +429,15 @@ class _PubCard extends StatelessWidget {
 // ─── État vide ──────────────────────────────────────────────────────────
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState();
+  const _EmptyState({required this.tab});
+
+  final _PubTab tab;
 
   @override
   Widget build(BuildContext context) {
+    final msg = tab == _PubTab.actives
+        ? 'Aucune publication active.'
+        : 'Aucune publication archivée.';
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppDimens.space24),
@@ -445,7 +451,7 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: AppDimens.space12),
             Text(
-              'Aucune publication archivée',
+              msg,
               style: AppTextStyles.titleSmall,
             ),
           ],
@@ -454,3 +460,67 @@ class _EmptyState extends StatelessWidget {
     );
   }
 }
+
+class _NoCoopState extends StatelessWidget {
+  const _NoCoopState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppDimens.space24),
+        child: Text(
+          "Aucune coopérative associée à votre compte.",
+          textAlign: TextAlign.center,
+          style: AppTextStyles.bodyMedium.copyWith(
+            color: AppColors.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────
+
+String _formatTonnes(double kg) {
+  if (kg < 1000) return '${kg.round()} kg';
+  final tonnes = kg / 1000;
+  if (tonnes >= 10) return '${tonnes.toStringAsFixed(0)} tonnes';
+  return '${tonnes.toStringAsFixed(1)} tonnes';
+}
+
+String _fmtKg(double kg) {
+  final i = kg.round();
+  return _fmtMontant(i.toDouble());
+}
+
+String _fmtMontant(double v) {
+  final i = v.round();
+  if (i < 1000) return '$i';
+  final s = '$i';
+  final buf = StringBuffer();
+  for (var k = 0; k < s.length; k++) {
+    if (k > 0 && (s.length - k) % 3 == 0) buf.write(' ');
+    buf.write(s[k]);
+  }
+  return buf.toString();
+}
+
+String _statusLabel(ProductStatus status) {
+  switch (status) {
+    case ProductStatus.active:
+      return 'Active';
+    case ProductStatus.paused:
+      return 'En pause';
+    case ProductStatus.sold:
+      return 'Vendue';
+    case ProductStatus.expired:
+      return 'Expirée';
+    case ProductStatus.draft:
+      return 'Brouillon';
+    case ProductStatus.unknown:
+      return '';
+  }
+}
+

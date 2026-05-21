@@ -23,8 +23,9 @@ Panier _$PanierFromJson(Map<String, dynamic> json) {
 mixin _$Panier {
   String get id => throw _privateConstructorUsedError;
   String get userId => throw _privateConstructorUsedError;
+  @JsonKey(name: 'panier_items')
   List<PanierItem> get items => throw _privateConstructorUsedError;
-  DateTime? get updatedAt => throw _privateConstructorUsedError;
+  DateTime? get createdAt => throw _privateConstructorUsedError;
 
   /// Serializes this Panier to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -43,8 +44,8 @@ abstract class $PanierCopyWith<$Res> {
   $Res call({
     String id,
     String userId,
-    List<PanierItem> items,
-    DateTime? updatedAt,
+    @JsonKey(name: 'panier_items') List<PanierItem> items,
+    DateTime? createdAt,
   });
 }
 
@@ -66,7 +67,7 @@ class _$PanierCopyWithImpl<$Res, $Val extends Panier>
     Object? id = null,
     Object? userId = null,
     Object? items = null,
-    Object? updatedAt = freezed,
+    Object? createdAt = freezed,
   }) {
     return _then(
       _value.copyWith(
@@ -82,9 +83,9 @@ class _$PanierCopyWithImpl<$Res, $Val extends Panier>
                 ? _value.items
                 : items // ignore: cast_nullable_to_non_nullable
                       as List<PanierItem>,
-            updatedAt: freezed == updatedAt
-                ? _value.updatedAt
-                : updatedAt // ignore: cast_nullable_to_non_nullable
+            createdAt: freezed == createdAt
+                ? _value.createdAt
+                : createdAt // ignore: cast_nullable_to_non_nullable
                       as DateTime?,
           )
           as $Val,
@@ -103,8 +104,8 @@ abstract class _$$PanierImplCopyWith<$Res> implements $PanierCopyWith<$Res> {
   $Res call({
     String id,
     String userId,
-    List<PanierItem> items,
-    DateTime? updatedAt,
+    @JsonKey(name: 'panier_items') List<PanierItem> items,
+    DateTime? createdAt,
   });
 }
 
@@ -125,7 +126,7 @@ class __$$PanierImplCopyWithImpl<$Res>
     Object? id = null,
     Object? userId = null,
     Object? items = null,
-    Object? updatedAt = freezed,
+    Object? createdAt = freezed,
   }) {
     return _then(
       _$PanierImpl(
@@ -141,9 +142,9 @@ class __$$PanierImplCopyWithImpl<$Res>
             ? _value._items
             : items // ignore: cast_nullable_to_non_nullable
                   as List<PanierItem>,
-        updatedAt: freezed == updatedAt
-            ? _value.updatedAt
-            : updatedAt // ignore: cast_nullable_to_non_nullable
+        createdAt: freezed == createdAt
+            ? _value.createdAt
+            : createdAt // ignore: cast_nullable_to_non_nullable
                   as DateTime?,
       ),
     );
@@ -156,8 +157,9 @@ class _$PanierImpl extends _Panier {
   const _$PanierImpl({
     this.id = '',
     this.userId = '',
+    @JsonKey(name: 'panier_items')
     final List<PanierItem> items = const <PanierItem>[],
-    this.updatedAt,
+    this.createdAt,
   }) : _items = items,
        super._();
 
@@ -172,7 +174,7 @@ class _$PanierImpl extends _Panier {
   final String userId;
   final List<PanierItem> _items;
   @override
-  @JsonKey()
+  @JsonKey(name: 'panier_items')
   List<PanierItem> get items {
     if (_items is EqualUnmodifiableListView) return _items;
     // ignore: implicit_dynamic_type
@@ -180,11 +182,11 @@ class _$PanierImpl extends _Panier {
   }
 
   @override
-  final DateTime? updatedAt;
+  final DateTime? createdAt;
 
   @override
   String toString() {
-    return 'Panier(id: $id, userId: $userId, items: $items, updatedAt: $updatedAt)';
+    return 'Panier(id: $id, userId: $userId, items: $items, createdAt: $createdAt)';
   }
 
   @override
@@ -195,8 +197,8 @@ class _$PanierImpl extends _Panier {
             (identical(other.id, id) || other.id == id) &&
             (identical(other.userId, userId) || other.userId == userId) &&
             const DeepCollectionEquality().equals(other._items, _items) &&
-            (identical(other.updatedAt, updatedAt) ||
-                other.updatedAt == updatedAt));
+            (identical(other.createdAt, createdAt) ||
+                other.createdAt == createdAt));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -206,7 +208,7 @@ class _$PanierImpl extends _Panier {
     id,
     userId,
     const DeepCollectionEquality().hash(_items),
-    updatedAt,
+    createdAt,
   );
 
   /// Create a copy of Panier
@@ -227,8 +229,8 @@ abstract class _Panier extends Panier {
   const factory _Panier({
     final String id,
     final String userId,
-    final List<PanierItem> items,
-    final DateTime? updatedAt,
+    @JsonKey(name: 'panier_items') final List<PanierItem> items,
+    final DateTime? createdAt,
   }) = _$PanierImpl;
   const _Panier._() : super._();
 
@@ -239,9 +241,10 @@ abstract class _Panier extends Panier {
   @override
   String get userId;
   @override
+  @JsonKey(name: 'panier_items')
   List<PanierItem> get items;
   @override
-  DateTime? get updatedAt;
+  DateTime? get createdAt;
 
   /// Create a copy of Panier
   /// with the given fields replaced by the non-null parameter values.
@@ -262,8 +265,10 @@ mixin _$PanierItem {
   String get annonceId => throw _privateConstructorUsedError;
   @FlexDouble()
   double get quantiteKg => throw _privateConstructorUsedError;
+  @JsonKey(name: 'prix_unitaire')
   @FlexDouble()
   double get prixUnitaire => throw _privateConstructorUsedError;
+  @JsonKey(name: 'annonces_vente')
   AnnonceVente? get annonce => throw _privateConstructorUsedError;
 
   /// Serializes this PanierItem to a JSON map.
@@ -288,8 +293,8 @@ abstract class $PanierItemCopyWith<$Res> {
     String panierId,
     String annonceId,
     @FlexDouble() double quantiteKg,
-    @FlexDouble() double prixUnitaire,
-    AnnonceVente? annonce,
+    @JsonKey(name: 'prix_unitaire') @FlexDouble() double prixUnitaire,
+    @JsonKey(name: 'annonces_vente') AnnonceVente? annonce,
   });
 
   $AnnonceVenteCopyWith<$Res>? get annonce;
@@ -377,8 +382,8 @@ abstract class _$$PanierItemImplCopyWith<$Res>
     String panierId,
     String annonceId,
     @FlexDouble() double quantiteKg,
-    @FlexDouble() double prixUnitaire,
-    AnnonceVente? annonce,
+    @JsonKey(name: 'prix_unitaire') @FlexDouble() double prixUnitaire,
+    @JsonKey(name: 'annonces_vente') AnnonceVente? annonce,
   });
 
   @override
@@ -445,8 +450,8 @@ class _$PanierItemImpl extends _PanierItem {
     this.panierId = '',
     required this.annonceId,
     @FlexDouble() required this.quantiteKg,
-    @FlexDouble() required this.prixUnitaire,
-    this.annonce,
+    @JsonKey(name: 'prix_unitaire') @FlexDouble() required this.prixUnitaire,
+    @JsonKey(name: 'annonces_vente') this.annonce,
   }) : super._();
 
   factory _$PanierItemImpl.fromJson(Map<String, dynamic> json) =>
@@ -463,9 +468,11 @@ class _$PanierItemImpl extends _PanierItem {
   @FlexDouble()
   final double quantiteKg;
   @override
+  @JsonKey(name: 'prix_unitaire')
   @FlexDouble()
   final double prixUnitaire;
   @override
+  @JsonKey(name: 'annonces_vente')
   final AnnonceVente? annonce;
 
   @override
@@ -522,8 +529,10 @@ abstract class _PanierItem extends PanierItem {
     final String panierId,
     required final String annonceId,
     @FlexDouble() required final double quantiteKg,
-    @FlexDouble() required final double prixUnitaire,
-    final AnnonceVente? annonce,
+    @JsonKey(name: 'prix_unitaire')
+    @FlexDouble()
+    required final double prixUnitaire,
+    @JsonKey(name: 'annonces_vente') final AnnonceVente? annonce,
   }) = _$PanierItemImpl;
   const _PanierItem._() : super._();
 
@@ -540,9 +549,11 @@ abstract class _PanierItem extends PanierItem {
   @FlexDouble()
   double get quantiteKg;
   @override
+  @JsonKey(name: 'prix_unitaire')
   @FlexDouble()
   double get prixUnitaire;
   @override
+  @JsonKey(name: 'annonces_vente')
   AnnonceVente? get annonce;
 
   /// Create a copy of PanierItem

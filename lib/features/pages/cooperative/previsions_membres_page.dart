@@ -1,7 +1,9 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
+import '../../../models/prevision.dart';
+import '../../../models/produit.dart';
 import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
@@ -16,27 +18,7 @@ const Color _kOrange = Color(0xFFE65100);
 
 enum _ChipStatus { agregeable, delaiCourt, minFournisseurs }
 
-enum _PrevStatus { confirmee, plantation }
-
-/// Une ligne farmer dans le détail d'une prévision. Membres en **FULL**
-/// (règle 3b chantier — visibilité interne coop).
-class _MockFarmerLine {
-  final String avatar;
-  final String nom;
-  final int qtyKg;
-  final String dateLivraison;
-  final _PrevStatus status;
-
-  const _MockFarmerLine({
-    required this.avatar,
-    required this.nom,
-    required this.qtyKg,
-    required this.dateLivraison,
-    required this.status,
-  });
-}
-
-/// Une carte de prévision groupée par produit.
+/// Une carte de prévision agrégée par produit côté UI.
 class _MockGroupCard {
   final String produit;
   final IconData icon;
@@ -44,7 +26,6 @@ class _MockGroupCard {
   final int cumulKg;
   final String fenetreLivraison;
   final _ChipStatus chipStatus;
-  final List<_MockFarmerLine> details; // vide si non-expanded
 
   const _MockGroupCard({
     required this.produit,
@@ -53,103 +34,110 @@ class _MockGroupCard {
     required this.cumulKg,
     required this.fenetreLivraison,
     required this.chipStatus,
-    this.details = const [],
   });
 }
 
-const List<_MockGroupCard> _kMockGroups = [
-  // MANIOC (expanded with detail)
-  _MockGroupCard(
-    produit: 'Manioc',
-    icon: Icons.eco_outlined,
-    nbPrev: 5,
-    cumulKg: 2800,
-    fenetreLivraison: '10-22 juin',
-    chipStatus: _ChipStatus.agregeable,
-    details: [
-      _MockFarmerLine(
-        avatar:
-            'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=120&h=120&fit=crop&auto=format',
-        nom: 'Yao Konan',
-        qtyKg: 800,
-        dateLivraison: 'Livraison 10 juin',
-        status: _PrevStatus.confirmee,
+class _EmptyPrevisions extends StatelessWidget {
+  const _EmptyPrevisions();
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.timeline_outlined,
+            size: 40,
+            color: AppColors.textSubtle.withValues(alpha: 0.9),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Aucune prévision pour le moment',
+            style: AppTextStyles.titleSmall,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Les prévisions de récolte de tes membres apparaîtront ici.',
+            textAlign: TextAlign.center,
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textSecondary,
+              height: 1.4,
+            ),
+          ),
+        ],
       ),
-      _MockFarmerLine(
-        avatar:
-            'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&h=120&fit=crop&auto=format',
-        nom: "Aya N'Guessan",
-        qtyKg: 700,
-        dateLivraison: 'Livraison 14 juin',
-        status: _PrevStatus.confirmee,
-      ),
-      _MockFarmerLine(
-        avatar:
-            'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120&h=120&fit=crop&auto=format',
-        nom: 'Kouadio Bertin',
-        qtyKg: 600,
-        dateLivraison: 'Livraison 18 juin',
-        status: _PrevStatus.plantation,
-      ),
-      _MockFarmerLine(
-        avatar:
-            'https://images.unsplash.com/photo-1493612276216-ee3925520721?w=120&h=120&fit=crop&auto=format',
-        nom: 'Diabaté Awa',
-        qtyKg: 400,
-        dateLivraison: 'Livraison 20 juin',
-        status: _PrevStatus.plantation,
-      ),
-      _MockFarmerLine(
-        avatar:
-            'https://images.unsplash.com/photo-1573497019418-b400bb3ab074?w=120&h=120&fit=crop&auto=format',
-        nom: 'Adjoua Brigitte',
-        qtyKg: 300,
-        dateLivraison: 'Livraison 22 juin',
-        status: _PrevStatus.confirmee,
-      ),
-    ],
-  ),
-  // MAÏS BLANC
-  _MockGroupCard(
-    produit: 'Maïs blanc',
-    icon: Icons.grain,
-    nbPrev: 4,
-    cumulKg: 1800,
-    fenetreLivraison: '5-15 juillet',
-    chipStatus: _ChipStatus.agregeable,
-  ),
-  // TOMATE
-  _MockGroupCard(
-    produit: 'Tomate',
-    icon: Icons.circle_outlined,
-    nbPrev: 2,
-    cumulKg: 600,
-    fenetreLivraison: '28 mai',
-    chipStatus: _ChipStatus.delaiCourt,
-  ),
-  // BANANE PLANTAIN
-  _MockGroupCard(
-    produit: 'Banane plantain',
-    icon: Icons.spa_outlined,
-    nbPrev: 1,
-    cumulKg: 1000,
-    fenetreLivraison: '20 juin',
-    chipStatus: _ChipStatus.minFournisseurs,
-  ),
-];
+    );
+  }
+}
 
-/// Tente de récupérer les prévisions du back, sinon retombe sur les
-/// groupes mock (l'agrégation par produit n'est pas exposée en V1).
+/// Récupère les prévisions des membres assignées à la coop, puis les
+/// agrège par produit côté client (l'agrégation n'est pas exposée en V1
+/// côté back).
 final _previsionsGroupsProvider =
     FutureProvider.autoDispose<List<_MockGroupCard>>((ref) async {
-  try {
-    await ref.watch(marketplaceServiceProvider).listPrevisions();
-    // V1 : on retombe sur les mocks pour le pixel-perfect.
-    return _kMockGroups;
-  } catch (_) {
-    return _kMockGroups;
-  }
+  final coop = ref.read(cooperativesServiceProvider);
+  final market = ref.read(marketplaceServiceProvider);
+  final results = await Future.wait<dynamic>([
+    coop
+        .listAssignedPrevisions()
+        .then<Object?>((v) => v)
+        .catchError((_) => const <Prevision>[]),
+    market
+        .listProduits()
+        .then<Object?>((v) => v)
+        .catchError((_) => const <Produit>[]),
+  ]);
+  final previsions = results[0] as List<Prevision>;
+  final produits = results[1] as List<Produit>;
+  final produitsParId = <String, Produit>{
+    for (final p in produits) p.id: p,
+  };
+  return _aggregateByProduit(previsions, produitsParId);
 });
+
+/// Regroupe les prévisions par `produit_id` pour calculer les cumuls et
+/// fenêtres de livraison utilisables côté coop.
+List<_MockGroupCard> _aggregateByProduit(
+  List<Prevision> previsions,
+  Map<String, Produit> produitsParId,
+) {
+  final map = <String, List<Prevision>>{};
+  for (final p in previsions) {
+    map.putIfAbsent(p.produitId, () => <Prevision>[]).add(p);
+  }
+  final df = DateFormat('d MMM', 'fr_FR');
+  return map.entries.map((entry) {
+    final group = entry.value;
+    final cumul = group.fold<double>(0, (s, p) => s + p.quantitePrevKg);
+    final dates = group
+        .map((p) => p.dateRecoltePrev)
+        .whereType<DateTime>()
+        .toList();
+    dates.sort();
+    final fenetre = dates.isEmpty
+        ? 'À planifier'
+        : (dates.length == 1
+            ? df.format(dates.first)
+            : '${df.format(dates.first)} – ${df.format(dates.last)}');
+    // Seuils côté UI : 1 fournisseur = manque, < 7j = délai court, sinon ok.
+    _ChipStatus chip = _ChipStatus.agregeable;
+    if (group.length < 2) {
+      chip = _ChipStatus.minFournisseurs;
+    } else if (dates.isNotEmpty &&
+        dates.first.difference(DateTime.now()).inDays < 7) {
+      chip = _ChipStatus.delaiCourt;
+    }
+    return _MockGroupCard(
+      produit: produitsParId[entry.key]?.nom ?? 'Produit',
+      icon: Icons.eco_outlined,
+      nbPrev: group.length,
+      cumulKg: cumul.round(),
+      fenetreLivraison: fenetre,
+      chipStatus: chip,
+    );
+  }).toList(growable: false);
+}
 
 /// Prévisions agrégées par produit des membres de la coopérative.
 /// Permet à la coop d'évaluer ce qui est "prêt à agréger" et de pousser
@@ -209,12 +197,21 @@ class _PrevisionsMembresPageState
                     ),
                   ),
                 ),
-                error: (_, _) => _Body(
-                  groups: _filtered(_kMockGroups, _filtre),
+                error: (e, _) => Padding(
+                  padding: const EdgeInsets.all(AppDimens.pagePaddingH),
+                  child: Center(
+                    child: Text(
+                      'Impossible de charger les prévisions. $e',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
                 ),
-                data: (groups) => _Body(
-                  groups: _filtered(groups, _filtre),
-                ),
+                data: (groups) => groups.isEmpty
+                    ? const _EmptyPrevisions()
+                    : _Body(groups: _filtered(groups, _filtre)),
               ),
             ),
             _Sticky(onTap: _onAgreger),
@@ -533,29 +530,6 @@ class _GroupCard extends StatelessWidget {
             ],
           ),
 
-          // Détail expanded (5 farmers) si présents (cas Manioc dans maquette)
-          if (group.details.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Container(
-              height: 1,
-              color: AppColors.border,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Détail des ${group.details.length} prévisions',
-              style: AppTextStyles.labelSmall.copyWith(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 10),
-            for (var i = 0; i < group.details.length; i++)
-              _FarmerLine(
-                line: group.details[i],
-                isLast: i == group.details.length - 1,
-              ),
-          ],
         ],
       ),
     );
@@ -651,133 +625,6 @@ class _StatusChip extends StatelessWidget {
         label,
         style: AppTextStyles.labelSmall.copyWith(
           fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: fg,
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Farmer line (détail expanded) ───────────────────────────────────────
-
-class _FarmerLine extends StatelessWidget {
-  const _FarmerLine({required this.line, required this.isLast});
-
-  final _MockFarmerLine line;
-  final bool isLast;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      decoration: BoxDecoration(
-        border: isLast
-            ? null
-            : const Border(
-                bottom: BorderSide(
-                  color: AppColors.border,
-                  width: AppDimens.borderThin,
-                ),
-              ),
-      ),
-      child: Row(
-        children: [
-          ClipOval(
-            child: Container(
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(
-                color: AppColors.surfaceSoft,
-                border: Border.all(
-                  color: AppColors.border,
-                  width: AppDimens.borderThin,
-                ),
-                shape: BoxShape.circle,
-              ),
-              clipBehavior: Clip.hardEdge,
-              child: CachedNetworkImage(
-                imageUrl: line.avatar,
-                fit: BoxFit.cover,
-                placeholder: (_, _) =>
-                    Container(color: AppColors.surfaceSoft),
-                errorWidget: (_, _, _) =>
-                    Container(color: AppColors.surfaceSoft),
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  // Membre coop — nom FULL (règle 3b chantier)
-                  line.nom,
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        '${line.dateLivraison} · ',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          fontSize: 10,
-                          color: AppColors.textSecondary,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    _PrevStatusPill(status: line.status),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            '${line.qtyKg} kg',
-            style: AppTextStyles.titleLarge.copyWith(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: AppColors.text,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PrevStatusPill extends StatelessWidget {
-  const _PrevStatusPill({required this.status});
-
-  final _PrevStatus status;
-
-  @override
-  Widget build(BuildContext context) {
-    final ok = status == _PrevStatus.confirmee;
-    final bg = ok ? _kPrimarySoft : _kOrangeSoft;
-    final fg = ok ? AppColors.primary : _kOrange;
-    final label = ok ? 'Confirmée 100%' : 'Plantation en cours';
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        label,
-        style: AppTextStyles.labelSmall.copyWith(
-          fontSize: 10,
           fontWeight: FontWeight.w600,
           color: fg,
         ),

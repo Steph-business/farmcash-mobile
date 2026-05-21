@@ -7,6 +7,15 @@ part 'annonce_vente.freezed.dart';
 part 'annonce_vente.g.dart';
 
 /// Annonce de vente publiée par un FARMER (ou agrégée par une COOP).
+///
+/// Le backend renvoie l'objet enrichi avec des relations Prisma jointes :
+///   - `produits_agricoles` → nom du produit
+///   - `users` → vendeur (full_name, rating, photo_url)
+///   - `regions_ci`, `villes_ci` → localisation lisible
+///   - `medias` → photos
+///
+/// Côté Dart on aplatie ces objets en getters simples (`produitNom`,
+/// `vendeurNom`, …) pour ne pas dupliquer les modèles côté UI.
 @freezed
 class AnnonceVente with _$AnnonceVente {
   const AnnonceVente._();
@@ -18,6 +27,7 @@ class AnnonceVente with _$AnnonceVente {
     required String titre,
     @FlexDouble() required double quantiteKg,
     @FlexDouble() required double prixParKg,
+    @FlexDoubleN() double? quantiteMinKg,
     @JsonKey(unknownEnumValue: ProductQuality.unknown)
     @Default(ProductQuality.unknown)
     ProductQuality qualite,
@@ -25,6 +35,7 @@ class AnnonceVente with _$AnnonceVente {
     @Default(<String>[]) List<String> certifications,
     String? regionId,
     String? villeId,
+    String? adresseDetail,
     @JsonKey(unknownEnumValue: ProductStatus.unknown)
     @Default(ProductStatus.unknown)
     ProductStatus status,
@@ -39,16 +50,130 @@ class AnnonceVente with _$AnnonceVente {
     @JsonKey(name: 'medias', fromJson: mediasToPhotos, toJson: photosToMedias)
     @Default(<String>[])
     List<String> photos,
-    DateTime? dateRecolte,
+    DateTime? disponibleJusqu,
     DateTime? createdAt,
     DateTime? updatedAt,
+
+    // ─── Champs joints (relations Prisma) ──────────────────────────────
+    @JsonKey(
+      name: 'produits_agricoles',
+      fromJson: _nomFromMap,
+      toJson: _nomToMap,
+    )
+    String? produitNom,
+    @JsonKey(
+      name: 'users',
+      fromJson: _vendeurInfoFromJson,
+      toJson: _vendeurInfoToJson,
+    )
+    VendeurApercu? vendeur,
+    @JsonKey(
+      name: 'regions_ci',
+      fromJson: _nomFromMap,
+      toJson: _nomToMap,
+    )
+    String? regionNom,
+    @JsonKey(
+      name: 'villes_ci',
+      fromJson: _nomFromMap,
+      toJson: _nomToMap,
+    )
+    String? villeNom,
+
+    /// Traitements appliqués à la culture (relation jointe par le backend
+    /// via `include: { annonce_vente_traitements: { include: { produits_traitement } } }`).
+    /// Permet d'exposer la traçabilité "from-farm-to-fork" : type, dosage,
+    /// date d'application, délai de carence. Vide si le producteur n'a
+    /// rien déclaré.
+    @JsonKey(
+      name: 'annonce_vente_traitements',
+      fromJson: _traitementsFromJson,
+      toJson: _traitementsToJson,
+    )
+    @Default(<AnnonceTraitement>[])
+    List<AnnonceTraitement> traitements,
   }) = _AnnonceVente;
 
   factory AnnonceVente.fromJson(Map<String, dynamic> json) =>
       _$AnnonceVenteFromJson(json);
 
   double get montantTotal => quantiteKg * prixParKg;
+
+  /// Libellé du produit le plus parlant : le `nom` du produit catalogue
+  /// si dispo, sinon le `titre` libre de l'annonce.
+  String get produitLabel {
+    final nom = produitNom?.trim();
+    if (nom != null && nom.isNotEmpty) return nom;
+    return titre;
+  }
+
+  /// Nom du vendeur affichable (full_name côté back). Renvoie `null` si
+  /// l'API ne l'a pas joint (cas des endpoints publics filtrés).
+  String? get vendeurNom => vendeur?.fullName;
+
+  /// Localisation lisible : "Ville · Région" si on a les deux, sinon le
+  /// libellé disponible. Renvoie `null` si rien n'est exploitable.
+  String? get localisationLabel {
+    final v = villeNom?.trim();
+    final r = regionNom?.trim();
+    if (v != null && v.isNotEmpty && r != null && r.isNotEmpty) {
+      return '$v · $r';
+    }
+    return (v != null && v.isNotEmpty) ? v : (r?.isNotEmpty == true ? r : null);
+  }
 }
+
+/// Infos minimales sur le vendeur joint à une annonce.
+///
+/// Renseigné par le backend uniquement quand l'endpoint expose la relation
+/// `users`. Côté détail on a aussi `id` et `photoUrl`.
+class VendeurApercu {
+  const VendeurApercu({
+    this.id,
+    this.fullName,
+    this.rating,
+    this.photoUrl,
+  });
+
+  final String? id;
+  final String? fullName;
+  final double? rating;
+  final String? photoUrl;
+}
+
+VendeurApercu? _vendeurInfoFromJson(dynamic raw) {
+  if (raw is! Map) return null;
+  final m = raw.cast<String, dynamic>();
+  final rating = m['rating'];
+  return VendeurApercu(
+    id: m['id'] as String?,
+    fullName: m['full_name'] as String?,
+    rating: rating is num
+        ? rating.toDouble()
+        : (rating is String ? double.tryParse(rating) : null),
+    photoUrl: m['photo_url'] as String?,
+  );
+}
+
+Map<String, dynamic>? _vendeurInfoToJson(VendeurApercu? v) {
+  if (v == null) return null;
+  return {
+    if (v.id != null) 'id': v.id,
+    if (v.fullName != null) 'full_name': v.fullName,
+    if (v.rating != null) 'rating': v.rating,
+    if (v.photoUrl != null) 'photo_url': v.photoUrl,
+  };
+}
+
+/// Pour les relations Prisma renvoyées avec seulement `{ nom: ... }`.
+String? _nomFromMap(dynamic raw) {
+  if (raw is Map && raw['nom'] is String) return raw['nom'] as String;
+  if (raw is String) return raw;
+  return null;
+}
+
+Map<String, dynamic>? _nomToMap(String? nom) =>
+    nom == null ? null : {'nom': nom};
 
 /// Convertit `medias: [{url, thumbnail_url}]` (forme back) **ou**
 /// `photos: ["url", ...]` (forme legacy / tests) en `List<String>`.
@@ -71,3 +196,93 @@ List<String> mediasToPhotos(dynamic raw) {
 /// par l'API. Utilisé uniquement si on renvoie l'objet au backend.
 List<Map<String, String>> photosToMedias(List<String> photos) =>
     photos.map((u) => {'url': u}).toList(growable: false);
+
+/// Traitement appliqué à la culture de l'annonce (engrais, pesticide, bio…).
+///
+/// Renseigné en option par le producteur via le module IA `produits_traitement`.
+/// Permet à l'acheteur de voir l'historique phytosanitaire avant de commander
+/// — argument de vente premium "from-farm-to-fork".
+class AnnonceTraitement {
+  const AnnonceTraitement({
+    this.produitTraitementNom,
+    this.type,
+    this.dosageUtilise,
+    this.dateApplication,
+    this.delaiCarenceRespecte,
+    this.notes,
+  });
+
+  /// Nom du produit appliqué (depuis `produits_traitement.nom`).
+  final String? produitTraitementNom;
+
+  /// Catégorie du produit : `BIO`, `CHIMIQUE`, `NATUREL`, … (libre côté back).
+  final String? type;
+
+  /// Dosage utilisé (texte libre, ex: "2 L/ha").
+  final String? dosageUtilise;
+
+  /// Date d'application du traitement.
+  final DateTime? dateApplication;
+
+  /// `true` si le délai de carence (= temps minimum avant récolte) a bien
+  /// été respecté. Drapeau de confiance pour l'acheteur.
+  final bool? delaiCarenceRespecte;
+
+  /// Notes libres du producteur sur l'application.
+  final String? notes;
+}
+
+/// Parse la liste `annonce_vente_traitements` renvoyée par le backend en
+/// `List<AnnonceTraitement>`. Chaque entrée contient les colonnes de la
+/// jointure + la relation `produits_traitement: { nom, type, … }`.
+List<AnnonceTraitement> _traitementsFromJson(dynamic raw) {
+  if (raw is! List) return const <AnnonceTraitement>[];
+  return raw
+      .whereType<Map>()
+      .map<AnnonceTraitement>((entry) {
+        final m = entry.cast<String, dynamic>();
+        final produit = m['produits_traitement'];
+        String? nom;
+        String? type;
+        if (produit is Map) {
+          final p = produit.cast<String, dynamic>();
+          nom = p['nom'] as String?;
+          type = p['type'] as String?;
+        }
+        final date = m['date_application'];
+        DateTime? parsedDate;
+        if (date is String && date.isNotEmpty) {
+          parsedDate = DateTime.tryParse(date);
+        }
+        return AnnonceTraitement(
+          produitTraitementNom: nom,
+          type: type,
+          dosageUtilise: m['dosage_utilise'] as String?,
+          dateApplication: parsedDate,
+          delaiCarenceRespecte: m['delai_carence_respecte'] as bool?,
+          notes: m['notes'] as String?,
+        );
+      })
+      .toList(growable: false);
+}
+
+/// Symétrique de `_traitementsFromJson` : utilisé seulement quand on
+/// renvoie un `AnnonceVente` au backend (cas rare côté mobile).
+List<Map<String, dynamic>> _traitementsToJson(List<AnnonceTraitement> ts) {
+  return ts
+      .map<Map<String, dynamic>>((t) => {
+            if (t.dosageUtilise != null) 'dosage_utilise': t.dosageUtilise,
+            if (t.dateApplication != null)
+              'date_application': t.dateApplication!.toIso8601String(),
+            if (t.delaiCarenceRespecte != null)
+              'delai_carence_respecte': t.delaiCarenceRespecte,
+            if (t.notes != null) 'notes': t.notes,
+            if (t.produitTraitementNom != null || t.type != null)
+              'produits_traitement': {
+                if (t.produitTraitementNom != null)
+                  'nom': t.produitTraitementNom,
+                if (t.type != null) 'type': t.type,
+              },
+          })
+      .toList(growable: false);
+}

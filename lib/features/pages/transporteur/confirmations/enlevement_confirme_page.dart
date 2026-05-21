@@ -1,16 +1,30 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
+import '../../../../models/livraison.dart';
 import '../../../../routing/route_names.dart';
+import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
+import '../../../widgets/communs/chargement.dart';
 
 const Color _kPrimarySoft = Color(0xFFE8F5E9);
-const String _kPhoto =
-    'https://images.unsplash.com/photo-1601493700631-2b16ec4b4716?w=200&h=200&fit=crop&auto=format';
+
+/// Provider qui récupère une mission via `getMyMissions()` (la mission est
+/// nécessairement acceptée par le transporteur à ce stade — sinon elle ne
+/// serait pas LOADING).
+final _missionByIdProvider = FutureProvider.autoDispose
+    .family<Livraison?, String>((ref, id) async {
+  final svc = ref.read(logisticsServiceProvider);
+  final list = await svc.getMyMissions();
+  for (final m in list) {
+    if (m.id == id) return m;
+  }
+  return null;
+});
 
 /// Confirmation d'enlèvement chez le producteur — hero check vert,
 /// récap mission, mini timeline et CTA pour démarrer la livraison.
@@ -21,6 +35,7 @@ class EnlevementConfirmePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(_missionByIdProvider(missionId));
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -29,44 +44,63 @@ class EnlevementConfirmePage extends ConsumerWidget {
           children: [
             const _Header(title: 'Enlèvement confirmé'),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
-                children: const [
-                  _HeroCheck(
-                    title: 'Colis chargé !',
-                    subtitle: 'Yao Konan a été crédité de 169 750 F',
-                  ),
-                  AppDimens.vGap24,
-                  _RecapCard(),
-                  AppDimens.vGap16,
-                  _SectionTitle('Prochaine étape'),
-                  AppDimens.vGap8,
-                  _MiniTimeline(
-                    items: [
-                      _TlData(
-                        icon: Icons.check,
-                        label: 'Enlèvement confirmé',
-                        state: _TlState.done,
-                      ),
-                      _TlData(
-                        icon: Icons.local_shipping,
-                        label: 'Livraison en cours',
-                        state: _TlState.current,
-                      ),
-                      _TlData(
-                        icon: Icons.qr_code_scanner,
-                        label: 'Scan QR livraison chez acheteur',
-                        state: _TlState.pending,
-                      ),
-                    ],
-                  ),
-                ],
+              child: async.when(
+                loading: () => const Padding(
+                  padding: EdgeInsets.only(top: 48),
+                  child: Chargement(size: 22),
+                ),
+                error: (_, _) => _Contenu(mission: null),
+                data: (m) => _Contenu(mission: m),
               ),
             ),
             _StickyBar(missionId: missionId),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _Contenu extends StatelessWidget {
+  const _Contenu({required this.mission});
+
+  final Livraison? mission;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = mission;
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+      children: [
+        const _HeroCheck(
+          title: 'Colis chargé !',
+          subtitle: 'Direction le point de livraison',
+        ),
+        AppDimens.vGap24,
+        if (m != null) _RecapCard(mission: m),
+        AppDimens.vGap16,
+        const _SectionTitle('Prochaine étape'),
+        AppDimens.vGap8,
+        const _MiniTimeline(
+          items: [
+            _TlData(
+              icon: Icons.check,
+              label: 'Enlèvement confirmé',
+              state: _TlState.done,
+            ),
+            _TlData(
+              icon: Icons.local_shipping,
+              label: 'Livraison en cours',
+              state: _TlState.current,
+            ),
+            _TlData(
+              icon: Icons.qr_code_scanner,
+              label: 'Scan QR livraison chez acheteur',
+              state: _TlState.pending,
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -171,36 +205,44 @@ class _HeroCheck extends StatelessWidget {
 // ─── Recap card ─────────────────────────────────────────────────────────
 
 class _RecapCard extends StatelessWidget {
-  const _RecapCard();
+  const _RecapCard({required this.mission});
+
+  final Livraison mission;
 
   @override
   Widget build(BuildContext context) {
+    final nf = NumberFormat('#,##0', 'fr_FR');
+    final qte = mission.quantiteKg != null
+        ? '${nf.format(mission.quantiteKg!.round())} kg'
+        : null;
+    final ref = mission.reference;
+    final trajet = mission.itineraireLabel ??
+        '${mission.pickupAddress ?? '—'} → ${mission.deliveryAddress ?? '—'}';
     return Container(
       decoration: BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border, width: AppDimens.borderThin),
+        border: Border.all(
+          color: AppColors.border,
+          width: AppDimens.borderThin,
+        ),
       ),
       padding: const EdgeInsets.all(14),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: CachedNetworkImage(
-              imageUrl: _kPhoto,
-              width: 64,
-              height: 64,
-              fit: BoxFit.cover,
-              placeholder: (_, _) => Container(
-                  width: 64, height: 64, color: AppColors.surfaceSoft),
-              errorWidget: (_, _, _) => Container(
-                width: 64,
-                height: 64,
-                color: AppColors.surfaceSoft,
-                child: const Icon(Icons.image_outlined,
-                    size: 22, color: AppColors.textSubtle),
-              ),
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: _kPrimarySoft,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            alignment: Alignment.center,
+            child: const Icon(
+              Icons.local_shipping_outlined,
+              size: 22,
+              color: AppColors.primary,
             ),
           ),
           const SizedBox(width: 12),
@@ -210,23 +252,25 @@ class _RecapCard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Maïs grain blanc',
+                  ref != null ? 'Commande #$ref' : 'Mission en cours',
                   style: AppTextStyles.bodyMedium.copyWith(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  '500 kg · Yao Konan',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
+                if (qte != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    qte,
+                    style: AppTextStyles.bodySmall.copyWith(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
-                ),
+                ],
                 const SizedBox(height: 2),
                 Text(
-                  'Vers Restaurant Le Baoulé · Cocody',
+                  trajet,
                   style: AppTextStyles.bodySmall.copyWith(
                     fontSize: 12,
                     color: AppColors.textSecondary,
@@ -384,10 +428,11 @@ class _StickyBar extends StatelessWidget {
         width: double.infinity,
         height: 50,
         child: ElevatedButton.icon(
-          onPressed: () => context.push(
-            RouteNames.transporteurMissionEnRoutePathFor(
-                missionId.isEmpty ? 'M-2026-0089' : missionId),
-          ),
+          onPressed: missionId.isEmpty
+              ? null
+              : () => context.push(
+                    RouteNames.transporteurMissionEnRoutePathFor(missionId),
+                  ),
           icon: const Icon(Icons.local_shipping, size: 20),
           label: Text(
             'Démarrer la livraison',
@@ -409,4 +454,3 @@ class _StickyBar extends StatelessWidget {
     );
   }
 }
-

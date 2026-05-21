@@ -29,12 +29,15 @@ mixin _$AnnonceVente {
   double get quantiteKg => throw _privateConstructorUsedError;
   @FlexDouble()
   double get prixParKg => throw _privateConstructorUsedError;
+  @FlexDoubleN()
+  double? get quantiteMinKg => throw _privateConstructorUsedError;
   @JsonKey(unknownEnumValue: ProductQuality.unknown)
   ProductQuality get qualite => throw _privateConstructorUsedError;
   String? get description => throw _privateConstructorUsedError;
   List<String> get certifications => throw _privateConstructorUsedError;
   String? get regionId => throw _privateConstructorUsedError;
   String? get villeId => throw _privateConstructorUsedError;
+  String? get adresseDetail => throw _privateConstructorUsedError;
   @JsonKey(unknownEnumValue: ProductStatus.unknown)
   ProductStatus get status => throw _privateConstructorUsedError;
   @FlexInt()
@@ -49,9 +52,34 @@ mixin _$AnnonceVente {
   /// Le `toJson` réémet `medias: [{url}]` pour rester symétrique côté API.
   @JsonKey(name: 'medias', fromJson: mediasToPhotos, toJson: photosToMedias)
   List<String> get photos => throw _privateConstructorUsedError;
-  DateTime? get dateRecolte => throw _privateConstructorUsedError;
+  DateTime? get disponibleJusqu => throw _privateConstructorUsedError;
   DateTime? get createdAt => throw _privateConstructorUsedError;
-  DateTime? get updatedAt => throw _privateConstructorUsedError;
+  DateTime? get updatedAt =>
+      throw _privateConstructorUsedError; // ─── Champs joints (relations Prisma) ──────────────────────────────
+  @JsonKey(name: 'produits_agricoles', fromJson: _nomFromMap, toJson: _nomToMap)
+  String? get produitNom => throw _privateConstructorUsedError;
+  @JsonKey(
+    name: 'users',
+    fromJson: _vendeurInfoFromJson,
+    toJson: _vendeurInfoToJson,
+  )
+  VendeurApercu? get vendeur => throw _privateConstructorUsedError;
+  @JsonKey(name: 'regions_ci', fromJson: _nomFromMap, toJson: _nomToMap)
+  String? get regionNom => throw _privateConstructorUsedError;
+  @JsonKey(name: 'villes_ci', fromJson: _nomFromMap, toJson: _nomToMap)
+  String? get villeNom => throw _privateConstructorUsedError;
+
+  /// Traitements appliqués à la culture (relation jointe par le backend
+  /// via `include: { annonce_vente_traitements: { include: { produits_traitement } } }`).
+  /// Permet d'exposer la traçabilité "from-farm-to-fork" : type, dosage,
+  /// date d'application, délai de carence. Vide si le producteur n'a
+  /// rien déclaré.
+  @JsonKey(
+    name: 'annonce_vente_traitements',
+    fromJson: _traitementsFromJson,
+    toJson: _traitementsToJson,
+  )
+  List<AnnonceTraitement> get traitements => throw _privateConstructorUsedError;
 
   /// Serializes this AnnonceVente to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -77,11 +105,13 @@ abstract class $AnnonceVenteCopyWith<$Res> {
     String titre,
     @FlexDouble() double quantiteKg,
     @FlexDouble() double prixParKg,
+    @FlexDoubleN() double? quantiteMinKg,
     @JsonKey(unknownEnumValue: ProductQuality.unknown) ProductQuality qualite,
     String? description,
     List<String> certifications,
     String? regionId,
     String? villeId,
+    String? adresseDetail,
     @JsonKey(unknownEnumValue: ProductStatus.unknown) ProductStatus status,
     @FlexInt() int viewsCount,
     String? assignedToCooperativeId,
@@ -89,9 +119,31 @@ abstract class $AnnonceVenteCopyWith<$Res> {
     CoopAnnonceStatus? coopStatus,
     @JsonKey(name: 'medias', fromJson: mediasToPhotos, toJson: photosToMedias)
     List<String> photos,
-    DateTime? dateRecolte,
+    DateTime? disponibleJusqu,
     DateTime? createdAt,
     DateTime? updatedAt,
+    @JsonKey(
+      name: 'produits_agricoles',
+      fromJson: _nomFromMap,
+      toJson: _nomToMap,
+    )
+    String? produitNom,
+    @JsonKey(
+      name: 'users',
+      fromJson: _vendeurInfoFromJson,
+      toJson: _vendeurInfoToJson,
+    )
+    VendeurApercu? vendeur,
+    @JsonKey(name: 'regions_ci', fromJson: _nomFromMap, toJson: _nomToMap)
+    String? regionNom,
+    @JsonKey(name: 'villes_ci', fromJson: _nomFromMap, toJson: _nomToMap)
+    String? villeNom,
+    @JsonKey(
+      name: 'annonce_vente_traitements',
+      fromJson: _traitementsFromJson,
+      toJson: _traitementsToJson,
+    )
+    List<AnnonceTraitement> traitements,
   });
 }
 
@@ -116,19 +168,26 @@ class _$AnnonceVenteCopyWithImpl<$Res, $Val extends AnnonceVente>
     Object? titre = null,
     Object? quantiteKg = null,
     Object? prixParKg = null,
+    Object? quantiteMinKg = freezed,
     Object? qualite = null,
     Object? description = freezed,
     Object? certifications = null,
     Object? regionId = freezed,
     Object? villeId = freezed,
+    Object? adresseDetail = freezed,
     Object? status = null,
     Object? viewsCount = null,
     Object? assignedToCooperativeId = freezed,
     Object? coopStatus = freezed,
     Object? photos = null,
-    Object? dateRecolte = freezed,
+    Object? disponibleJusqu = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
+    Object? produitNom = freezed,
+    Object? vendeur = freezed,
+    Object? regionNom = freezed,
+    Object? villeNom = freezed,
+    Object? traitements = null,
   }) {
     return _then(
       _value.copyWith(
@@ -156,6 +215,10 @@ class _$AnnonceVenteCopyWithImpl<$Res, $Val extends AnnonceVente>
                 ? _value.prixParKg
                 : prixParKg // ignore: cast_nullable_to_non_nullable
                       as double,
+            quantiteMinKg: freezed == quantiteMinKg
+                ? _value.quantiteMinKg
+                : quantiteMinKg // ignore: cast_nullable_to_non_nullable
+                      as double?,
             qualite: null == qualite
                 ? _value.qualite
                 : qualite // ignore: cast_nullable_to_non_nullable
@@ -175,6 +238,10 @@ class _$AnnonceVenteCopyWithImpl<$Res, $Val extends AnnonceVente>
             villeId: freezed == villeId
                 ? _value.villeId
                 : villeId // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            adresseDetail: freezed == adresseDetail
+                ? _value.adresseDetail
+                : adresseDetail // ignore: cast_nullable_to_non_nullable
                       as String?,
             status: null == status
                 ? _value.status
@@ -196,9 +263,9 @@ class _$AnnonceVenteCopyWithImpl<$Res, $Val extends AnnonceVente>
                 ? _value.photos
                 : photos // ignore: cast_nullable_to_non_nullable
                       as List<String>,
-            dateRecolte: freezed == dateRecolte
-                ? _value.dateRecolte
-                : dateRecolte // ignore: cast_nullable_to_non_nullable
+            disponibleJusqu: freezed == disponibleJusqu
+                ? _value.disponibleJusqu
+                : disponibleJusqu // ignore: cast_nullable_to_non_nullable
                       as DateTime?,
             createdAt: freezed == createdAt
                 ? _value.createdAt
@@ -208,6 +275,26 @@ class _$AnnonceVenteCopyWithImpl<$Res, $Val extends AnnonceVente>
                 ? _value.updatedAt
                 : updatedAt // ignore: cast_nullable_to_non_nullable
                       as DateTime?,
+            produitNom: freezed == produitNom
+                ? _value.produitNom
+                : produitNom // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            vendeur: freezed == vendeur
+                ? _value.vendeur
+                : vendeur // ignore: cast_nullable_to_non_nullable
+                      as VendeurApercu?,
+            regionNom: freezed == regionNom
+                ? _value.regionNom
+                : regionNom // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            villeNom: freezed == villeNom
+                ? _value.villeNom
+                : villeNom // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            traitements: null == traitements
+                ? _value.traitements
+                : traitements // ignore: cast_nullable_to_non_nullable
+                      as List<AnnonceTraitement>,
           )
           as $Val,
     );
@@ -230,11 +317,13 @@ abstract class _$$AnnonceVenteImplCopyWith<$Res>
     String titre,
     @FlexDouble() double quantiteKg,
     @FlexDouble() double prixParKg,
+    @FlexDoubleN() double? quantiteMinKg,
     @JsonKey(unknownEnumValue: ProductQuality.unknown) ProductQuality qualite,
     String? description,
     List<String> certifications,
     String? regionId,
     String? villeId,
+    String? adresseDetail,
     @JsonKey(unknownEnumValue: ProductStatus.unknown) ProductStatus status,
     @FlexInt() int viewsCount,
     String? assignedToCooperativeId,
@@ -242,9 +331,31 @@ abstract class _$$AnnonceVenteImplCopyWith<$Res>
     CoopAnnonceStatus? coopStatus,
     @JsonKey(name: 'medias', fromJson: mediasToPhotos, toJson: photosToMedias)
     List<String> photos,
-    DateTime? dateRecolte,
+    DateTime? disponibleJusqu,
     DateTime? createdAt,
     DateTime? updatedAt,
+    @JsonKey(
+      name: 'produits_agricoles',
+      fromJson: _nomFromMap,
+      toJson: _nomToMap,
+    )
+    String? produitNom,
+    @JsonKey(
+      name: 'users',
+      fromJson: _vendeurInfoFromJson,
+      toJson: _vendeurInfoToJson,
+    )
+    VendeurApercu? vendeur,
+    @JsonKey(name: 'regions_ci', fromJson: _nomFromMap, toJson: _nomToMap)
+    String? regionNom,
+    @JsonKey(name: 'villes_ci', fromJson: _nomFromMap, toJson: _nomToMap)
+    String? villeNom,
+    @JsonKey(
+      name: 'annonce_vente_traitements',
+      fromJson: _traitementsFromJson,
+      toJson: _traitementsToJson,
+    )
+    List<AnnonceTraitement> traitements,
   });
 }
 
@@ -268,19 +379,26 @@ class __$$AnnonceVenteImplCopyWithImpl<$Res>
     Object? titre = null,
     Object? quantiteKg = null,
     Object? prixParKg = null,
+    Object? quantiteMinKg = freezed,
     Object? qualite = null,
     Object? description = freezed,
     Object? certifications = null,
     Object? regionId = freezed,
     Object? villeId = freezed,
+    Object? adresseDetail = freezed,
     Object? status = null,
     Object? viewsCount = null,
     Object? assignedToCooperativeId = freezed,
     Object? coopStatus = freezed,
     Object? photos = null,
-    Object? dateRecolte = freezed,
+    Object? disponibleJusqu = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
+    Object? produitNom = freezed,
+    Object? vendeur = freezed,
+    Object? regionNom = freezed,
+    Object? villeNom = freezed,
+    Object? traitements = null,
   }) {
     return _then(
       _$AnnonceVenteImpl(
@@ -308,6 +426,10 @@ class __$$AnnonceVenteImplCopyWithImpl<$Res>
             ? _value.prixParKg
             : prixParKg // ignore: cast_nullable_to_non_nullable
                   as double,
+        quantiteMinKg: freezed == quantiteMinKg
+            ? _value.quantiteMinKg
+            : quantiteMinKg // ignore: cast_nullable_to_non_nullable
+                  as double?,
         qualite: null == qualite
             ? _value.qualite
             : qualite // ignore: cast_nullable_to_non_nullable
@@ -327,6 +449,10 @@ class __$$AnnonceVenteImplCopyWithImpl<$Res>
         villeId: freezed == villeId
             ? _value.villeId
             : villeId // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        adresseDetail: freezed == adresseDetail
+            ? _value.adresseDetail
+            : adresseDetail // ignore: cast_nullable_to_non_nullable
                   as String?,
         status: null == status
             ? _value.status
@@ -348,9 +474,9 @@ class __$$AnnonceVenteImplCopyWithImpl<$Res>
             ? _value._photos
             : photos // ignore: cast_nullable_to_non_nullable
                   as List<String>,
-        dateRecolte: freezed == dateRecolte
-            ? _value.dateRecolte
-            : dateRecolte // ignore: cast_nullable_to_non_nullable
+        disponibleJusqu: freezed == disponibleJusqu
+            ? _value.disponibleJusqu
+            : disponibleJusqu // ignore: cast_nullable_to_non_nullable
                   as DateTime?,
         createdAt: freezed == createdAt
             ? _value.createdAt
@@ -360,6 +486,26 @@ class __$$AnnonceVenteImplCopyWithImpl<$Res>
             ? _value.updatedAt
             : updatedAt // ignore: cast_nullable_to_non_nullable
                   as DateTime?,
+        produitNom: freezed == produitNom
+            ? _value.produitNom
+            : produitNom // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        vendeur: freezed == vendeur
+            ? _value.vendeur
+            : vendeur // ignore: cast_nullable_to_non_nullable
+                  as VendeurApercu?,
+        regionNom: freezed == regionNom
+            ? _value.regionNom
+            : regionNom // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        villeNom: freezed == villeNom
+            ? _value.villeNom
+            : villeNom // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        traitements: null == traitements
+            ? _value._traitements
+            : traitements // ignore: cast_nullable_to_non_nullable
+                  as List<AnnonceTraitement>,
       ),
     );
   }
@@ -375,12 +521,14 @@ class _$AnnonceVenteImpl extends _AnnonceVente {
     required this.titre,
     @FlexDouble() required this.quantiteKg,
     @FlexDouble() required this.prixParKg,
+    @FlexDoubleN() this.quantiteMinKg,
     @JsonKey(unknownEnumValue: ProductQuality.unknown)
     this.qualite = ProductQuality.unknown,
     this.description,
     final List<String> certifications = const <String>[],
     this.regionId,
     this.villeId,
+    this.adresseDetail,
     @JsonKey(unknownEnumValue: ProductStatus.unknown)
     this.status = ProductStatus.unknown,
     @FlexInt() this.viewsCount = 0,
@@ -388,11 +536,34 @@ class _$AnnonceVenteImpl extends _AnnonceVente {
     @JsonKey(unknownEnumValue: CoopAnnonceStatus.unknown) this.coopStatus,
     @JsonKey(name: 'medias', fromJson: mediasToPhotos, toJson: photosToMedias)
     final List<String> photos = const <String>[],
-    this.dateRecolte,
+    this.disponibleJusqu,
     this.createdAt,
     this.updatedAt,
+    @JsonKey(
+      name: 'produits_agricoles',
+      fromJson: _nomFromMap,
+      toJson: _nomToMap,
+    )
+    this.produitNom,
+    @JsonKey(
+      name: 'users',
+      fromJson: _vendeurInfoFromJson,
+      toJson: _vendeurInfoToJson,
+    )
+    this.vendeur,
+    @JsonKey(name: 'regions_ci', fromJson: _nomFromMap, toJson: _nomToMap)
+    this.regionNom,
+    @JsonKey(name: 'villes_ci', fromJson: _nomFromMap, toJson: _nomToMap)
+    this.villeNom,
+    @JsonKey(
+      name: 'annonce_vente_traitements',
+      fromJson: _traitementsFromJson,
+      toJson: _traitementsToJson,
+    )
+    final List<AnnonceTraitement> traitements = const <AnnonceTraitement>[],
   }) : _certifications = certifications,
        _photos = photos,
+       _traitements = traitements,
        super._();
 
   factory _$AnnonceVenteImpl.fromJson(Map<String, dynamic> json) =>
@@ -413,6 +584,9 @@ class _$AnnonceVenteImpl extends _AnnonceVente {
   @FlexDouble()
   final double prixParKg;
   @override
+  @FlexDoubleN()
+  final double? quantiteMinKg;
+  @override
   @JsonKey(unknownEnumValue: ProductQuality.unknown)
   final ProductQuality qualite;
   @override
@@ -430,6 +604,8 @@ class _$AnnonceVenteImpl extends _AnnonceVente {
   final String? regionId;
   @override
   final String? villeId;
+  @override
+  final String? adresseDetail;
   @override
   @JsonKey(unknownEnumValue: ProductStatus.unknown)
   final ProductStatus status;
@@ -462,15 +638,56 @@ class _$AnnonceVenteImpl extends _AnnonceVente {
   }
 
   @override
-  final DateTime? dateRecolte;
+  final DateTime? disponibleJusqu;
   @override
   final DateTime? createdAt;
   @override
   final DateTime? updatedAt;
+  // ─── Champs joints (relations Prisma) ──────────────────────────────
+  @override
+  @JsonKey(name: 'produits_agricoles', fromJson: _nomFromMap, toJson: _nomToMap)
+  final String? produitNom;
+  @override
+  @JsonKey(
+    name: 'users',
+    fromJson: _vendeurInfoFromJson,
+    toJson: _vendeurInfoToJson,
+  )
+  final VendeurApercu? vendeur;
+  @override
+  @JsonKey(name: 'regions_ci', fromJson: _nomFromMap, toJson: _nomToMap)
+  final String? regionNom;
+  @override
+  @JsonKey(name: 'villes_ci', fromJson: _nomFromMap, toJson: _nomToMap)
+  final String? villeNom;
+
+  /// Traitements appliqués à la culture (relation jointe par le backend
+  /// via `include: { annonce_vente_traitements: { include: { produits_traitement } } }`).
+  /// Permet d'exposer la traçabilité "from-farm-to-fork" : type, dosage,
+  /// date d'application, délai de carence. Vide si le producteur n'a
+  /// rien déclaré.
+  final List<AnnonceTraitement> _traitements;
+
+  /// Traitements appliqués à la culture (relation jointe par le backend
+  /// via `include: { annonce_vente_traitements: { include: { produits_traitement } } }`).
+  /// Permet d'exposer la traçabilité "from-farm-to-fork" : type, dosage,
+  /// date d'application, délai de carence. Vide si le producteur n'a
+  /// rien déclaré.
+  @override
+  @JsonKey(
+    name: 'annonce_vente_traitements',
+    fromJson: _traitementsFromJson,
+    toJson: _traitementsToJson,
+  )
+  List<AnnonceTraitement> get traitements {
+    if (_traitements is EqualUnmodifiableListView) return _traitements;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_traitements);
+  }
 
   @override
   String toString() {
-    return 'AnnonceVente(id: $id, farmerId: $farmerId, produitId: $produitId, titre: $titre, quantiteKg: $quantiteKg, prixParKg: $prixParKg, qualite: $qualite, description: $description, certifications: $certifications, regionId: $regionId, villeId: $villeId, status: $status, viewsCount: $viewsCount, assignedToCooperativeId: $assignedToCooperativeId, coopStatus: $coopStatus, photos: $photos, dateRecolte: $dateRecolte, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'AnnonceVente(id: $id, farmerId: $farmerId, produitId: $produitId, titre: $titre, quantiteKg: $quantiteKg, prixParKg: $prixParKg, quantiteMinKg: $quantiteMinKg, qualite: $qualite, description: $description, certifications: $certifications, regionId: $regionId, villeId: $villeId, adresseDetail: $adresseDetail, status: $status, viewsCount: $viewsCount, assignedToCooperativeId: $assignedToCooperativeId, coopStatus: $coopStatus, photos: $photos, disponibleJusqu: $disponibleJusqu, createdAt: $createdAt, updatedAt: $updatedAt, produitNom: $produitNom, vendeur: $vendeur, regionNom: $regionNom, villeNom: $villeNom, traitements: $traitements)';
   }
 
   @override
@@ -488,6 +705,8 @@ class _$AnnonceVenteImpl extends _AnnonceVente {
                 other.quantiteKg == quantiteKg) &&
             (identical(other.prixParKg, prixParKg) ||
                 other.prixParKg == prixParKg) &&
+            (identical(other.quantiteMinKg, quantiteMinKg) ||
+                other.quantiteMinKg == quantiteMinKg) &&
             (identical(other.qualite, qualite) || other.qualite == qualite) &&
             (identical(other.description, description) ||
                 other.description == description) &&
@@ -498,6 +717,8 @@ class _$AnnonceVenteImpl extends _AnnonceVente {
             (identical(other.regionId, regionId) ||
                 other.regionId == regionId) &&
             (identical(other.villeId, villeId) || other.villeId == villeId) &&
+            (identical(other.adresseDetail, adresseDetail) ||
+                other.adresseDetail == adresseDetail) &&
             (identical(other.status, status) || other.status == status) &&
             (identical(other.viewsCount, viewsCount) ||
                 other.viewsCount == viewsCount) &&
@@ -509,12 +730,23 @@ class _$AnnonceVenteImpl extends _AnnonceVente {
             (identical(other.coopStatus, coopStatus) ||
                 other.coopStatus == coopStatus) &&
             const DeepCollectionEquality().equals(other._photos, _photos) &&
-            (identical(other.dateRecolte, dateRecolte) ||
-                other.dateRecolte == dateRecolte) &&
+            (identical(other.disponibleJusqu, disponibleJusqu) ||
+                other.disponibleJusqu == disponibleJusqu) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
-                other.updatedAt == updatedAt));
+                other.updatedAt == updatedAt) &&
+            (identical(other.produitNom, produitNom) ||
+                other.produitNom == produitNom) &&
+            (identical(other.vendeur, vendeur) || other.vendeur == vendeur) &&
+            (identical(other.regionNom, regionNom) ||
+                other.regionNom == regionNom) &&
+            (identical(other.villeNom, villeNom) ||
+                other.villeNom == villeNom) &&
+            const DeepCollectionEquality().equals(
+              other._traitements,
+              _traitements,
+            ));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -527,19 +759,26 @@ class _$AnnonceVenteImpl extends _AnnonceVente {
     titre,
     quantiteKg,
     prixParKg,
+    quantiteMinKg,
     qualite,
     description,
     const DeepCollectionEquality().hash(_certifications),
     regionId,
     villeId,
+    adresseDetail,
     status,
     viewsCount,
     assignedToCooperativeId,
     coopStatus,
     const DeepCollectionEquality().hash(_photos),
-    dateRecolte,
+    disponibleJusqu,
     createdAt,
     updatedAt,
+    produitNom,
+    vendeur,
+    regionNom,
+    villeNom,
+    const DeepCollectionEquality().hash(_traitements),
   ]);
 
   /// Create a copy of AnnonceVente
@@ -564,12 +803,14 @@ abstract class _AnnonceVente extends AnnonceVente {
     required final String titre,
     @FlexDouble() required final double quantiteKg,
     @FlexDouble() required final double prixParKg,
+    @FlexDoubleN() final double? quantiteMinKg,
     @JsonKey(unknownEnumValue: ProductQuality.unknown)
     final ProductQuality qualite,
     final String? description,
     final List<String> certifications,
     final String? regionId,
     final String? villeId,
+    final String? adresseDetail,
     @JsonKey(unknownEnumValue: ProductStatus.unknown)
     final ProductStatus status,
     @FlexInt() final int viewsCount,
@@ -578,9 +819,31 @@ abstract class _AnnonceVente extends AnnonceVente {
     final CoopAnnonceStatus? coopStatus,
     @JsonKey(name: 'medias', fromJson: mediasToPhotos, toJson: photosToMedias)
     final List<String> photos,
-    final DateTime? dateRecolte,
+    final DateTime? disponibleJusqu,
     final DateTime? createdAt,
     final DateTime? updatedAt,
+    @JsonKey(
+      name: 'produits_agricoles',
+      fromJson: _nomFromMap,
+      toJson: _nomToMap,
+    )
+    final String? produitNom,
+    @JsonKey(
+      name: 'users',
+      fromJson: _vendeurInfoFromJson,
+      toJson: _vendeurInfoToJson,
+    )
+    final VendeurApercu? vendeur,
+    @JsonKey(name: 'regions_ci', fromJson: _nomFromMap, toJson: _nomToMap)
+    final String? regionNom,
+    @JsonKey(name: 'villes_ci', fromJson: _nomFromMap, toJson: _nomToMap)
+    final String? villeNom,
+    @JsonKey(
+      name: 'annonce_vente_traitements',
+      fromJson: _traitementsFromJson,
+      toJson: _traitementsToJson,
+    )
+    final List<AnnonceTraitement> traitements,
   }) = _$AnnonceVenteImpl;
   const _AnnonceVente._() : super._();
 
@@ -602,6 +865,9 @@ abstract class _AnnonceVente extends AnnonceVente {
   @FlexDouble()
   double get prixParKg;
   @override
+  @FlexDoubleN()
+  double? get quantiteMinKg;
+  @override
   @JsonKey(unknownEnumValue: ProductQuality.unknown)
   ProductQuality get qualite;
   @override
@@ -612,6 +878,8 @@ abstract class _AnnonceVente extends AnnonceVente {
   String? get regionId;
   @override
   String? get villeId;
+  @override
+  String? get adresseDetail;
   @override
   @JsonKey(unknownEnumValue: ProductStatus.unknown)
   ProductStatus get status;
@@ -632,11 +900,40 @@ abstract class _AnnonceVente extends AnnonceVente {
   @JsonKey(name: 'medias', fromJson: mediasToPhotos, toJson: photosToMedias)
   List<String> get photos;
   @override
-  DateTime? get dateRecolte;
+  DateTime? get disponibleJusqu;
   @override
   DateTime? get createdAt;
   @override
-  DateTime? get updatedAt;
+  DateTime? get updatedAt; // ─── Champs joints (relations Prisma) ──────────────────────────────
+  @override
+  @JsonKey(name: 'produits_agricoles', fromJson: _nomFromMap, toJson: _nomToMap)
+  String? get produitNom;
+  @override
+  @JsonKey(
+    name: 'users',
+    fromJson: _vendeurInfoFromJson,
+    toJson: _vendeurInfoToJson,
+  )
+  VendeurApercu? get vendeur;
+  @override
+  @JsonKey(name: 'regions_ci', fromJson: _nomFromMap, toJson: _nomToMap)
+  String? get regionNom;
+  @override
+  @JsonKey(name: 'villes_ci', fromJson: _nomFromMap, toJson: _nomToMap)
+  String? get villeNom;
+
+  /// Traitements appliqués à la culture (relation jointe par le backend
+  /// via `include: { annonce_vente_traitements: { include: { produits_traitement } } }`).
+  /// Permet d'exposer la traçabilité "from-farm-to-fork" : type, dosage,
+  /// date d'application, délai de carence. Vide si le producteur n'a
+  /// rien déclaré.
+  @override
+  @JsonKey(
+    name: 'annonce_vente_traitements',
+    fromJson: _traitementsFromJson,
+    toJson: _traitementsToJson,
+  )
+  List<AnnonceTraitement> get traitements;
 
   /// Create a copy of AnnonceVente
   /// with the given fields replaced by the non-null parameter values.

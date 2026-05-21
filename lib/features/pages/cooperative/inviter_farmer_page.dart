@@ -1,85 +1,88 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
+import '../../../api_client/api_exception.dart';
+import '../../../models/membre_coop.dart';
 import '../../../routing/route_names.dart';
+import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../widgets/communs/snackbars.dart';
 
-// ─── Constantes locales ─────────────────────────────────────────────────
 const Color _kPrimarySoft = Color(0xFFE8F5E9);
 const BorderRadius _kBrInput = BorderRadius.all(Radius.circular(10));
 const BorderRadius _kBrCard12 = BorderRadius.all(Radius.circular(12));
 const BorderRadius _kBrCard14 = BorderRadius.all(Radius.circular(14));
 
-/// Modèle local d'une invitation envoyée (mock).
-class _InvitationMock {
-  final String nom;
-  final String tel;
-  final String time;
-  const _InvitationMock({
-    required this.nom,
-    required this.tel,
-    required this.time,
-  });
-}
+/// Charge l'historique des invitations envoyées par la coop.
+final _invitationsProvider =
+    FutureProvider.autoDispose<List<CoopInvitation>>((ref) async {
+  return ref.read(cooperativesServiceProvider).listMyInvitations();
+});
 
-const List<_InvitationMock> _kInvitations = [
-  _InvitationMock(
-    nom: 'Yao Konaté',
-    tel: '+225 07 11 22 33 44',
-    time: 'envoyée il y a 3j',
-  ),
-  _InvitationMock(
-    nom: 'Aminata Bah',
-    tel: '+225 05 99 88 77 66',
-    time: 'envoyée il y a 3j',
-  ),
-  _InvitationMock(
-    nom: 'Kouadio Kouamé',
-    tel: '+225 01 44 55 66 77',
-    time: 'envoyée il y a 5j',
-  ),
-  _InvitationMock(
-    nom: 'Mariam Sanogo',
-    tel: '+225 07 88 99 00 11',
-    time: 'envoyée il y a 7j',
-  ),
-];
-
-/// Page Inviter un farmer — formulaire SMS d'invitation + historique.
-/// Reproduction fidèle de `mockups/cooperative/inviter_farmer.html`.
-class InviterFarmerPage extends StatefulWidget {
+/// Page Inviter un farmer — SMS d'invitation via l'endpoint `coopInvitations`.
+class InviterFarmerPage extends ConsumerStatefulWidget {
   const InviterFarmerPage({super.key});
 
   @override
-  State<InviterFarmerPage> createState() => _InviterFarmerPageState();
+  ConsumerState<InviterFarmerPage> createState() => _InviterFarmerPageState();
 }
 
-class _InviterFarmerPageState extends State<InviterFarmerPage> {
-  final TextEditingController _telCtrl =
-      TextEditingController(text: '07 65 43 21 09');
-  final TextEditingController _nomCtrl =
-      TextEditingController(text: 'Sékou Traoré');
-  final TextEditingController _villeCtrl =
-      TextEditingController(text: 'Songon');
+class _InviterFarmerPageState extends ConsumerState<InviterFarmerPage> {
+  final _telCtrl = TextEditingController();
+  final _messageCtrl = TextEditingController();
+  bool _busy = false;
 
   @override
   void dispose() {
     _telCtrl.dispose();
-    _nomCtrl.dispose();
-    _villeCtrl.dispose();
+    _messageCtrl.dispose();
     super.dispose();
   }
 
-  void _envoyer() {
-    Snackbars.showSucces(context, 'Invitation envoyée par SMS');
+  Future<void> _envoyer() async {
+    if (_busy) return;
+    final raw = _telCtrl.text.trim();
+    if (raw.isEmpty) {
+      Snackbars.showErreur(context, 'Saisis un numéro de téléphone.');
+      return;
+    }
+    // Normalisation en E.164 : "07 12 34 56 78" → "+22507123456 78"
+    var phone = raw.replaceAll(RegExp(r'\s+'), '');
+    if (!phone.startsWith('+')) {
+      phone = phone.startsWith('00')
+          ? '+${phone.substring(2)}'
+          : (phone.startsWith('225') ? '+$phone' : '+225$phone');
+    }
+    setState(() => _busy = true);
+    try {
+      await ref.read(cooperativesServiceProvider).invite(
+            phone: phone,
+            message: _messageCtrl.text.trim().isEmpty
+                ? null
+                : _messageCtrl.text.trim(),
+          );
+      if (!mounted) return;
+      Snackbars.showSucces(context, 'Invitation envoyée par SMS à $phone.');
+      _telCtrl.clear();
+      _messageCtrl.clear();
+      ref.invalidate(_invitationsProvider);
+    } on ApiException catch (e) {
+      if (mounted) Snackbars.showErreur(context, e.message);
+    } catch (e) {
+      if (mounted) Snackbars.showErreur(context, 'Erreur : $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final asyncInvitations = ref.watch(_invitationsProvider);
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -96,46 +99,63 @@ class _InviterFarmerPageState extends State<InviterFarmerPage> {
                   AppDimens.space16,
                 ),
                 children: [
-                  // ── Carte info ──────────────────────────────────────
                   const _InfoCard(),
                   const SizedBox(height: 20),
-                  // ── Champ téléphone (préfixe +225) ─────────────────
-                  _FieldLabel('Téléphone'),
+                  const _FieldLabel('Téléphone'),
                   const SizedBox(height: 6),
-                  _PhoneInput(controller: _telCtrl),
+                  _PhoneInput(controller: _telCtrl, enabled: !_busy),
                   const SizedBox(height: 14),
-                  // ── Champ Nom ──────────────────────────────────────
-                  _FieldLabel('Nom (optionnel)'),
+                  const _FieldLabel('Message personnalisé (optionnel)'),
                   const SizedBox(height: 6),
-                  _SimpleInput(
-                    controller: _nomCtrl,
-                    placeholder: 'Nom du farmer',
-                  ),
-                  const SizedBox(height: 14),
-                  // ── Champ Ville ────────────────────────────────────
-                  _FieldLabel('Village/Ville (optionnel)'),
-                  const SizedBox(height: 6),
-                  _SimpleInput(
-                    controller: _villeCtrl,
-                    placeholder: 'Ex : Dabou',
+                  _MultilineInput(
+                    controller: _messageCtrl,
+                    enabled: !_busy,
+                    placeholder:
+                        'Ex : Salut, rejoins COOP Lagunes pour vendre au juste prix.',
                   ),
                   const SizedBox(height: 20),
-                  // ── Bouton envoyer ─────────────────────────────────
                   _FullButton(
-                    label: "Envoyer l'invitation",
-                    onTap: _envoyer,
+                    label: _busy ? 'Envoi…' : 'Envoyer l\'invitation',
+                    busy: _busy,
+                    onTap: _busy ? null : _envoyer,
                   ),
-                  const SizedBox(height: 24),
-                  // ── Section invitations envoyées ───────────────────
+                  const SizedBox(height: 28),
                   Text(
-                    'Invitations envoyées (${_kInvitations.length})',
+                    'Invitations envoyées',
                     style: AppTextStyles.titleSmall.copyWith(
                       fontSize: 14,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  _InvitationsList(invitations: _kInvitations),
+                  const SizedBox(height: 10),
+                  asyncInvitations.when(
+                    loading: () => const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      child: Center(
+                        child: SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                    ),
+                    error: (e, _) => Text(
+                      'Impossible de charger l\'historique. $e',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.error,
+                      ),
+                    ),
+                    data: (list) {
+                      if (list.isEmpty) {
+                        return _EmptyHistory();
+                      }
+                      return Column(
+                        children: [
+                          for (final inv in list) _InvitationCard(invitation: inv),
+                        ],
+                      );
+                    },
+                  ),
                 ],
               ),
             ),
@@ -146,11 +166,10 @@ class _InviterFarmerPageState extends State<InviterFarmerPage> {
   }
 }
 
-// ─── Header (back + titre + cloche notifs) ──────────────────────────────
+// ─── Header ─────────────────────────────────────────────────────────
 
 class _Header extends StatelessWidget {
   const _Header();
-
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -180,138 +199,21 @@ class _Header extends StatelessWidget {
           Expanded(
             child: Text(
               'Inviter un farmer',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
               style: AppTextStyles.titleSmall.copyWith(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
               ),
             ),
           ),
-          _NotifsButton(
-            onTap: () =>
-                context.push(RouteNames.cooperativeNotificationsPath),
-          ),
         ],
       ),
     );
   }
 }
-
-class _NotifsButton extends StatelessWidget {
-  const _NotifsButton({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: SizedBox(
-        width: 40,
-        height: 40,
-        child: Stack(
-          children: [
-            const Center(
-              child: Icon(
-                Icons.notifications_none,
-                size: 22,
-                color: AppColors.text,
-              ),
-            ),
-            Positioned(
-              top: 6,
-              right: 6,
-              child: Container(
-                constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.error,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: AppColors.background,
-                    width: 1.5,
-                  ),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  '5',
-                  style: AppTextStyles.labelSmall.copyWith(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.onPrimary,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Carte info (icône + message d'aide) ────────────────────────────────
-
-class _InfoCard extends StatelessWidget {
-  const _InfoCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: _kBrCard12,
-        border: Border.all(
-          color: AppColors.border,
-          width: AppDimens.borderThin,
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: const BoxDecoration(
-              color: _kPrimarySoft,
-              shape: BoxShape.circle,
-            ),
-            child: const Center(
-              child: Icon(
-                Icons.info_outline,
-                size: 18,
-                color: AppColors.primary,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              "Indique le numéro de ton farmer. Il recevra un SMS "
-              "d'invitation pour rejoindre ta coopérative.",
-              style: AppTextStyles.bodySmall.copyWith(
-                fontSize: 12,
-                color: AppColors.textSecondary,
-                height: 1.5,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Inputs ─────────────────────────────────────────────────────────────
 
 class _FieldLabel extends StatelessWidget {
   const _FieldLabel(this.label);
-
   final String label;
-
   @override
   Widget build(BuildContext context) {
     return Text(
@@ -325,63 +227,51 @@ class _FieldLabel extends StatelessWidget {
   }
 }
 
-class _PhoneInput extends StatelessWidget {
-  const _PhoneInput({required this.controller});
+// ─── Info card ─────────────────────────────────────────────────────
 
-  final TextEditingController controller;
-
+class _InfoCard extends StatelessWidget {
+  const _InfoCard();
   @override
   Widget build(BuildContext context) {
     return Container(
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: _kBrInput,
+        color: _kPrimarySoft,
+        borderRadius: _kBrCard14,
         border: Border.all(
           color: AppColors.border,
           width: AppDimens.borderThin,
         ),
       ),
-      clipBehavior: Clip.antiAlias,
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
-            decoration: const BoxDecoration(
-              color: AppColors.surfaceSoft,
-              border: Border(
-                right: BorderSide(
-                  color: AppColors.border,
-                  width: AppDimens.borderThin,
-                ),
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: AppColors.border,
+                width: AppDimens.borderThin,
               ),
             ),
-            child: Text(
-              '+225',
-              style: AppTextStyles.titleSmall.copyWith(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
-              ),
+            alignment: Alignment.center,
+            child: const Icon(
+              Icons.sms_outlined,
+              size: 18,
+              color: AppColors.primary,
             ),
           ),
+          const SizedBox(width: 12),
           Expanded(
-            child: TextField(
-              controller: controller,
-              keyboardType: TextInputType.phone,
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9 ]')),
-              ],
-              decoration: InputDecoration(
-                hintText: '07 12 34 56 78',
-                border: InputBorder.none,
-                isDense: true,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                hintStyle: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.textSubtle,
-                ),
+            child: Text(
+              'Le farmer reçoit un SMS avec un lien pour s\'inscrire et rejoindre ta coop. Aucun frais d\'envoi.',
+              style: AppTextStyles.bodySmall.copyWith(
+                fontSize: 12,
+                color: AppColors.text,
+                height: 1.5,
               ),
-              style: AppTextStyles.bodyMedium.copyWith(fontSize: 14),
             ),
           ),
         ],
@@ -390,10 +280,76 @@ class _PhoneInput extends StatelessWidget {
   }
 }
 
-class _SimpleInput extends StatelessWidget {
-  const _SimpleInput({required this.controller, required this.placeholder});
-
+class _PhoneInput extends StatelessWidget {
+  const _PhoneInput({required this.controller, required this.enabled});
   final TextEditingController controller;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: _kBrInput,
+        border: Border.all(
+          color: AppColors.borderStrong,
+          width: AppDimens.borderThin,
+        ),
+      ),
+      child: Row(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            child: Text(
+              '+225',
+              style: AppTextStyles.bodyMedium.copyWith(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.text,
+              ),
+            ),
+          ),
+          Container(
+            width: 1,
+            height: 28,
+            color: AppColors.border,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              enabled: enabled,
+              keyboardType: TextInputType.phone,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9 ]')),
+              ],
+              style: AppTextStyles.bodyMedium.copyWith(fontSize: 14),
+              decoration: InputDecoration(
+                hintText: '07 12 34 56 78',
+                hintStyle: AppTextStyles.bodyMedium.copyWith(
+                  color: AppColors.textSubtle,
+                ),
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding:
+                    const EdgeInsets.symmetric(vertical: 12, horizontal: 0),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MultilineInput extends StatelessWidget {
+  const _MultilineInput({
+    required this.controller,
+    required this.enabled,
+    required this.placeholder,
+  });
+  final TextEditingController controller;
+  final bool enabled;
   final String placeholder;
 
   @override
@@ -403,125 +359,112 @@ class _SimpleInput extends StatelessWidget {
         color: AppColors.background,
         borderRadius: _kBrInput,
         border: Border.all(
-          color: AppColors.border,
+          color: AppColors.borderStrong,
           width: AppDimens.borderThin,
         ),
       ),
       child: TextField(
         controller: controller,
+        enabled: enabled,
+        minLines: 3,
+        maxLines: 5,
+        textCapitalization: TextCapitalization.sentences,
         decoration: InputDecoration(
           hintText: placeholder,
+          hintStyle: AppTextStyles.bodyMedium.copyWith(
+            color: AppColors.textSubtle,
+          ),
           border: InputBorder.none,
           isDense: true,
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          hintStyle: AppTextStyles.bodyMedium.copyWith(
-            color: AppColors.textSubtle,
-          ),
         ),
-        style: AppTextStyles.bodyMedium.copyWith(fontSize: 14),
       ),
     );
   }
 }
-
-// ─── Bouton plein largeur vert ──────────────────────────────────────────
 
 class _FullButton extends StatelessWidget {
-  const _FullButton({required this.label, required this.onTap});
-
+  const _FullButton({
+    required this.label,
+    required this.busy,
+    required this.onTap,
+  });
   final String label;
-  final VoidCallback onTap;
+  final bool busy;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 48,
-      child: ElevatedButton(
-        onPressed: onTap,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: AppColors.onPrimary,
-          elevation: 0,
-          shape: const RoundedRectangleBorder(borderRadius: _kBrCard12),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: _kBrCard12,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: onTap == null ? AppColors.borderStrong : AppColors.primary,
+          borderRadius: _kBrCard12,
         ),
-        child: Text(
-          label,
-          style: AppTextStyles.labelLarge.copyWith(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppColors.onPrimary,
-          ),
-        ),
+        child: busy
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: Colors.white,
+                ),
+              )
+            : Text(
+                label,
+                style: AppTextStyles.button.copyWith(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.onPrimary,
+                ),
+              ),
       ),
     );
   }
 }
 
-// ─── Liste des invitations envoyées ─────────────────────────────────────
-
-class _InvitationsList extends StatelessWidget {
-  const _InvitationsList({required this.invitations});
-
-  final List<_InvitationMock> invitations;
+class _InvitationCard extends StatelessWidget {
+  const _InvitationCard({required this.invitation});
+  final CoopInvitation invitation;
 
   @override
   Widget build(BuildContext context) {
+    final df = DateFormat('d MMM y', 'fr_FR');
+    final dateLabel = invitation.createdAt != null
+        ? df.format(invitation.createdAt!)
+        : '—';
+    final statutLabel = _statutLabel(invitation.status);
     return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.background,
-        borderRadius: _kBrCard14,
+        borderRadius: _kBrCard12,
         border: Border.all(
           color: AppColors.border,
           width: AppDimens.borderThin,
         ),
       ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          for (int i = 0; i < invitations.length; i++) ...[
-            _InvitationTile(invitation: invitations[i]),
-            if (i != invitations.length - 1)
-              const Divider(
-                height: 1,
-                thickness: AppDimens.borderThin,
-                color: AppColors.border,
-              ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _InvitationTile extends StatelessWidget {
-  const _InvitationTile({required this.invitation});
-
-  final _InvitationMock invitation;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
           Container(
             width: 36,
             height: 36,
-            decoration: const BoxDecoration(
-              color: AppColors.surfaceSoft,
-              shape: BoxShape.circle,
+            decoration: BoxDecoration(
+              color: _kPrimarySoft,
+              borderRadius: BorderRadius.circular(8),
             ),
             alignment: Alignment.center,
-            child: Text(
-              _initiales(invitation.nom),
-              style: AppTextStyles.titleSmall.copyWith(
-                fontFamily: 'Poppins',
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
-              ),
+            child: const Icon(
+              Icons.send_outlined,
+              size: 16,
+              color: AppColors.primary,
             ),
           ),
           const SizedBox(width: 12),
@@ -531,19 +474,15 @@ class _InvitationTile extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  invitation.nom,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.titleSmall.copyWith(
+                  invitation.phone,
+                  style: AppTextStyles.bodyMedium.copyWith(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  invitation.tel,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  '$statutLabel · $dateLabel',
                   style: AppTextStyles.bodySmall.copyWith(
                     fontSize: 11,
                     color: AppColors.textSecondary,
@@ -552,29 +491,53 @@ class _InvitationTile extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 8),
+        ],
+      ),
+    );
+  }
+
+  String _statutLabel(String status) {
+    switch (status.toUpperCase()) {
+      case 'ACCEPTED':
+        return 'Acceptée';
+      case 'REJECTED':
+        return 'Refusée';
+      case 'EXPIRED':
+        return 'Expirée';
+      case 'PENDING':
+      default:
+        return 'En attente';
+    }
+  }
+}
+
+class _EmptyHistory extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceSoft,
+        borderRadius: _kBrCard12,
+      ),
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.outbox_outlined,
+            size: 28,
+            color: AppColors.textSubtle,
+          ),
+          const SizedBox(height: 8),
           Text(
-            invitation.time,
-            style: AppTextStyles.labelSmall.copyWith(
-              fontSize: 11,
-              color: AppColors.textSubtle,
+            'Pas d\'invitation envoyée',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textSecondary,
             ),
           ),
         ],
       ),
     );
   }
-}
-
-// ─── Helpers ────────────────────────────────────────────────────────────
-
-String _initiales(String s) {
-  final t = s.trim();
-  if (t.isEmpty) return '?';
-  final parts = t.split(RegExp(r'[\s\-_]+'))..removeWhere((p) => p.isEmpty);
-  if (parts.length >= 2) {
-    return (parts[0].substring(0, 1) + parts[1].substring(0, 1)).toUpperCase();
-  }
-  if (t.length == 1) return t.toUpperCase();
-  return t.substring(0, 2).toUpperCase();
 }

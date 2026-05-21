@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../models/annonce_vente.dart';
+import '../../../../models/prevision.dart';
 import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
@@ -12,59 +13,6 @@ import '../../../../theme/app_text_styles.dart';
 import '../../../state/auth_state.dart';
 import '../../../widgets/communs/chargement.dart';
 import '../../../widgets/communs/vue_erreur.dart';
-
-// ─── Mock data prévisions (pas d'endpoint listPrevisions par farmer) ─────
-
-/// Carte légère pour le toggle "Prévisions" — la maquette en montre 3 mais
-/// l'endpoint backend actuel renvoie toutes les prévisions, sans filtre
-/// par farmer côté client. On garde un mock pour rester fidèle au visuel.
-class _MockPrevision {
-  final String id;
-  final String nom;
-  final String quantite;
-  final String prix;
-  final String stats;
-  final String photoUrl;
-
-  const _MockPrevision({
-    required this.id,
-    required this.nom,
-    required this.quantite,
-    required this.prix,
-    required this.stats,
-    required this.photoUrl,
-  });
-}
-
-const List<_MockPrevision> _kMockPrevisions = [
-  _MockPrevision(
-    id: 'prev-1',
-    nom: 'Maïs blanc',
-    quantite: '1 t prévue · 15 juin',
-    prix: '800 F/kg',
-    stats: '600 / 1000 kg réservés',
-    photoUrl:
-        'https://images.unsplash.com/photo-1601493700631-2b16ec4b4716?w=400&h=300&fit=crop&auto=format',
-  ),
-  _MockPrevision(
-    id: 'prev-2',
-    nom: 'Manioc',
-    quantite: '500 kg prévus · 28 juin',
-    prix: '450 F/kg',
-    stats: '200 / 500 kg réservés',
-    photoUrl:
-        'https://images.unsplash.com/photo-1567521464027-f127ff144326?w=400&h=300&fit=crop&auto=format',
-  ),
-  _MockPrevision(
-    id: 'prev-3',
-    nom: 'Igname',
-    quantite: '800 kg prévus · 5 juillet',
-    prix: '500 F/kg',
-    stats: '0 / 800 kg réservés',
-    photoUrl:
-        'https://images.unsplash.com/photo-1574484284002-952d92456975?w=400&h=300&fit=crop&auto=format',
-  ),
-];
 
 // ─── Photos d'illustration (fallback Unsplash) ───────────────────────────
 
@@ -74,7 +22,7 @@ const List<String> _kAnnoncePhotosFallback = [
   'https://images.unsplash.com/photo-1574484284002-952d92456975?w=400&h=300&fit=crop&auto=format',
   'https://images.unsplash.com/photo-1567521464027-f127ff144326?w=400&h=300&fit=crop&auto=format',
   'https://images.unsplash.com/photo-1488459716781-31db52582fe9?w=400&h=300&fit=crop&auto=format',
-  'https://images.unsplash.com/photo-1601593768799-76d3f96d2cbc?w=400&h=300&fit=crop&auto=format',
+  'https://images.unsplash.com/photo-1464226184884-fa280b87c399?w=400&h=300&fit=crop&auto=format',
 ];
 
 /// Provider — liste des annonces du farmer connecté (filtrage client-side).
@@ -87,6 +35,22 @@ final _mesAnnoncesProvider = FutureProvider.autoDispose<List<AnnonceVente>>(
     if (farmerId == null) return paginated.data;
     return paginated.data
         .where((a) => a.farmerId == farmerId)
+        .toList(growable: false);
+  },
+);
+
+/// Provider — liste des prévisions du farmer connecté. Le backend filtre
+/// déjà côté serveur (par `farmer_id` du JWT) mais on refiltre côté client
+/// pour être robuste si l'endpoint élargit son scope.
+final _mesPrevisionsProvider = FutureProvider.autoDispose<List<Prevision>>(
+  (ref) async {
+    final svc = ref.watch(marketplaceServiceProvider);
+    final user = ref.watch(currentUserProvider);
+    final farmerId = user?.id;
+    final list = await svc.listPrevisions();
+    if (farmerId == null) return list;
+    return list
+        .where((p) => p.farmerId == farmerId)
         .toList(growable: false);
   },
 );
@@ -110,7 +74,8 @@ class _MesPublicationsPageState extends ConsumerState<MesPublicationsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final async = ref.watch(_mesAnnoncesProvider);
+    final asyncAnnonces = ref.watch(_mesAnnoncesProvider);
+    final asyncPrevisions = ref.watch(_mesPrevisionsProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -121,17 +86,20 @@ class _MesPublicationsPageState extends ConsumerState<MesPublicationsPage> {
             const _Header(),
             _Segmented(
               index: _index,
-              annoncesCount: async.maybeWhen(
+              annoncesCount: asyncAnnonces.maybeWhen(
                 data: (a) => a.length,
-                orElse: () => 5,
+                orElse: () => 0,
               ),
-              previsionsCount: _kMockPrevisions.length,
+              previsionsCount: asyncPrevisions.maybeWhen(
+                data: (p) => p.length,
+                orElse: () => 0,
+              ),
               onChanged: (i) => setState(() => _index = i),
             ),
             Expanded(
               child: _index == 0
-                  ? _AnnoncesBody(async: async)
-                  : _PrevisionsBody(),
+                  ? _AnnoncesBody(async: asyncAnnonces)
+                  : _PrevisionsBody(async: asyncPrevisions),
             ),
           ],
         ),
@@ -443,37 +411,82 @@ class _AnnonceCard extends StatelessWidget {
   }
 }
 
-// ─── Body : Prévisions (mock) ────────────────────────────────────────────
+// ─── Body : Prévisions (depuis l'API) ────────────────────────────────────
 
-class _PrevisionsBody extends StatelessWidget {
+class _PrevisionsBody extends ConsumerWidget {
+  const _PrevisionsBody({required this.async});
+
+  final AsyncValue<List<Prevision>> async;
+
   @override
-  Widget build(BuildContext context) {
-    return GridView.builder(
-      padding: const EdgeInsets.fromLTRB(
-        AppDimens.pagePaddingH,
-        0,
-        AppDimens.pagePaddingH,
-        AppDimens.space16,
+  Widget build(BuildContext context, WidgetRef ref) {
+    return async.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.only(top: AppDimens.space32),
+        child: Chargement(size: 22),
       ),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 0.74,
+      error: (_, _) => Padding(
+        padding: const EdgeInsets.all(AppDimens.pagePaddingH),
+        child: VueErreur(
+          message: 'Impossible de charger tes prévisions.',
+          onRetry: () => ref.invalidate(_mesPrevisionsProvider),
+        ),
       ),
-      itemCount: _kMockPrevisions.length,
-      itemBuilder: (_, i) => _PrevisionCard(prevision: _kMockPrevisions[i]),
+      data: (previsions) {
+        if (previsions.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.all(AppDimens.pagePaddingH),
+            child: Center(
+              child: Text(
+                'Aucune prévision pour l\'instant.',
+                style: AppTextStyles.bodySmall,
+                textAlign: TextAlign.center,
+              ),
+            ),
+          );
+        }
+        return GridView.builder(
+          padding: const EdgeInsets.fromLTRB(
+            AppDimens.pagePaddingH,
+            0,
+            AppDimens.pagePaddingH,
+            AppDimens.space16,
+          ),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 0.74,
+          ),
+          itemCount: previsions.length,
+          itemBuilder: (_, i) => _PrevisionCard(
+            prevision: previsions[i],
+            photoFallback:
+                _kAnnoncePhotosFallback[i % _kAnnoncePhotosFallback.length],
+          ),
+        );
+      },
     );
   }
 }
 
 class _PrevisionCard extends StatelessWidget {
-  const _PrevisionCard({required this.prevision});
+  const _PrevisionCard({
+    required this.prevision,
+    required this.photoFallback,
+  });
 
-  final _MockPrevision prevision;
+  final Prevision prevision;
+  final String photoFallback;
 
   @override
   Widget build(BuildContext context) {
+    final qte = NumberFormat('#,##0', 'fr_FR').format(prevision.quantitePrevKg);
+    final date = prevision.dateRecoltePrev != null
+        ? DateFormat('d MMM', 'fr_FR').format(prevision.dateRecoltePrev!)
+        : null;
+    final prixCible = prevision.prixCibleKg;
+
     return InkWell(
       onTap: () => context.push('/producteur/previsions/${prevision.id}'),
       borderRadius: BorderRadius.circular(14),
@@ -494,7 +507,7 @@ class _PrevisionCard extends StatelessWidget {
               height: 110,
               width: double.infinity,
               child: CachedNetworkImage(
-                imageUrl: prevision.photoUrl,
+                imageUrl: photoFallback,
                 fit: BoxFit.cover,
                 placeholder: (_, _) => Container(color: AppColors.surfaceSoft),
                 errorWidget: (_, _, _) =>
@@ -508,7 +521,7 @@ class _PrevisionCard extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    prevision.nom,
+                    'Récolte prévue',
                     style: AppTextStyles.bodyMedium.copyWith(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -518,7 +531,9 @@ class _PrevisionCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    prevision.quantite,
+                    date != null
+                        ? '$qte kg prévus · $date'
+                        : '$qte kg prévus',
                     style: AppTextStyles.bodySmall.copyWith(
                       fontSize: 11,
                       color: AppColors.textSecondary,
@@ -528,7 +543,9 @@ class _PrevisionCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    prevision.prix,
+                    prixCible != null && prixCible > 0
+                        ? '${NumberFormat('#,##0', 'fr_FR').format(prixCible)} F/kg'
+                        : 'Prix à définir',
                     style: AppTextStyles.titleLarge.copyWith(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
@@ -540,7 +557,7 @@ class _PrevisionCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    prevision.stats,
+                    'Statut : ${_statusLabel(prevision)}',
                     style: AppTextStyles.labelSmall.copyWith(
                       fontSize: 10,
                       color: AppColors.textSubtle,
@@ -555,6 +572,21 @@ class _PrevisionCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _statusLabel(Prevision p) {
+    switch (p.status.apiValue) {
+      case 'OPEN':
+        return 'Ouverte';
+      case 'CONVERTED':
+        return 'Convertie';
+      case 'EXPIRED':
+        return 'Expirée';
+      case 'CANCELLED':
+        return 'Annulée';
+      default:
+        return p.status.apiValue;
+    }
   }
 }
 

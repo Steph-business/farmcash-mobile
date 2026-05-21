@@ -2,124 +2,45 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
+import '../../../api_client/api_exception.dart';
+import '../../../models/buyer_address.dart';
+import '../../../models/panier.dart';
 import '../../../routing/route_names.dart';
+import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
 import '../../../theme/app_text_styles.dart';
+import '../../widgets/communs/chargement.dart';
 import '../../widgets/communs/snackbars.dart';
+import '../../widgets/communs/vue_erreur.dart';
 
 // ─── Couleurs locales ───────────────────────────────────────────────────
 
 const Color _kPrimarySoft = Color(0xFFE8F5E9);
 
-/// Rôle du vendeur (groupe d'items dans le panier).
-enum _VendeurRole { producteur, coop }
-
-/// Modèle local : item du panier (un produit, une quantité).
+/// Frais service appliqués côté UI (1 % du sous-total).
 ///
-/// NB anti-contournement : nom du producteur tronqué (« Yao K. »).
-/// Les coopératives gardent leur nom complet (entité publique).
-class _CartItem {
-  final String id;
-  final String photoUrl;
-  final String nom;
-  final String quantite; // affiché tel quel ("500 kg")
-  final String prixUnitaire; // "350 F/kg"
-  final int prixTotalFcfa;
+/// NB : la livraison est calculée par le backend au moment du paiement —
+/// ici on n'affiche pas de ligne livraison tant que la commande n'est pas
+/// créée. Le récap final reste honnête.
+const double _kFraisServiceTaux = 0.01;
 
-  const _CartItem({
-    required this.id,
-    required this.photoUrl,
-    required this.nom,
-    required this.quantite,
-    required this.prixUnitaire,
-    required this.prixTotalFcfa,
-  });
-}
+final _panierProvider = FutureProvider.autoDispose<Panier>((ref) async {
+  return ref.read(marketplaceServiceProvider).getPanier();
+});
 
-class _VendeurGroup {
-  final String avatarUrl;
-  final String nom;
-  final _VendeurRole role;
-  final List<_CartItem> items;
+/// Adresse de livraison par défaut du BUYER, si elle existe.
+final _defaultAddressProvider =
+    FutureProvider.autoDispose<BuyerAddress?>((ref) async {
+  final addresses = await ref.read(buyerServiceProvider).listAddresses();
+  for (final a in addresses) {
+    if (a.isDefault) return a;
+  }
+  return addresses.isEmpty ? null : addresses.first;
+});
 
-  const _VendeurGroup({
-    required this.avatarUrl,
-    required this.nom,
-    required this.role,
-    required this.items,
-  });
-}
-
-/// Mock 1:1 sur `mockups/acheteur/panier.html` — 3 items répartis en 2
-/// vendeurs (Yao K. = producteur, COOP-AGRI Lagunes = coop).
-const List<_VendeurGroup> _kMockPanier = [
-  _VendeurGroup(
-    avatarUrl:
-        'https://images.unsplash.com/photo-1531123897727-8f129e1688ce'
-        '?w=120&h=120&fit=crop&auto=format',
-    nom: 'Yao K. · Yopougon',
-    role: _VendeurRole.producteur,
-    items: [
-      _CartItem(
-        id: 'cart_mais_yaok',
-        photoUrl:
-            'https://images.unsplash.com/photo-1601493700631-2b16ec4b4716'
-            '?w=200&h=200&fit=crop&auto=format',
-        nom: 'Maïs grain blanc · Standard',
-        quantite: '500 kg',
-        prixUnitaire: '350 F/kg',
-        prixTotalFcfa: 175000,
-      ),
-      _CartItem(
-        id: 'cart_tomate_yaok',
-        photoUrl:
-            'https://images.unsplash.com/photo-1518977956812-cd3dbadaaf31'
-            '?w=200&h=200&fit=crop&auto=format',
-        nom: 'Tomate fraîche · Premium',
-        quantite: '60 kg',
-        prixUnitaire: '1 200 F/kg',
-        prixTotalFcfa: 72000,
-      ),
-    ],
-  ),
-  _VendeurGroup(
-    avatarUrl:
-        'https://images.unsplash.com/photo-1625246333195-78d9c38ad449'
-        '?w=120&h=120&fit=crop&auto=format',
-    nom: 'COOP-AGRI Lagunes',
-    role: _VendeurRole.coop,
-    items: [
-      _CartItem(
-        id: 'cart_manioc_coop',
-        photoUrl:
-            'https://images.unsplash.com/photo-1574484284002-952d92456975'
-            '?w=200&h=200&fit=crop&auto=format',
-        nom: 'Manioc amer · Standard',
-        quantite: '200 kg',
-        prixUnitaire: '380 F/kg',
-        prixTotalFcfa: 76000,
-      ),
-    ],
-  ),
-];
-
-/// Page Panier de l'acheteur — push hors shell (header back).
-///
-/// Reproduction fidèle de `mockups/acheteur/panier.html` :
-/// - Header back + titre « Mon panier (n) » + lien « Vider » rouge.
-/// - Liste groupée par vendeur (avatar + nom + chip rôle).
-/// - Cards items avec photo, stepper qty (- / + ), prix total, poubelle.
-/// - Section adresse de livraison (modifiable).
-/// - Section code promo.
-/// - Récapitulatif (sous-total, livraison, frais service, total vert
-///   Poppins gros).
-/// - Bouton sticky bas « Commander · MONTANT ».
-///
-/// Mock-first : pas d'endpoint dédié pour V1. Le montant total est calculé
-/// dynamiquement à partir des items du panier (utile dès que les steppers
-/// modifient les quantités).
 class PanierAcheteurPage extends ConsumerStatefulWidget {
   const PanierAcheteurPage({super.key});
 
@@ -129,20 +50,8 @@ class PanierAcheteurPage extends ConsumerStatefulWidget {
 }
 
 class _PanierAcheteurPageState extends ConsumerState<PanierAcheteurPage> {
-  static const int _kLivraisonFcfa = 12500;
-  static const double _kFraisServiceTaux = 0.01;
-  static const String _kOrderMockId = 'panier_mock';
-
-  // Mocks restent en const, mais on garde la possibilité d'évoluer si
-  // l'utilisateur clique sur la poubelle (suppression pour V1 silencieux).
-  late List<_VendeurGroup> _groupes;
   final TextEditingController _promoCtrl = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    _groupes = List<_VendeurGroup>.from(_kMockPanier);
-  }
+  String? _itemEnSuppression;
 
   @override
   void dispose() {
@@ -150,23 +59,29 @@ class _PanierAcheteurPageState extends ConsumerState<PanierAcheteurPage> {
     super.dispose();
   }
 
-  int get _totalItemsCount =>
-      _groupes.fold<int>(0, (acc, g) => acc + g.items.length);
+  Future<void> _refresh() async {
+    ref.invalidate(_panierProvider);
+    await ref.read(_panierProvider.future);
+  }
 
-  int get _sousTotalFcfa => _groupes.fold<int>(
-        0,
-        (acc, g) => acc + g.items.fold<int>(0, (a, i) => a + i.prixTotalFcfa),
-      );
+  Future<void> _supprimerItem(PanierItem item) async {
+    if (_itemEnSuppression != null) return;
+    setState(() => _itemEnSuppression = item.id);
+    try {
+      await ref.read(marketplaceServiceProvider).removeFromPanier(item.id);
+      await _refresh();
+      if (mounted) {
+        Snackbars.showInfo(context, 'Article retiré du panier');
+      }
+    } on ApiException catch (e) {
+      if (mounted) Snackbars.showErreur(context, e.message);
+    } finally {
+      if (mounted) setState(() => _itemEnSuppression = null);
+    }
+  }
 
-  int get _fraisServiceFcfa =>
-      (_sousTotalFcfa * _kFraisServiceTaux).round();
-
-  int get _totalFcfa =>
-      _sousTotalFcfa + _kLivraisonFcfa + _fraisServiceFcfa;
-
-  void _vider() {
-    setState(() => _groupes = const []);
-    Snackbars.showInfo(context, 'Panier vidé');
+  void _modifierAdresse() {
+    context.push(RouteNames.acheteurAdressesLivraisonPath);
   }
 
   void _appliquerPromo() {
@@ -175,72 +90,125 @@ class _PanierAcheteurPageState extends ConsumerState<PanierAcheteurPage> {
     Snackbars.showInfo(context, 'Code « $code » appliqué (à venir)');
   }
 
-  void _modifierAdresse() {
-    Snackbars.showInfo(context, 'Modification adresse — à venir');
-  }
-
-  void _commander() {
-    if (_groupes.isEmpty) return;
-    context.push(RouteNames.acheteurPaiementCommandePathFor(_kOrderMockId));
+  void _commander(Panier panier) {
+    if (panier.items.isEmpty) return;
+    // V1 mono-vendeur : on ouvre le paiement sur l'annonce du premier
+    // item (le backend force déjà un seul vendeur par panier dans la pratique).
+    final first = panier.items.first;
+    context.push(
+      RouteNames.acheteurPaiementCommandePathFor(first.annonceId),
+      extra: {'quantiteKg': first.quantiteKg.toInt()},
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final async = ref.watch(_panierProvider);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         bottom: false,
-        child: Column(
-          children: [
-            _Header(
-              count: _totalItemsCount,
-              onVider: _groupes.isEmpty ? null : _vider,
-            ),
-            Expanded(
-              child: _groupes.isEmpty
-                  ? const _EmptyPanier()
-                  : Stack(
-                      children: [
-                        ListView(
-                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
-                          children: [
-                            ..._groupes.map((g) => _SellerGroup(group: g)),
-                            const _SectionTitle(label: 'Adresse de livraison'),
-                            _AddrCard(onModifier: _modifierAdresse),
-                            const _SectionTitle(label: 'Code promo'),
-                            _Coupon(
-                              controller: _promoCtrl,
-                              onAppliquer: _appliquerPromo,
-                            ),
-                            const _SectionTitle(label: 'Récapitulatif'),
-                            _Recap(
-                              sousTotal: _sousTotalFcfa,
-                              livraison: _kLivraisonFcfa,
-                              fraisService: _fraisServiceFcfa,
-                              total: _totalFcfa,
-                            ),
-                          ],
-                        ),
-                        Positioned(
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          child: _StickyBottom(
-                            total: _totalFcfa,
-                            onCommander: _commander,
-                          ),
-                        ),
-                      ],
-                    ),
-            ),
-          ],
+        child: async.when(
+          loading: () => const Column(
+            children: [
+              _Header(count: 0, onVider: null),
+              Expanded(child: Chargement(size: 22)),
+            ],
+          ),
+          error: (e, _) => Column(
+            children: [
+              const _Header(count: 0, onVider: null),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppDimens.pagePaddingH),
+                  child: VueErreur(
+                    message: 'Impossible de charger le panier. $e',
+                    onRetry: _refresh,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          data: (panier) => _buildPanier(panier),
         ),
       ),
     );
   }
+
+  Widget _buildPanier(Panier panier) {
+    final sousTotal = panier.total;
+    final fraisService = (sousTotal * _kFraisServiceTaux).round();
+    final total = sousTotal.round() + fraisService;
+
+    return Column(
+      children: [
+        _Header(
+          count: panier.items.length,
+          onVider: panier.items.isEmpty ? null : () => _viderTout(panier),
+        ),
+        Expanded(
+          child: panier.items.isEmpty
+              ? const _EmptyPanier()
+              : Stack(
+                  children: [
+                    RefreshIndicator(
+                      color: AppColors.primary,
+                      onRefresh: _refresh,
+                      child: ListView(
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
+                        children: [
+                          ...panier.items.map(
+                            (it) => _ItemCard(
+                              item: it,
+                              suppressionEnCours: _itemEnSuppression == it.id,
+                              onSupprimer: () => _supprimerItem(it),
+                            ),
+                          ),
+                          const _SectionTitle(label: 'Adresse de livraison'),
+                          _AddrCard(onModifier: _modifierAdresse),
+                          const _SectionTitle(label: 'Code promo'),
+                          _Coupon(
+                            controller: _promoCtrl,
+                            onAppliquer: _appliquerPromo,
+                          ),
+                          const _SectionTitle(label: 'Récapitulatif'),
+                          _Recap(
+                            sousTotal: sousTotal.round(),
+                            fraisService: fraisService,
+                            total: total,
+                          ),
+                        ],
+                      ),
+                    ),
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: _StickyBottom(
+                        total: total,
+                        onCommander: () => _commander(panier),
+                      ),
+                    ),
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _viderTout(Panier panier) async {
+    for (final it in panier.items) {
+      try {
+        await ref.read(marketplaceServiceProvider).removeFromPanier(it.id);
+      } catch (_) {/* on continue */}
+    }
+    await _refresh();
+    if (mounted) Snackbars.showInfo(context, 'Panier vidé');
+  }
 }
 
-// ─── Header (back + titre + Vider) ──────────────────────────────────────
+// ─── Header ────────────────────────────────────────────────────────────
 
 class _Header extends StatelessWidget {
   const _Header({required this.count, required this.onVider});
@@ -314,126 +282,28 @@ class _Header extends StatelessWidget {
   }
 }
 
-// ─── Groupe vendeur ─────────────────────────────────────────────────────
+// ─── Item card ─────────────────────────────────────────────────────────
 
-class _SellerGroup extends StatelessWidget {
-  const _SellerGroup({required this.group});
+class _ItemCard extends StatelessWidget {
+  const _ItemCard({
+    required this.item,
+    required this.suppressionEnCours,
+    required this.onSupprimer,
+  });
 
-  final _VendeurGroup group;
+  final PanierItem item;
+  final bool suppressionEnCours;
+  final VoidCallback onSupprimer;
 
   @override
   Widget build(BuildContext context) {
+    final titre = item.annonceTitre ?? 'Annonce';
+    final photo = item.annoncePhotoUrl;
+    final vendeur = item.vendeurNom ?? 'Vendeur';
+    final loc = item.localisation;
+
     return Padding(
-      padding: const EdgeInsets.only(bottom: 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
-            child: Row(
-              children: [
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: _kPrimarySoft,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: AppColors.border,
-                      width: AppDimens.borderThin,
-                    ),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: CachedNetworkImage(
-                    imageUrl: group.avatarUrl,
-                    fit: BoxFit.cover,
-                    placeholder: (_, _) =>
-                        const ColoredBox(color: _kPrimarySoft),
-                    errorWidget: (_, _, _) => const Icon(
-                      Icons.person_outline,
-                      size: 18,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    group.nom,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.text,
-                    ),
-                  ),
-                ),
-                _ChipRole(role: group.role),
-              ],
-            ),
-          ),
-          ...group.items.map((it) => _ItemCard(item: it)),
-        ],
-      ),
-    );
-  }
-}
-
-class _ChipRole extends StatelessWidget {
-  const _ChipRole({required this.role});
-
-  final _VendeurRole role;
-
-  @override
-  Widget build(BuildContext context) {
-    final label = switch (role) {
-      _VendeurRole.producteur => 'Farmer',
-      _VendeurRole.coop => 'Coop',
-    };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: _kPrimarySoft,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Text(
-        label,
-        style: AppTextStyles.labelSmall.copyWith(
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-          color: AppColors.primary,
-          letterSpacing: 0.3,
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Item card (photo + body + trash) ───────────────────────────────────
-
-class _ItemCard extends StatefulWidget {
-  const _ItemCard({required this.item});
-
-  final _CartItem item;
-
-  @override
-  State<_ItemCard> createState() => _ItemCardState();
-}
-
-class _ItemCardState extends State<_ItemCard> {
-  late String _qty = widget.item.quantite;
-
-  void _supprimer() {
-    Snackbars.showInfo(context, '${widget.item.nom} retiré du panier');
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final item = widget.item;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
@@ -459,17 +329,23 @@ class _ItemCardState extends State<_ItemCard> {
                 ),
               ),
               clipBehavior: Clip.antiAlias,
-              child: CachedNetworkImage(
-                imageUrl: item.photoUrl,
-                fit: BoxFit.cover,
-                placeholder: (_, _) =>
-                    const ColoredBox(color: AppColors.surfaceSoft),
-                errorWidget: (_, _, _) => const Icon(
-                  Icons.image_outlined,
-                  size: 28,
-                  color: AppColors.textSubtle,
-                ),
-              ),
+              child: photo != null
+                  ? CachedNetworkImage(
+                      imageUrl: photo,
+                      fit: BoxFit.cover,
+                      placeholder: (_, _) =>
+                          const ColoredBox(color: AppColors.surfaceSoft),
+                      errorWidget: (_, _, _) => const Icon(
+                        Icons.image_outlined,
+                        size: 28,
+                        color: AppColors.textSubtle,
+                      ),
+                    )
+                  : const Icon(
+                      Icons.image_outlined,
+                      size: 28,
+                      color: AppColors.textSubtle,
+                    ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -478,55 +354,66 @@ class _ItemCardState extends State<_ItemCard> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    item.nom,
+                    titre,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: AppTextStyles.bodyMedium.copyWith(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.text,
                       height: 1.3,
                     ),
                   ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '$vendeur${loc != null ? ' · $loc' : ''}',
+                    style: AppTextStyles.labelSmall.copyWith(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   const SizedBox(height: 6),
                   Text(
-                    '${item.quantite} · ${item.prixUnitaire}',
+                    '${_fmtKg(item.quantiteKg)} · ${_fmtFcfa(item.prixUnitaire.round())}/kg',
                     style: AppTextStyles.labelSmall.copyWith(
                       fontSize: 11,
                       color: AppColors.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      _Stepper(value: _qty, onChanged: (v) {
-                        setState(() => _qty = v);
-                      }),
-                      const Spacer(),
-                      Text(
-                        _formatFcfa(item.prixTotalFcfa),
-                        style: AppTextStyles.headlineSmall.copyWith(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ],
+                  const SizedBox(height: 8),
+                  Text(
+                    _fmtFcfa(item.sousTotal.round()),
+                    style: AppTextStyles.headlineSmall.copyWith(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                      fontFamily: 'Poppins',
+                    ),
                   ),
                 ],
               ),
             ),
             const SizedBox(width: 4),
             InkWell(
-              onTap: _supprimer,
+              onTap: suppressionEnCours ? null : onSupprimer,
               borderRadius: BorderRadius.circular(6),
-              child: const Padding(
-                padding: EdgeInsets.all(4),
-                child: Icon(
-                  Icons.delete_outline,
-                  size: 16,
-                  color: AppColors.textSecondary,
-                ),
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: suppressionEnCours
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.textSubtle,
+                        ),
+                      )
+                    : const Icon(
+                        Icons.delete_outline,
+                        size: 18,
+                        color: AppColors.textSecondary,
+                      ),
               ),
             ),
           ],
@@ -536,71 +423,10 @@ class _ItemCardState extends State<_ItemCard> {
   }
 }
 
-class _Stepper extends StatelessWidget {
-  const _Stepper({required this.value, required this.onChanged});
-
-  final String value;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    // V1 : stepper visuel (les steppers en mocks n'altèrent pas les totaux).
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: AppColors.borderStrong,
-          width: AppDimens.borderThin,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _stepBtn(context, '−', () => onChanged(value)),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: Text(
-              value,
-              style: AppTextStyles.headlineSmall.copyWith(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: AppColors.text,
-              ),
-            ),
-          ),
-          _stepBtn(context, '+', () => onChanged(value)),
-        ],
-      ),
-    );
-  }
-
-  Widget _stepBtn(BuildContext context, String label, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      child: SizedBox(
-        width: 28,
-        height: 28,
-        child: Center(
-          child: Text(
-            label,
-            style: AppTextStyles.titleSmall.copyWith(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: AppColors.text,
-              height: 1,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Section title ──────────────────────────────────────────────────────
+// ─── Sections ──────────────────────────────────────────────────────────
 
 class _SectionTitle extends StatelessWidget {
   const _SectionTitle({required this.label});
-
   final String label;
 
   @override
@@ -620,24 +446,19 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
-// ─── Adresse ────────────────────────────────────────────────────────────
-
-class _AddrCard extends StatelessWidget {
+class _AddrCard extends ConsumerWidget {
   const _AddrCard({required this.onModifier});
-
   final VoidCallback onModifier;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(_defaultAddressProvider);
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.border,
-          width: AppDimens.borderThin,
-        ),
+        border: Border.all(color: AppColors.border, width: AppDimens.borderThin),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -657,39 +478,17 @@ class _AddrCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Restaurant Le Baoulé',
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.text,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '22 Avenue Saint-Pierre · Cocody · Abidjan',
-                  style: AppTextStyles.labelSmall.copyWith(
-                    fontSize: 11,
-                    color: AppColors.textSecondary,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
+          Expanded(child: _addrContent(async)),
           InkWell(
             onTap: onModifier,
             borderRadius: BorderRadius.circular(6),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
               child: Text(
-                'Modifier',
+                async.maybeWhen(
+                  data: (a) => a == null ? 'Choisir' : 'Modifier',
+                  orElse: () => 'Modifier',
+                ),
                 style: AppTextStyles.labelMedium.copyWith(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
@@ -702,13 +501,107 @@ class _AddrCard extends StatelessWidget {
       ),
     );
   }
-}
 
-// ─── Coupon ─────────────────────────────────────────────────────────────
+  Widget _addrContent(AsyncValue<BuyerAddress?> async) {
+    return async.when(
+      loading: () => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Chargement de l\'adresse…',
+            style: AppTextStyles.bodyMedium.copyWith(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+      error: (_, _) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Adresse indisponible',
+            style: AppTextStyles.bodyMedium.copyWith(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Configure une adresse pour la livraison',
+            style: AppTextStyles.labelSmall.copyWith(
+              fontSize: 11,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+      data: (addr) {
+        if (addr == null) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Choisir une adresse',
+                style: AppTextStyles.bodyMedium.copyWith(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Sélectionne ton adresse de livraison',
+                style: AppTextStyles.labelSmall.copyWith(
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          );
+        }
+        final adresseComplete = addr.adresseComplete.trim();
+        final ville = addr.villeNom?.trim();
+        final adresseLine = [
+          if (adresseComplete.isNotEmpty) adresseComplete,
+          if (ville != null && ville.isNotEmpty) ville,
+        ].join(' · ');
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              addr.libelle,
+              style: AppTextStyles.bodyMedium.copyWith(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            if (adresseLine.isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Text(
+                adresseLine,
+                style: AppTextStyles.labelSmall.copyWith(
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
 
 class _Coupon extends StatelessWidget {
   const _Coupon({required this.controller, required this.onAppliquer});
-
   final TextEditingController controller;
   final VoidCallback onAppliquer;
 
@@ -729,10 +622,7 @@ class _Coupon extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: TextField(
               controller: controller,
-              style: AppTextStyles.bodyMedium.copyWith(
-                fontSize: 13,
-                color: AppColors.text,
-              ),
+              style: AppTextStyles.bodyMedium.copyWith(fontSize: 13),
               decoration: InputDecoration(
                 isCollapsed: true,
                 contentPadding: const EdgeInsets.symmetric(vertical: 12),
@@ -775,18 +665,14 @@ class _Coupon extends StatelessWidget {
   }
 }
 
-// ─── Récapitulatif ──────────────────────────────────────────────────────
-
 class _Recap extends StatelessWidget {
   const _Recap({
     required this.sousTotal,
-    required this.livraison,
     required this.fraisService,
     required this.total,
   });
 
   final int sousTotal;
-  final int livraison;
   final int fraisService;
   final int total;
 
@@ -796,34 +682,33 @@ class _Recap extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.border,
-          width: AppDimens.borderThin,
-        ),
+        border: Border.all(color: AppColors.border, width: AppDimens.borderThin),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _row('Sous-total', _formatFcfa(sousTotal), divider: true),
+          _row('Sous-total', _fmtFcfa(sousTotal), divider: true),
+          _row('Frais service (1%)', _fmtFcfa(fraisService), divider: true),
           _row(
-            'Livraison (estimée)',
-            _formatFcfa(livraison),
+            'Livraison',
+            'Calculée au paiement',
             divider: true,
+            italic: true,
           ),
-          _row(
-            'Frais service (1%)',
-            _formatFcfa(fraisService),
-            divider: true,
-          ),
-          _row('Total', _formatFcfa(total), isTotal: true),
+          _row('Total estimé', _fmtFcfa(total), isTotal: true),
         ],
       ),
     );
   }
 
-  Widget _row(String label, String value,
-      {bool divider = false, bool isTotal = false}) {
+  Widget _row(
+    String label,
+    String value, {
+    bool divider = false,
+    bool isTotal = false,
+    bool italic = false,
+  }) {
     final labelStyle = isTotal
         ? AppTextStyles.bodyMedium.copyWith(
             fontSize: 14,
@@ -833,12 +718,14 @@ class _Recap extends StatelessWidget {
         : AppTextStyles.bodySmall.copyWith(
             fontSize: 13,
             color: AppColors.textSecondary,
+            fontStyle: italic ? FontStyle.italic : FontStyle.normal,
           );
     final valueStyle = isTotal
         ? AppTextStyles.headlineMedium.copyWith(
             fontSize: 18,
             fontWeight: FontWeight.w700,
             color: AppColors.primary,
+            fontFamily: 'Poppins',
           )
         : AppTextStyles.bodyMedium.copyWith(
             fontSize: 13,
@@ -866,11 +753,8 @@ class _Recap extends StatelessWidget {
   }
 }
 
-// ─── Sticky bottom ──────────────────────────────────────────────────────
-
 class _StickyBottom extends StatelessWidget {
   const _StickyBottom({required this.total, required this.onCommander});
-
   final int total;
   final VoidCallback onCommander;
 
@@ -881,10 +765,7 @@ class _StickyBottom extends StatelessWidget {
       decoration: const BoxDecoration(
         color: AppColors.background,
         border: Border(
-          top: BorderSide(
-            color: AppColors.border,
-            width: AppDimens.borderThin,
-          ),
+          top: BorderSide(color: AppColors.border, width: AppDimens.borderThin),
         ),
       ),
       child: InkWell(
@@ -896,10 +777,6 @@ class _StickyBottom extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppColors.primary,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: AppColors.primary,
-              width: AppDimens.borderThin,
-            ),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -913,11 +790,12 @@ class _StickyBottom extends StatelessWidget {
                 ),
               ),
               Text(
-                _formatFcfa(total),
+                _fmtFcfa(total),
                 style: AppTextStyles.headlineSmall.copyWith(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                   color: AppColors.onPrimary,
+                  fontFamily: 'Poppins',
                 ),
               ),
             ],
@@ -927,8 +805,6 @@ class _StickyBottom extends StatelessWidget {
     );
   }
 }
-
-// ─── Empty state ────────────────────────────────────────────────────────
 
 class _EmptyPanier extends StatelessWidget {
   const _EmptyPanier();
@@ -951,6 +827,14 @@ class _EmptyPanier extends StatelessWidget {
               'Votre panier est vide',
               style: AppTextStyles.titleSmall,
             ),
+            const SizedBox(height: AppDimens.space8),
+            Text(
+              'Parcourez le marché pour ajouter des produits.',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
@@ -960,14 +844,8 @@ class _EmptyPanier extends StatelessWidget {
 
 // ─── Helpers ────────────────────────────────────────────────────────────
 
-/// Formate un montant en F CFA avec espaces insécables comme séparateurs
-/// de milliers — visuel identique à la maquette ("175 000 F").
-String _formatFcfa(int value) {
-  final s = value.toString();
-  final buf = StringBuffer();
-  for (var i = 0; i < s.length; i++) {
-    if (i > 0 && (s.length - i) % 3 == 0) buf.write(' ');
-    buf.write(s[i]);
-  }
-  return '${buf.toString()} F';
-}
+final _nf = NumberFormat('#,##0', 'fr_FR');
+
+String _fmtFcfa(int value) => '${_nf.format(value)} F';
+
+String _fmtKg(double v) => '${_nf.format(v.round())} kg';

@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../models/annonce_achat.dart';
@@ -11,6 +12,7 @@ import '../../../models/membre_coop.dart';
 import '../../../models/pagination.dart';
 import '../../../models/prevision.dart';
 import '../../../models/wallet_with_transactions.dart';
+import '../../../routing/route_names.dart';
 import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
@@ -24,6 +26,16 @@ import '../../widgets/communs/vue_erreur.dart';
 
 const Color _kPrimarySoft = Color(0xFFE8F5E9);
 
+// Palette d'accents sémantiques calmes — soft backgrounds + accents.
+// Utilisés pour différencier visuellement les KPI / actions / raccourcis,
+// sans casser la sobriété générale (jamais de saturé plein).
+const Color _kInfoSoft = Color(0xFFE3F2FD);
+const Color _kInfoAccent = Color(0xFF1976D2);
+const Color _kWarnSoft = Color(0xFFFFF4E5);
+const Color _kWarnAccent = Color(0xFFE65100);
+const Color _kHighlightSoft = Color(0xFFFFF9C4);
+const Color _kHighlightAccent = Color(0xFFF57F17);
+
 // Radius des cards et du hero — conformes au pattern producteur :
 // 14 pour les cards photo / liste, 16 pour le CTA hero unique.
 const BorderRadius _kBrCard = BorderRadius.all(Radius.circular(14));
@@ -33,7 +45,7 @@ const BorderRadius _kBrHero = BorderRadius.all(Radius.circular(16));
 const String _kPhotoAssistantGestion =
     'https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=400&h=300&fit=crop&auto=format';
 const String _kPhotoConseilsSaison =
-    'https://images.unsplash.com/photo-1601593768799-76d3f96d2cbc?w=400&h=300&fit=crop&auto=format';
+    'https://images.unsplash.com/photo-1464226184884-fa280b87c399?w=400&h=300&fit=crop&auto=format';
 
 /// Accueil coopérative — CTA Collecte, KPIs, raccourcis, acheteurs ciblés,
 /// actions à traiter, activité récente des membres, outils intelligents.
@@ -187,7 +199,11 @@ class _AccueilContent extends ConsumerWidget {
               await ref.read(_accueilCoopDataProvider.future);
             },
             child: data.totalementVide
-                ? _EtatVide(onInviter: () => _snack(context, 'à venir'))
+                ? _EtatVide(
+                    onInviter: () => context.push(
+                      RouteNames.cooperativeInviterFarmerPath,
+                    ),
+                  )
                 : ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(
@@ -201,8 +217,9 @@ class _AccueilContent extends ConsumerWidget {
                       if (showHero) ...[
                         _CtaCollecte(
                           nbAValider: data.nbAnnoncesAValider,
-                          onTap: () =>
-                              _snack(context, 'Collecte — à venir'),
+                          onTap: () => context.push(
+                            RouteNames.cooperativeCollectePath,
+                          ),
                         ),
                         AppDimens.vGap24,
                       ],
@@ -215,14 +232,29 @@ class _AccueilContent extends ConsumerWidget {
                         nbAValider: data.nbAnnoncesAValider,
                         nbMembres: data.nbMembres,
                         heroAffiche: showHero,
-                        onTap: () => _snack(context, 'à venir'),
+                        onPremiere: () => context.push(
+                          showHero
+                              ? RouteNames.cooperativeMembresPath
+                              : RouteNames.cooperativeCollectePath,
+                        ),
+                        onInviter: () => context.push(
+                          RouteNames.cooperativeInviterFarmerPath,
+                        ),
+                        onVerserAvance: () => context.push(
+                          RouteNames.cooperativeVerserAvancePath,
+                        ),
+                        onPublierMarche: () => context.push(
+                          RouteNames.cooperativePublicationCreerPath,
+                        ),
                       ),
                       // 4. Acheteurs qui ciblent ma coop
                       if (data.annoncesAchat.isNotEmpty) ...[
                         AppDimens.vGap24,
                         _SectionAcheteurs(
                           annonces: data.annoncesAchat,
-                          onVoirTout: () => _snack(context, 'à venir'),
+                          onVoirTout: () => context.push(
+                            RouteNames.cooperativeOffresRecuesPath,
+                          ),
                         ),
                       ],
                       // 5. Actions à traiter
@@ -230,7 +262,15 @@ class _AccueilContent extends ConsumerWidget {
                         AppDimens.vGap24,
                         _ActionsATraiter(
                           data: data,
-                          onTap: () => _snack(context, 'à venir'),
+                          onAdhesions: () => context.push(
+                            RouteNames.cooperativeAdhesionsPath,
+                          ),
+                          onOffres: () => context.push(
+                            RouteNames.cooperativeOffresRecuesPath,
+                          ),
+                          onValidations: () => context.push(
+                            RouteNames.cooperativePrevisionsMembresPath,
+                          ),
                         ),
                       ],
                       // 6. Activité récente des membres
@@ -239,14 +279,22 @@ class _AccueilContent extends ConsumerWidget {
                         _SectionActiviteMembres(
                           annonces:
                               data.annoncesVentePending.take(3).toList(),
-                          onVoirTout: () => _snack(context, 'à venir'),
+                          onVoirTout: () => context.push(
+                            RouteNames.cooperativeMarchePath,
+                          ),
                         ),
                       ],
                       // 7. Outils intelligents
                       AppDimens.vGap24,
                       _SectionOutilsIA(
-                        onAssistant: () => _snack(context, 'à venir'),
-                        onConseils: () => _snack(context, 'à venir'),
+                        onAssistant: () => _snack(
+                          context,
+                          'Assistant gestion — à venir',
+                        ),
+                        onConseils: () => _snack(
+                          context,
+                          'Conseils saison — à venir',
+                        ),
                       ),
                     ],
                   ),
@@ -283,55 +331,76 @@ class _CtaCollecte extends StatelessWidget {
     return Material(
       color: AppColors.primary,
       borderRadius: _kBrHero,
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         borderRadius: _kBrHero,
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Collecte du jour',
-                      style: AppTextStyles.titleSmall.copyWith(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.onPrimary,
-                        height: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      sousTitre,
-                      style: AppTextStyles.bodySmall.copyWith(
-                        fontSize: 12,
-                        color: AppColors.onPrimary.withValues(alpha: 0.9),
-                      ),
-                    ),
-                  ],
+        child: Stack(
+          children: [
+            // Cercle décoratif blanc semi-transparent en bas-droite —
+            // "embellish" subtil, ne modifie pas le layout du contenu.
+            Positioned(
+              right: -28,
+              bottom: -28,
+              child: IgnorePointer(
+                child: Container(
+                  width: 110,
+                  height: 110,
+                  decoration: BoxDecoration(
+                    color: AppColors.onPrimary.withValues(alpha: 0.08),
+                    shape: BoxShape.circle,
+                  ),
                 ),
               ),
-              AppDimens.hGap12,
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppColors.onPrimary.withValues(alpha: 0.18),
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: const Icon(
-                  Icons.assignment_outlined,
-                  size: 20,
-                  color: AppColors.onPrimary,
-                ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(18),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Collecte du jour',
+                          style: AppTextStyles.titleSmall.copyWith(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.onPrimary,
+                            height: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          sousTitre,
+                          style: AppTextStyles.bodySmall.copyWith(
+                            fontSize: 12,
+                            color: AppColors.onPrimary.withValues(alpha: 0.9),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  AppDimens.hGap12,
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: AppColors.onPrimary.withValues(alpha: 0.18),
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: const Icon(
+                      Icons.assignment_outlined,
+                      size: 20,
+                      color: AppColors.onPrimary,
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -356,6 +425,8 @@ class _KpiRow extends StatelessWidget {
               icon: Icons.groups_outlined,
               value: '${data.nbMembres}',
               label: 'Membres',
+              background: _kPrimarySoft,
+              accent: AppColors.primary,
             ),
           ),
           const SizedBox(width: 6),
@@ -364,6 +435,8 @@ class _KpiRow extends StatelessWidget {
               icon: Icons.inventory_2_outlined,
               value: _formatStock(data.stockKg),
               label: 'Stock',
+              background: _kInfoSoft,
+              accent: _kInfoAccent,
             ),
           ),
           const SizedBox(width: 6),
@@ -372,6 +445,8 @@ class _KpiRow extends StatelessWidget {
               icon: Icons.account_balance_wallet_outlined,
               value: _formatCourt(data.solde),
               label: 'Solde',
+              background: _kWarnSoft,
+              accent: _kWarnAccent,
             ),
           ),
           const SizedBox(width: 6),
@@ -382,6 +457,8 @@ class _KpiRow extends StatelessWidget {
               icon: Icons.payments_outlined,
               value: '0',
               label: 'Payouts',
+              background: _kHighlightSoft,
+              accent: _kHighlightAccent,
             ),
           ),
         ],
@@ -395,18 +472,26 @@ class _KpiCard extends StatelessWidget {
     required this.icon,
     required this.value,
     required this.label,
+    required this.background,
+    required this.accent,
   });
 
   final IconData icon;
   final String value;
   final String label;
 
+  /// Background pastel doux de la card (ex: _kPrimarySoft, _kInfoSoft…).
+  final Color background;
+
+  /// Couleur d'accent assortie utilisée pour le cercle de l'icône.
+  final Color accent;
+
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: background,
         borderRadius: _kBrCard,
         border: Border.all(color: AppColors.border, width: AppDimens.borderThin),
       ),
@@ -414,10 +499,19 @@ class _KpiCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            size: AppDimens.iconS,
-            color: AppColors.textSecondary,
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: accent,
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: Icon(
+              icon,
+              size: 18,
+              color: AppColors.onPrimary,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
@@ -455,7 +549,10 @@ class _GrilleRaccourcis extends StatelessWidget {
     required this.nbAValider,
     required this.nbMembres,
     required this.heroAffiche,
-    required this.onTap,
+    required this.onPremiere,
+    required this.onInviter,
+    required this.onVerserAvance,
+    required this.onPublierMarche,
   });
 
   /// Combine annonces vente PENDING + prévisions PENDING.
@@ -465,7 +562,13 @@ class _GrilleRaccourcis extends StatelessWidget {
   /// Si le CTA hero "Collecte" est affiché, la tile "Collecte" est
   /// remplacée par "Voir les membres" pour éviter la redondance.
   final bool heroAffiche;
-  final VoidCallback onTap;
+
+  /// Callback de la première tile (Voir les membres si heroAffiche, sinon
+  /// Collecte du jour).
+  final VoidCallback onPremiere;
+  final VoidCallback onInviter;
+  final VoidCallback onVerserAvance;
+  final VoidCallback onPublierMarche;
 
   @override
   Widget build(BuildContext context) {
@@ -476,7 +579,8 @@ class _GrilleRaccourcis extends StatelessWidget {
             sousTitre: nbMembres > 0
                 ? '$nbMembres ${nbMembres > 1 ? "membres actifs" : "membre actif"}'
                 : 'aucun membre',
-            onTap: onTap,
+            accentColor: AppColors.primary,
+            onTap: onPremiere,
           )
         : TileRaccourci(
             icon: Icons.assignment_outlined,
@@ -485,7 +589,8 @@ class _GrilleRaccourcis extends StatelessWidget {
                 ? '$nbAValider produits à peser'
                 : 'rien à peser',
             badge: nbAValider > 0 ? '$nbAValider' : null,
-            onTap: onTap,
+            accentColor: AppColors.primary,
+            onTap: onPremiere,
           );
 
     return GridView.count(
@@ -501,19 +606,22 @@ class _GrilleRaccourcis extends StatelessWidget {
           icon: Icons.person_add_outlined,
           titre: 'Inviter un farmer',
           sousTitre: 'par téléphone',
-          onTap: onTap,
+          accentColor: _kInfoAccent,
+          onTap: onInviter,
         ),
         TileRaccourci(
           icon: Icons.payments_outlined,
           titre: 'Verser une avance',
           sousTitre: 'à un membre',
-          onTap: onTap,
+          accentColor: _kWarnAccent,
+          onTap: onVerserAvance,
         ),
         TileRaccourci(
           icon: Icons.storefront_outlined,
           titre: 'Publier sur marché',
           sousTitre: 'stock direct',
-          onTap: onTap,
+          accentColor: _kHighlightAccent,
+          onTap: onPublierMarche,
         ),
       ],
     );
@@ -540,6 +648,7 @@ class _SectionAcheteurs extends StatelessWidget {
           titre: 'Acheteurs qui ciblent ma coop',
           lienTexte: 'Voir tout',
           onLien: onVoirTout,
+          accentDot: _kWarnAccent,
         ),
         SizedBox(
           height: 138,
@@ -570,77 +679,107 @@ class _DemandeCard extends StatelessWidget {
         ? annonce.titre!.trim()
         : 'produit';
 
-    return Container(
-      width: 250,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: _kBrCard,
-        border: Border.all(color: AppColors.border, width: AppDimens.borderThin),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          width: 250,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: _kBrCard,
+            border: Border.all(
+              color: AppColors.border,
+              width: AppDimens.borderThin,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _AvatarInitiales(seed: annonce.buyerId),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Acheteur ${_initiales(annonce.buyerId)}',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (region != null && region.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        region,
-                        style: AppTextStyles.bodySmall.copyWith(
-                          fontSize: 11,
-                          color: AppColors.textSecondary,
+              Row(
+                children: [
+                  _AvatarInitiales(seed: annonce.buyerId),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Acheteur ${_initiales(annonce.buyerId)}',
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ],
+                        if (region != null && region.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            region,
+                            style: AppTextStyles.bodySmall.copyWith(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Cherche $qte kg $produit',
+                style: AppTextStyles.bodyMedium.copyWith(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'jusqu\'à $prix F/kg',
+                style: AppTextStyles.titleLarge.copyWith(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                  letterSpacing: -0.2,
+                  height: 1.2,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Text(
-            'Cherche $qte kg $produit',
-            style: AppTextStyles.bodyMedium.copyWith(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
+        ),
+        // Petit badge "Nouveau" — opportunité acheteur ciblée sur la coop.
+        Positioned(
+          top: 8,
+          right: 8,
+          child: Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: _kWarnSoft,
+              borderRadius: BorderRadius.circular(10),
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'jusqu\'à $prix F/kg',
-            style: AppTextStyles.titleLarge.copyWith(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: AppColors.primary,
-              letterSpacing: -0.2,
-              height: 1.2,
+            child: const Text(
+              'Nouveau',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: _kWarnAccent,
+                height: 1.1,
+              ),
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -648,10 +787,17 @@ class _DemandeCard extends StatelessWidget {
 // ─── Section "Actions à traiter" ─────────────────────────────────────────
 
 class _ActionsATraiter extends StatelessWidget {
-  const _ActionsATraiter({required this.data, required this.onTap});
+  const _ActionsATraiter({
+    required this.data,
+    required this.onAdhesions,
+    required this.onOffres,
+    required this.onValidations,
+  });
 
   final _AccueilCoopData data;
-  final VoidCallback onTap;
+  final VoidCallback onAdhesions;
+  final VoidCallback onOffres;
+  final VoidCallback onValidations;
 
   @override
   Widget build(BuildContext context) {
@@ -670,6 +816,10 @@ class _ActionsATraiter extends StatelessWidget {
               'd’adhésion',
           sousTitre:
               relatif != null ? 'dont 1 reçue $relatif' : 'à examiner',
+          accent: _kInfoAccent,
+          accentSoft: _kInfoSoft,
+          count: data.joinRequests.length,
+          onTap: onAdhesions,
         ),
       );
     }
@@ -682,6 +832,10 @@ class _ActionsATraiter extends StatelessWidget {
               '${data.annoncesAchat.length > 1 ? "offres" : "offre"} '
               'd’achat ${data.annoncesAchat.length > 1 ? "reçues" : "reçue"}',
           sousTitre: _sousTitreOffres(data.annoncesAchat),
+          accent: _kWarnAccent,
+          accentSoft: _kWarnSoft,
+          count: data.annoncesAchat.length,
+          onTap: onOffres,
         ),
       );
     }
@@ -697,11 +851,21 @@ class _ActionsATraiter extends StatelessWidget {
             data.annoncesVentePending.length,
             data.previsionsPending.length,
           ),
+          accent: AppColors.primary,
+          accentSoft: _kPrimarySoft,
+          count: data.nbAnnoncesAValider,
+          onTap: onValidations,
         ),
       );
     }
 
     if (items.isEmpty) return const SizedBox.shrink();
+
+    // "Voir tout" du header : priorité = adhésions > offres > validations,
+    // pour pointer sur la liste la plus probable.
+    final VoidCallback onVoirTout = data.joinRequests.isNotEmpty
+        ? onAdhesions
+        : (data.annoncesAchat.isNotEmpty ? onOffres : onValidations);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -709,7 +873,7 @@ class _ActionsATraiter extends StatelessWidget {
         _SectionHead(
           titre: 'Actions à traiter',
           lienTexte: 'Voir tout',
-          onLien: onTap,
+          onLien: onVoirTout,
           trailing: data.joinRequests.isEmpty
               ? null
               : _AvatarsEmpiles(
@@ -734,7 +898,7 @@ class _ActionsATraiter extends StatelessWidget {
               for (var i = 0; i < items.length; i++) ...[
                 _ListItemAction(
                   data: items[i],
-                  onTap: onTap,
+                  onTap: items[i].onTap,
                 ),
                 if (i < items.length - 1)
                   const Divider(
@@ -756,11 +920,28 @@ class _ListItemActionData {
     required this.icon,
     required this.titre,
     required this.sousTitre,
+    required this.accent,
+    required this.accentSoft,
+    required this.count,
+    required this.onTap,
   });
 
   final IconData icon;
   final String titre;
   final String sousTitre;
+
+  /// Couleur d'accent sémantique (info / warning / primary). Utilisée pour
+  /// le fond de l'icône et le badge compteur.
+  final Color accent;
+
+  /// Variante "soft" de la couleur d'accent — gardée pour usages futurs
+  /// (background ligne, surlignage…). Non utilisée pour rester sobre.
+  final Color accentSoft;
+
+  /// Compteur affiché dans le badge de bout de ligne.
+  final int count;
+
+  final VoidCallback onTap;
 }
 
 class _ListItemAction extends StatelessWidget {
@@ -784,14 +965,14 @@ class _ListItemAction extends StatelessWidget {
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: AppColors.surfaceSoft,
-                borderRadius: BorderRadius.circular(AppDimens.radiusS),
+                color: data.accent,
+                shape: BoxShape.circle,
               ),
               alignment: Alignment.center,
               child: Icon(
                 data.icon,
                 size: 18,
-                color: AppColors.textSecondary,
+                color: AppColors.onPrimary,
               ),
             ),
             AppDimens.hGap12,
@@ -819,6 +1000,25 @@ class _ListItemAction extends StatelessWidget {
                 ],
               ),
             ),
+            Container(
+              constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+              padding: const EdgeInsets.symmetric(horizontal: 7),
+              decoration: BoxDecoration(
+                color: data.accent,
+                borderRadius: BorderRadius.circular(11),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                '${data.count}',
+                style: const TextStyle(
+                  color: AppColors.onPrimary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  height: 1.1,
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
             const Icon(
               Icons.chevron_right,
               size: 18,
@@ -1029,15 +1229,35 @@ class _OutilCard extends StatelessWidget {
                       bottom: 12,
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(10),
-                        child: CachedNetworkImage(
-                          imageUrl: photoUrl,
-                          fit: BoxFit.cover,
-                          placeholder: (_, __) => Container(
-                            color: AppColors.surfaceSoft,
-                          ),
-                          errorWidget: (_, __, ___) => Container(
-                            color: AppColors.surfaceSoft,
-                          ),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            CachedNetworkImage(
+                              imageUrl: photoUrl,
+                              fit: BoxFit.cover,
+                              placeholder: (_, __) => Container(
+                                color: AppColors.surfaceSoft,
+                              ),
+                              errorWidget: (_, __, ___) => Container(
+                                color: AppColors.surfaceSoft,
+                              ),
+                            ),
+                            // Overlay gradient subtil (sombre en bas) pour
+                            // mieux faire ressortir le badge et préparer
+                            // l'arrivée éventuelle d'un texte sur photo.
+                            const DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Color(0x00000000),
+                                    Color(0x4D000000),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -1103,6 +1323,7 @@ class _SectionHead extends StatelessWidget {
     this.lienTexte,
     this.onLien,
     this.trailing,
+    this.accentDot,
   });
 
   final String titre;
@@ -1112,12 +1333,27 @@ class _SectionHead extends StatelessWidget {
   /// Widget optionnel inséré entre le titre et le lien (ex: avatars empilés).
   final Widget? trailing;
 
+  /// Si fourni, un petit point coloré (8×8) est affiché avant le titre,
+  /// pour suggérer la nature de la section (opportunité, action…).
+  final Color? accentDot;
+
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppDimens.space12),
       child: Row(
         children: [
+          if (accentDot != null) ...[
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: accentDot,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
           Expanded(
             child: Text(
               titre,

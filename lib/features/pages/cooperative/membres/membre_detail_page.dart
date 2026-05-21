@@ -2,11 +2,17 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
+import '../../../../models/enums.dart';
+import '../../../../models/membre_coop.dart';
 import '../../../../routing/route_names.dart';
+import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
+import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/vue_erreur.dart';
 
 // ─── COULEURS & RADIUS LOCAUX (alignés sur la maquette) ─────────────────
 
@@ -14,81 +20,41 @@ const Color _kPrimarySoft = Color(0xFFE8F5E9);
 
 const BorderRadius _kBrHero = BorderRadius.all(Radius.circular(14));
 const BorderRadius _kBrCard = BorderRadius.all(Radius.circular(14));
-const BorderRadius _kBrThumbSm = BorderRadius.all(Radius.circular(8));
-const BorderRadius _kBrThumbMd = BorderRadius.all(Radius.circular(10));
 
-// Photos statiques (Unsplash — illustrations neutres alignées maquette).
-const String _kPhotoMembre =
-    'https://images.unsplash.com/photo-1531123897727-8f129e1688ce'
-    '?w=200&h=200&fit=crop&auto=format';
-const String _kPhotoParcelleNord =
-    'https://images.unsplash.com/photo-1488459716781-31db52582fe9'
-    '?w=200&h=200&fit=crop&auto=format';
-const String _kPhotoParcelleEst =
-    'https://images.unsplash.com/photo-1574484284002-952d92456975'
-    '?w=200&h=200&fit=crop&auto=format';
-const String _kPhotoMais =
-    'https://images.unsplash.com/photo-1601493700631-2b16ec4b4716'
-    '?w=200&h=200&fit=crop&auto=format';
-const String _kPhotoManioc =
-    'https://images.unsplash.com/photo-1574484284002-952d92456975'
-    '?w=200&h=200&fit=crop&auto=format';
-const String _kPhotoCacao =
-    'https://images.unsplash.com/photo-1488459716781-31db52582fe9'
-    '?w=200&h=200&fit=crop&auto=format';
-
-/// Modèle mock pour une parcelle / contribution.
-class _ParcelleMock {
-  final String photo;
-  final String nom;
-  final String meta;
-  const _ParcelleMock(this.photo, this.nom, this.meta);
-}
-
-class _ContribMock {
-  final String photo;
-  final String titre;
-  final String date;
-  final String montant;
-  const _ContribMock(this.photo, this.titre, this.date, this.montant);
-}
-
-const List<_ParcelleMock> _kParcelles = [
-  _ParcelleMock(_kPhotoParcelleNord, 'Parcelle Nord', '2.5 ha · Maïs, Manioc'),
-  _ParcelleMock(_kPhotoParcelleEst, 'Parcelle Est', '1.8 ha · Cacao'),
-];
-
-const List<_ContribMock> _kContribs = [
-  _ContribMock(_kPhotoMais, 'Maïs blanc · 250 kg', '14 mai 2026', '62 500 F'),
-  _ContribMock(_kPhotoManioc, 'Manioc · 400 kg', '8 mai 2026', '80 000 F'),
-  _ContribMock(_kPhotoCacao, 'Cacao · 120 kg', '2 mai 2026', '144 000 F'),
-];
+/// Provider qui retrouve un membre via `listMembers()` filtré par userId.
+///
+/// Le backend n'a pas de `GET /coop/members/:id` ; on récupère la liste
+/// complète paginée (limite 100) puis on filtre côté client par `userId`,
+/// qui est le paramètre passé dans l'URL.
+final _membreDetailProvider = FutureProvider.autoDispose
+    .family<MembreCoop?, String>((ref, userId) async {
+  final svc = ref.read(cooperativesServiceProvider);
+  final page = await svc.listMembers(limit: 100);
+  for (final m in page.data) {
+    if (m.userId == userId || m.id == userId) return m;
+  }
+  return null;
+});
 
 /// Fiche d'un membre de la coopérative (accès via la liste membres).
 ///
 /// CRITIQUE — règle chantier 3b "anti-contournement" :
 /// La coopérative voit FULL ses membres. Cet écran affiche donc :
-///   • le nom complet (« Yao Konan ») partout (header, hero, …) ;
-///   • le bouton « Appeler » fonctionnel ;
-///   • toutes les contributions chiffrées ;
-///   • le solde du wallet du membre + bouton "Verser une avance".
+///   • le nom complet réel (header, hero) ;
+///   • le téléphone réel ;
+///   • le rôle réel ;
+///   • la date d'adhésion.
 ///
 /// Cette EXCEPTION s'applique UNIQUEMENT entre la coop et SES membres.
-/// Tous les autres rôles continuent de voir le nom tronqué.
 class MembreDetailPage extends ConsumerWidget {
   const MembreDetailPage({super.key, required this.membreId});
 
-  /// Identifiant du membre, conservé pour la future API
-  /// (`cooperativesService.getMember(id)`).
+  /// `userId` du membre — c'est ce qui figure dans l'URL `/membres/:id`.
   final String membreId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Pour le mock, on garde le membre "Yao Konan" décrit par la maquette.
-    // membreId sera utilisé pour brancher l'API quand elle sera prête.
-    const nomComplet = 'Yao Konan';
-    const ville = 'Abidjan · Treichville';
-    const membreDepuis = 'Membre depuis 03/2026';
+    final async = ref.watch(_membreDetailProvider(membreId));
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -96,57 +62,93 @@ class MembreDetailPage extends ConsumerWidget {
         bottom: false,
         child: Column(
           children: [
-            const _Header(nom: nomComplet),
+            _Header(
+              nom: async.maybeWhen(
+                data: (m) => m?.fullName ?? 'Membre',
+                orElse: () => 'Membre',
+              ),
+            ),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(
-                  AppDimens.pagePaddingH,
-                  0,
-                  AppDimens.pagePaddingH,
-                  AppDimens.space16,
+              child: async.when(
+                loading: () => const Padding(
+                  padding: EdgeInsets.only(top: 48),
+                  child: Chargement(size: 22),
                 ),
-                children: [
-                  // 1. Hero card : photo + nom + ville + tag "Membre depuis"
-                  _HeroCard(
-                    nom: nomComplet,
-                    ville: ville,
-                    membreDepuis: membreDepuis,
-                    onAppeler: () =>
-                        _snack(context, 'Appel en cours — à venir'),
-                    onMessage: () =>
-                        _snack(context, 'Message — à venir'),
+                error: (e, _) => Padding(
+                  padding: const EdgeInsets.all(AppDimens.pagePaddingH),
+                  child: VueErreur(
+                    message: 'Impossible de charger ce membre. $e',
+                    onRetry: () =>
+                        ref.invalidate(_membreDetailProvider(membreId)),
                   ),
-                  AppDimens.vGap16,
-
-                  // 2. KPI row : Livré · Payé · Note
-                  const _KpiRow(),
-                  AppDimens.vGap24,
-
-                  // 3. Section "Ses parcelles"
-                  const _SectionHead(titre: 'Ses parcelles'),
-                  _ParcellesCard(items: _kParcelles),
-                  AppDimens.vGap16,
-
-                  // 4. Section "Dernières contributions"
-                  const _SectionHead(titre: 'Dernières contributions'),
-                  _ContribsCard(items: _kContribs),
-                  AppDimens.vGap16,
-
-                  // 5. Section "Wallet du membre" — visibilité chiffrée
-                  const _SectionHead(titre: 'Wallet du membre'),
-                  _WalletCard(
-                    solde: '25 000 F',
-                    onVerserAvance: () => _snack(
-                      context,
-                      'Verser une avance — à venir',
-                    ),
-                  ),
-                ],
+                ),
+                data: (membre) {
+                  if (membre == null) {
+                    return Padding(
+                      padding:
+                          const EdgeInsets.all(AppDimens.pagePaddingH),
+                      child: Text(
+                        'Membre introuvable.',
+                        style: AppTextStyles.bodyMedium,
+                      ),
+                    );
+                  }
+                  return _Body(membre: membre);
+                },
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _Body extends StatelessWidget {
+  const _Body({required this.membre});
+
+  final MembreCoop membre;
+
+  @override
+  Widget build(BuildContext context) {
+    final fullName = membre.fullName ?? 'Membre';
+    final phone = membre.phone;
+    final photoUrl = membre.photoUrl;
+    final dateAdhesion = membre.joinedAt;
+    final membreDepuisLabel = dateAdhesion == null
+        ? 'Adhésion récente'
+        : 'Membre depuis ${DateFormat('MM/y').format(dateAdhesion)}';
+    final roleLabel = _roleLabel(membre.role);
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(
+        AppDimens.pagePaddingH,
+        0,
+        AppDimens.pagePaddingH,
+        AppDimens.space16,
+      ),
+      children: [
+        // 1. Hero card : photo + nom + tag membre + tel
+        _HeroCard(
+          nom: fullName,
+          phone: phone,
+          photoUrl: photoUrl,
+          membreDepuis: membreDepuisLabel,
+          roleLabel: roleLabel,
+          onAppeler: () =>
+              _snack(context, 'Appel en cours — à venir'),
+          onMessage: () => _snack(context, 'Message — à venir'),
+        ),
+        AppDimens.vGap16,
+
+        // 2. Section "Wallet du membre"
+        const _SectionHead(titre: 'Actions'),
+        _ActionsCard(
+          onVerserAvance: () => context.push(
+            '${RouteNames.cooperativeVerserAvancePath}?membreId=${membre.userId}',
+          ),
+        ),
+      ],
     );
   }
 }
@@ -160,6 +162,21 @@ void _snack(BuildContext context, String message) {
         behavior: SnackBarBehavior.floating,
       ),
     );
+}
+
+String _roleLabel(CoopMemberRole role) {
+  switch (role) {
+    case CoopMemberRole.president:
+      return 'Président';
+    case CoopMemberRole.gerant:
+      return 'Gérant';
+    case CoopMemberRole.tresorier:
+      return 'Trésorier';
+    case CoopMemberRole.membre:
+      return 'Membre';
+    case CoopMemberRole.unknown:
+      return 'Membre';
+  }
 }
 
 // ─── Header (back + nom COMPLET du membre) ──────────────────────────────
@@ -217,15 +234,19 @@ class _Header extends StatelessWidget {
 class _HeroCard extends StatelessWidget {
   const _HeroCard({
     required this.nom,
-    required this.ville,
+    required this.phone,
+    required this.photoUrl,
     required this.membreDepuis,
+    required this.roleLabel,
     required this.onAppeler,
     required this.onMessage,
   });
 
   final String nom;
-  final String ville;
+  final String? phone;
+  final String? photoUrl;
   final String membreDepuis;
+  final String roleLabel;
   final VoidCallback onAppeler;
   final VoidCallback onMessage;
 
@@ -243,7 +264,7 @@ class _HeroCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // Photo ronde 80px (Unsplash)
+          // Photo ronde 80px
           Container(
             width: 80,
             height: 80,
@@ -256,21 +277,15 @@ class _HeroCard extends StatelessWidget {
               ),
             ),
             clipBehavior: Clip.antiAlias,
-            child: CachedNetworkImage(
-              imageUrl: _kPhotoMembre,
-              fit: BoxFit.cover,
-              placeholder: (_, __) => const ColoredBox(color: _kPrimarySoft),
-              errorWidget: (_, __, ___) => Center(
-                child: Text(
-                  _initiales(nom),
-                  style: AppTextStyles.titleLarge.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 22,
-                  ),
-                ),
-              ),
-            ),
+            child: (photoUrl != null && photoUrl!.isNotEmpty)
+                ? CachedNetworkImage(
+                    imageUrl: photoUrl!,
+                    fit: BoxFit.cover,
+                    placeholder: (_, _) =>
+                        const ColoredBox(color: _kPrimarySoft),
+                    errorWidget: (_, _, _) => _initialesAvatar(nom),
+                  )
+                : _initialesAvatar(nom),
           ),
           const SizedBox(height: 12),
           Text(
@@ -280,32 +295,25 @@ class _HeroCard extends StatelessWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            ville,
-            style: AppTextStyles.bodySmall.copyWith(
-              fontSize: 13,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 10,
-              vertical: 4,
-            ),
-            decoration: BoxDecoration(
-              color: _kPrimarySoft,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Text(
-              membreDepuis,
-              style: AppTextStyles.labelSmall.copyWith(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: AppColors.primary,
+          if (phone != null && phone!.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              phone!,
+              style: AppTextStyles.bodySmall.copyWith(
+                fontSize: 13,
+                color: AppColors.textSecondary,
               ),
             ),
+          ],
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            alignment: WrapAlignment.center,
+            children: [
+              _Tag(label: roleLabel),
+              _Tag(label: membreDepuis),
+            ],
           ),
           const SizedBox(height: 16),
           Row(
@@ -330,6 +338,47 @@ class _HeroCard extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+Widget _initialesAvatar(String nom) {
+  return Center(
+    child: Text(
+      _initiales(nom),
+      style: AppTextStyles.titleLarge.copyWith(
+        color: AppColors.primary,
+        fontWeight: FontWeight.w700,
+        fontSize: 22,
+      ),
+    ),
+  );
+}
+
+class _Tag extends StatelessWidget {
+  const _Tag({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: 4,
+      ),
+      decoration: BoxDecoration(
+        color: _kPrimarySoft,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        label,
+        style: AppTextStyles.labelSmall.copyWith(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: AppColors.primary,
+        ),
       ),
     );
   }
@@ -387,73 +436,6 @@ class _ActionButton extends StatelessWidget {
   }
 }
 
-// ─── KPI row (3 cards) ──────────────────────────────────────────────────
-
-class _KpiRow extends StatelessWidget {
-  const _KpiRow();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: const [
-        Expanded(child: _KpiCard(value: '1.2 t', label: 'Livré')),
-        SizedBox(width: 8),
-        Expanded(child: _KpiCard(value: '850K F', label: 'Payé')),
-        SizedBox(width: 8),
-        Expanded(child: _KpiCard(value: '4.8★', label: 'Note')),
-      ],
-    );
-  }
-}
-
-class _KpiCard extends StatelessWidget {
-  const _KpiCard({required this.value, required this.label});
-
-  final String value;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.border,
-          width: AppDimens.borderThin,
-        ),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: AppTextStyles.titleSmall.copyWith(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.2,
-              color: AppColors.text,
-              height: 1.1,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: AppTextStyles.labelSmall.copyWith(
-              fontSize: 10,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 // ─── Section head ───────────────────────────────────────────────────────
 
 class _SectionHead extends StatelessWidget {
@@ -476,211 +458,11 @@ class _SectionHead extends StatelessWidget {
   }
 }
 
-// ─── Parcelles ──────────────────────────────────────────────────────────
+// ─── Actions ────────────────────────────────────────────────────────────
 
-class _ParcellesCard extends StatelessWidget {
-  const _ParcellesCard({required this.items});
+class _ActionsCard extends StatelessWidget {
+  const _ActionsCard({required this.onVerserAvance});
 
-  final List<_ParcelleMock> items;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: _kBrCard,
-        border: Border.all(
-          color: AppColors.border,
-          width: AppDimens.borderThin,
-        ),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          for (var i = 0; i < items.length; i++) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppDimens.space16,
-                vertical: AppDimens.space12,
-              ),
-              child: Row(
-                children: [
-                  // Thumbnail 60x60
-                  Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: _kPrimarySoft,
-                      borderRadius: _kBrThumbMd,
-                      border: Border.all(
-                        color: AppColors.border,
-                        width: AppDimens.borderThin,
-                      ),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: CachedNetworkImage(
-                      imageUrl: items[i].photo,
-                      fit: BoxFit.cover,
-                      placeholder: (_, __) =>
-                          const ColoredBox(color: _kPrimarySoft),
-                      errorWidget: (_, __, ___) =>
-                          const ColoredBox(color: _kPrimarySoft),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          items[i].nom,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.bodyMedium.copyWith(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          items[i].meta,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.bodySmall.copyWith(
-                            fontSize: 11,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (i < items.length - 1)
-              const Divider(
-                height: 1,
-                thickness: 1,
-                color: AppColors.border,
-              ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Contributions ──────────────────────────────────────────────────────
-
-class _ContribsCard extends StatelessWidget {
-  const _ContribsCard({required this.items});
-
-  final List<_ContribMock> items;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: _kBrCard,
-        border: Border.all(
-          color: AppColors.border,
-          width: AppDimens.borderThin,
-        ),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          for (var i = 0; i < items.length; i++) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppDimens.space16,
-                vertical: AppDimens.space12,
-              ),
-              child: Row(
-                children: [
-                  // Thumbnail 50x50
-                  Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: _kPrimarySoft,
-                      borderRadius: _kBrThumbSm,
-                      border: Border.all(
-                        color: AppColors.border,
-                        width: AppDimens.borderThin,
-                      ),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: CachedNetworkImage(
-                      imageUrl: items[i].photo,
-                      fit: BoxFit.cover,
-                      placeholder: (_, __) =>
-                          const ColoredBox(color: _kPrimarySoft),
-                      errorWidget: (_, __, ___) =>
-                          const ColoredBox(color: _kPrimarySoft),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          items[i].titre,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.bodyMedium.copyWith(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          items[i].date,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.bodySmall.copyWith(
-                            fontSize: 11,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    items[i].montant,
-                    style: AppTextStyles.titleSmall.copyWith(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.text,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (i < items.length - 1)
-              const Divider(
-                height: 1,
-                thickness: 1,
-                color: AppColors.border,
-              ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Wallet ─────────────────────────────────────────────────────────────
-
-class _WalletCard extends StatelessWidget {
-  const _WalletCard({required this.solde, required this.onVerserAvance});
-
-  final String solde;
   final VoidCallback onVerserAvance;
 
   @override
@@ -695,56 +477,24 @@ class _WalletCard extends StatelessWidget {
         ),
       ),
       clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppDimens.space16,
-              vertical: 14,
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Solde',
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      fontSize: 13,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ),
-                Text(
-                  solde,
-                  style: AppTextStyles.titleLarge.copyWith(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.text,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1, thickness: 1, color: AppColors.border),
-          Material(
-            color: AppColors.primary,
-            child: InkWell(
-              onTap: onVerserAvance,
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                alignment: Alignment.center,
-                child: Text(
-                  'Verser une avance',
-                  style: AppTextStyles.titleSmall.copyWith(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.onPrimary,
-                  ),
-                ),
+      child: Material(
+        color: AppColors.primary,
+        child: InkWell(
+          onTap: onVerserAvance,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            alignment: Alignment.center,
+            child: Text(
+              'Verser une avance',
+              style: AppTextStyles.titleSmall.copyWith(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.onPrimary,
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }

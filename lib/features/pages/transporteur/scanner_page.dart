@@ -1,19 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../api_client/api_exception.dart';
 import '../../../routing/route_names.dart';
+import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../widgets/communs/snackbars.dart';
 
 const Color _kBg = Color(0xFF1A1A1A);
-const String _kDemoMissionId = 'M-2026-0089';
 
-/// Scanner QR placeholder (caméra non câblée).
-/// Tap sur le cadre central → navigue vers la page de confirmation
-/// d'enlèvement pour la mission de démo.
-class ScannerPage extends StatelessWidget {
-  const ScannerPage({super.key});
+/// Scanner QR (placeholder caméra : V1 utilise la saisie manuelle).
+///
+/// La route porte le `missionId` cible — on accepte aussi un mode "demo"
+/// où le shipmentId est saisi à la main. Le scan déclenche
+/// `POST /logistics/shipments/:id/scan-pickup` avec la position GPS.
+class ScannerPage extends ConsumerStatefulWidget {
+  const ScannerPage({this.missionId, super.key});
+
+  final String? missionId;
+
+  @override
+  ConsumerState<ScannerPage> createState() => _ScannerPageState();
+}
+
+class _ScannerPageState extends ConsumerState<ScannerPage> {
+  bool _busy = false;
 
   @override
   Widget build(BuildContext context) {
@@ -39,35 +53,25 @@ class ScannerPage extends StatelessWidget {
 
             // ─── Cadre central ──────────────────────────────────────
             Center(
-              child: GestureDetector(
-                onTap: () => context.push(
-                  RouteNames.transporteurEnlevementConfirmePathFor(
-                      _kDemoMissionId),
-                ),
-                behavior: HitTestBehavior.opaque,
-                child: SizedBox(
-                  width: 240,
-                  height: 240,
-                  child: Stack(
-                    children: [
-                      // 4 coins verts
-                      _Corner(top: 0, left: 0, top1: true, left1: true),
-                      _Corner(top: 0, right: 0, top1: true, right1: true),
-                      _Corner(bottom: 0, left: 0, bottom1: true, left1: true),
-                      _Corner(
-                          bottom: 0, right: 0, bottom1: true, right1: true),
-                      // Ligne horizontale verte au milieu
-                      const Positioned(
-                        left: 0,
-                        right: 0,
-                        top: 119,
-                        child: SizedBox(
-                          height: 2,
-                          child: ColoredBox(color: AppColors.primary),
-                        ),
+              child: SizedBox(
+                width: 240,
+                height: 240,
+                child: Stack(
+                  children: [
+                    _Corner(top: 0, left: 0, top1: true, left1: true),
+                    _Corner(top: 0, right: 0, top1: true, right1: true),
+                    _Corner(bottom: 0, left: 0, bottom1: true, left1: true),
+                    _Corner(bottom: 0, right: 0, bottom1: true, right1: true),
+                    const Positioned(
+                      left: 0,
+                      right: 0,
+                      top: 119,
+                      child: SizedBox(
+                        height: 2,
+                        child: ColoredBox(color: AppColors.primary),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -88,40 +92,17 @@ class ScannerPage extends StatelessWidget {
               ),
             ),
 
-            // ─── Boutons Flash + Galerie ───────────────────────────
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 100),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _CircleBtn(
-                      icon: Icons.flash_on,
-                      onTap: () =>
-                          Snackbars.showInfo(context, 'Flash — à venir'),
-                    ),
-                    const SizedBox(width: 28),
-                    _CircleBtn(
-                      icon: Icons.image_outlined,
-                      onTap: () =>
-                          Snackbars.showInfo(context, 'Galerie — à venir'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
             // ─── Lien saisie manuelle ───────────────────────────────
             Align(
               alignment: Alignment.bottomCenter,
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 40),
                 child: TextButton(
-                  onPressed: () => Snackbars.showInfo(
-                      context, 'Saisie manuelle — à venir'),
+                  onPressed: _busy ? null : _ouvrirSaisieManuelle,
                   child: Text(
-                    'Saisir le code manuellement',
+                    _busy
+                        ? 'Validation en cours…'
+                        : 'Saisir le code manuellement',
                     style: AppTextStyles.bodyMedium.copyWith(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -136,9 +117,116 @@ class ScannerPage extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _ouvrirSaisieManuelle() async {
+    final shipmentCtrl = TextEditingController(text: widget.missionId ?? '');
+    final tokenCtrl = TextEditingController();
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Saisie manuelle'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: shipmentCtrl,
+              decoration: const InputDecoration(
+                labelText: 'ID mission',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: tokenCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Token QR producteur',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Valider'),
+          ),
+        ],
+      ),
+    );
+    if (result != true) return;
+    if (!mounted) return;
+    await _validerScan(
+      shipmentId: shipmentCtrl.text.trim(),
+      token: tokenCtrl.text.trim(),
+    );
+  }
+
+  Future<void> _validerScan({
+    required String shipmentId,
+    required String token,
+  }) async {
+    if (shipmentId.isEmpty || token.isEmpty) {
+      Snackbars.showErreur(context, 'Mission ID et token requis.');
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      final position = await _getCurrentPosition();
+      if (position == null) {
+        if (mounted) {
+          Snackbars.showErreur(
+            context,
+            'Position GPS requise pour valider l\'enlèvement.',
+          );
+        }
+        return;
+      }
+      await ref.read(logisticsServiceProvider).scanPickup(
+            shipmentId: shipmentId,
+            token: token,
+            lat: position.latitude,
+            lng: position.longitude,
+          );
+      if (!mounted) return;
+      Snackbars.showSucces(context, 'Enlèvement confirmé · escrow libéré');
+      context.go(
+        RouteNames.transporteurEnlevementConfirmePathFor(shipmentId),
+      );
+    } on ApiException catch (e) {
+      if (mounted) Snackbars.showErreur(context, e.message);
+    } catch (e) {
+      if (mounted) Snackbars.showErreur(context, 'Erreur : $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<Position?> _getCurrentPosition() async {
+    try {
+      final enabled = await Geolocator.isLocationServiceEnabled();
+      if (!enabled) return null;
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return null;
+      }
+      return await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
 }
 
-// ─── Coin du cadre (L) ───────────────────────────────────────────────────
+// ─── Coin du cadre (L) ───────────────────────────────────────────────
 
 class _Corner extends StatelessWidget {
   const _Corner({
@@ -180,34 +268,6 @@ class _Corner extends StatelessWidget {
             right: right1 ? side : BorderSide.none,
           ),
         ),
-      ),
-    );
-  }
-}
-
-// ─── Bouton circulaire (Flash / Galerie) ────────────────────────────────
-
-class _CircleBtn extends StatelessWidget {
-  const _CircleBtn({required this.icon, required this.onTap});
-
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(28),
-      child: Container(
-        width: 56,
-        height: 56,
-        decoration: BoxDecoration(
-          color: Colors.black,
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.white, width: 1.5),
-        ),
-        alignment: Alignment.center,
-        child: Icon(icon, size: 22, color: Colors.white),
       ),
     );
   }

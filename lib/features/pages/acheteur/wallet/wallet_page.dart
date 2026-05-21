@@ -45,64 +45,6 @@ class _MockTx {
   });
 }
 
-const List<_MockTx> _kMockTxs = [
-  _MockTx(
-    icon: Icons.arrow_downward,
-    isIn: true,
-    titre: 'Recharge OM',
-    sousTitre: 'hier · Orange Money',
-    montant: '+50 000 F',
-  ),
-  _MockTx(
-    icon: Icons.arrow_upward,
-    isIn: false,
-    titre: 'Achat Maïs Yao Konan',
-    sousTitre: 'il y a 3j · escrow libéré',
-    montant: '-175 000 F',
-  ),
-  _MockTx(
-    icon: Icons.arrow_upward,
-    isIn: false,
-    titre: 'Acompte prévision Manioc',
-    sousTitre: 'il y a 5j · Issa Traoré',
-    montant: '-7 000 F',
-  ),
-  _MockTx(
-    icon: Icons.arrow_downward,
-    isIn: true,
-    titre: 'Recharge OM',
-    sousTitre: '10/05 · Orange Money',
-    montant: '+100 000 F',
-  ),
-  _MockTx(
-    icon: Icons.arrow_upward,
-    isIn: false,
-    titre: 'Achat Tomate Mariam K.',
-    sousTitre: '08/05 · 35 kg',
-    montant: '-42 000 F',
-  ),
-  _MockTx(
-    icon: Icons.arrow_upward,
-    isIn: false,
-    titre: 'Achat Banane plantain',
-    sousTitre: '05/05 · 60 kg · Cocody',
-    montant: '-36 000 F',
-  ),
-  _MockTx(
-    icon: Icons.arrow_downward,
-    isIn: true,
-    titre: 'Remboursement annulation',
-    sousTitre: '02/05 · Igname Adama D.',
-    montant: '+25 000 F',
-  ),
-  _MockTx(
-    icon: Icons.arrow_downward,
-    isIn: true,
-    titre: 'Recharge Wave',
-    sousTitre: '29/04 · Wave',
-    montant: '+200 000 F',
-  ),
-];
 
 /// Page Wallet acheteur — solde + escrow, actions Recharger / Retirer,
 /// filtres et liste de transactions. Mock fallback si endpoint indisponible.
@@ -133,21 +75,26 @@ class _WalletAcheteurPageState extends ConsumerState<WalletAcheteurPage> {
                   padding: EdgeInsets.only(top: AppDimens.space32),
                   child: Chargement(size: 22),
                 ),
-                // L'écran reste utile même sans données — on tombe sur les
-                // mocks pour rester aligné sur la maquette HTML.
-                error: (e, _) => _Body(
-                  balance: 245800,
-                  escrow: 175000,
-                  transactions: const [],
-                  filter: _filter,
-                  onFilter: (f) => setState(() => _filter = f),
+                error: (e, _) => Padding(
+                  padding: const EdgeInsets.all(AppDimens.pagePaddingH),
+                  child: VueErreur(
+                    message: 'Impossible de charger le wallet. $e',
+                    onRetry: () => ref.invalidate(_walletProvider),
+                  ),
                 ),
-                data: (bundle) => _Body(
-                  balance: bundle.wallet.balance,
-                  escrow: 175000,
-                  transactions: bundle.transactions.data,
-                  filter: _filter,
-                  onFilter: (f) => setState(() => _filter = f),
+                data: (bundle) => RefreshIndicator(
+                  color: AppColors.primary,
+                  onRefresh: () async {
+                    ref.invalidate(_walletProvider);
+                    await ref.read(_walletProvider.future);
+                  },
+                  child: _Body(
+                    balance: bundle.wallet.balance,
+                    escrow: bundle.wallet.balanceEscrow,
+                    transactions: bundle.transactions.data,
+                    filter: _filter,
+                    onFilter: (f) => setState(() => _filter = f),
+                  ),
                 ),
               ),
             ),
@@ -241,15 +188,11 @@ class _Body extends StatelessWidget {
     );
   }
 
-  /// Construit la liste à afficher : si on a des transactions backend, on
-  /// les mappe ; sinon on retombe sur les mocks fidèles à la maquette.
-  /// Le filtre est appliqué uniquement visuellement comme spécifié.
+  /// Mappe les transactions reçues vers la représentation visuelle. Si
+  /// l'API n'en renvoie pas, la liste est simplement vide (état vide
+  /// affiché par [_ListCard]).
   List<_MockTx> _buildItems() {
-    final base = transactions.isNotEmpty
-        ? transactions.map(_mapTx).toList()
-        : _kMockTxs;
-    if (base.length > 8) return base.take(8).toList();
-    return base;
+    return transactions.map(_mapTx).toList();
   }
 
   static _MockTx _mapTx(Transaction t) {
@@ -491,11 +434,32 @@ class _ListCard extends StatelessWidget {
         border: Border.all(color: AppColors.border, width: AppDimens.borderThin),
       ),
       clipBehavior: Clip.hardEdge,
-      child: Column(
-        children: List.generate(items.length, (i) {
-          return _TxRow(tx: items[i], isLast: i == items.length - 1);
-        }),
-      ),
+      child: items.isEmpty
+          ? Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.history,
+                    size: 32,
+                    color: AppColors.textSubtle,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Aucune transaction pour le moment',
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : Column(
+              children: List.generate(items.length, (i) {
+                return _TxRow(tx: items[i], isLast: i == items.length - 1);
+              }),
+            ),
     );
   }
 }
@@ -574,13 +538,3 @@ class _TxRow extends StatelessWidget {
   }
 }
 
-// Helper non-utilisé pour le build d'erreur — gardé pour usage futur si
-// besoin d'un état d'erreur dédié (actuellement on tombe sur les mocks).
-@visibleForTesting
-Widget walletAcheteurErrorView(VoidCallback onRetry) => Padding(
-      padding: const EdgeInsets.all(AppDimens.pagePaddingH),
-      child: VueErreur(
-        message: 'Impossible de charger le wallet.',
-        onRetry: onRetry,
-      ),
-    );

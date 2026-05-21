@@ -1,78 +1,68 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
+import '../../../../api_client/api_exception.dart';
+import '../../../../models/membre_coop.dart';
+import '../../../../models/portefeuille.dart';
+import '../../../../models/wallet_with_transactions.dart';
 import '../../../../routing/route_names.dart';
+import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
+import '../../../widgets/communs/chargement.dart';
 import '../../../widgets/communs/snackbars.dart';
-
-// ─── Couleurs & photos (alignées maquette HTML) ─────────────────────────
+import '../../../widgets/communs/vue_erreur.dart';
 
 const Color _kPrimarySoft = Color(0xFFE8F5E9);
 
-// Photo membre (Unsplash — portrait farmer neutre).
-const String _kPhotoMembre =
-    'https://images.unsplash.com/photo-1531123897727-8f129e1688ce'
-    '?w=200&h=200&fit=crop&auto=format';
+// ─── Provider ───────────────────────────────────────────────────────
 
-/// Modèle local d'un membre coop sélectionné pour l'avance.
-/// FULL — la coop voit ses membres en clair (règle 3b).
-class _MembreSelection {
-  final String id;
-  final String nom; // FULL ("Yao Konan", pas "Yao K.")
-  final String walletFmt; // ex : "25 000 F"
-  final String photo;
-  const _MembreSelection({
-    required this.id,
-    required this.nom,
-    required this.walletFmt,
-    required this.photo,
-  });
+/// Bundle initial : membres + solde du wallet coop.
+class _AvanceBundle {
+  const _AvanceBundle({required this.membres, this.wallet});
+  final List<MembreCoop> membres;
+  final Portefeuille? wallet;
 }
 
-/// Page Verser une avance — sélection membre, montant centré, motif,
-/// CTA dynamique. Reproduction fidèle de
-/// `mockups/cooperative/verser_avance.html`.
-class VerserAvancePage extends StatefulWidget {
+final _avanceBundleProvider =
+    FutureProvider.autoDispose<_AvanceBundle>((ref) async {
+  final coop = ref.read(cooperativesServiceProvider);
+  final finance = ref.read(financeServiceProvider);
+  final results = await Future.wait<dynamic>([
+    coop.listMembers().then<Object?>((v) => v),
+    finance
+        .getWallet(limit: 1)
+        .then<Object?>((v) => v)
+        .catchError((_) => null),
+  ]);
+  final membresPage = results[0] as dynamic;
+  final list = (membresPage.data as List<MembreCoop>);
+  final walletBundle = results[1] as WalletWithTransactions?;
+  return _AvanceBundle(membres: list, wallet: walletBundle?.wallet);
+});
+
+/// Verser une avance à un membre. Appelle réellement `payAdvance`
+/// — qui crée la ligne `coop_advance_payments` côté back, débite le wallet
+/// coop et crédite le farmer (transaction atomique).
+class VerserAvancePage extends ConsumerStatefulWidget {
   const VerserAvancePage({super.key, this.membreIdInitial});
 
-  /// ID du membre pré-sélectionné (passé en query param via la fiche
-  /// membre, ou null si ouverture directe depuis le menu coop).
   final String? membreIdInitial;
 
   @override
-  State<VerserAvancePage> createState() => _VerserAvancePageState();
+  ConsumerState<VerserAvancePage> createState() => _VerserAvancePageState();
 }
 
-class _VerserAvancePageState extends State<VerserAvancePage> {
-  late final TextEditingController _montantCtrl;
-  late final TextEditingController _motifCtrl;
-  late _MembreSelection? _membre;
-
-  @override
-  void initState() {
-    super.initState();
-    // Si membreIdInitial est passé, on simule la sélection avec Yao Konan
-    // (mock fidèle à la maquette). Sinon on démarre vide.
-    _membre = widget.membreIdInitial == null
-        ? const _MembreSelection(
-            id: 'm-yao-konan',
-            nom: 'Yao Konan',
-            walletFmt: '25 000 F',
-            photo: _kPhotoMembre,
-          )
-        : const _MembreSelection(
-            id: 'm-yao-konan',
-            nom: 'Yao Konan',
-            walletFmt: '25 000 F',
-            photo: _kPhotoMembre,
-          );
-    _montantCtrl = TextEditingController(text: '50 000 F');
-    _motifCtrl = TextEditingController(text: 'Avance récolte juin');
-  }
+class _VerserAvancePageState extends ConsumerState<VerserAvancePage> {
+  final _montantCtrl = TextEditingController();
+  final _motifCtrl = TextEditingController();
+  MembreCoop? _membre;
+  bool _busy = false;
+  bool _hydrated = false;
 
   @override
   void dispose() {
@@ -81,79 +71,187 @@ class _VerserAvancePageState extends State<VerserAvancePage> {
     super.dispose();
   }
 
-  void _choisirMembre() {
-    setState(() {
-      _membre = const _MembreSelection(
-        id: 'm-yao-konan',
-        nom: 'Yao Konan',
-        walletFmt: '25 000 F',
-        photo: _kPhotoMembre,
-      );
-    });
-    Snackbars.showInfo(context, 'Sélection membre — à venir');
+  /// Pré-sélectionne le membre si `membreIdInitial` est passé.
+  void _hydrateOnce(_AvanceBundle bundle) {
+    if (_hydrated) return;
+    _hydrated = true;
+    if (widget.membreIdInitial != null && bundle.membres.isNotEmpty) {
+      for (final m in bundle.membres) {
+        if (m.userId == widget.membreIdInitial || m.id == widget.membreIdInitial) {
+          _membre = m;
+          break;
+        }
+      }
+    }
   }
 
-  void _verser() {
-    Snackbars.showSucces(context, 'Avance versée — à venir');
+  int get _montantValeur {
+    final raw = _montantCtrl.text.replaceAll(RegExp(r'[^0-9]'), '');
+    return int.tryParse(raw) ?? 0;
+  }
+
+  Future<void> _choisirMembre(List<MembreCoop> membres) async {
+    if (_busy) return;
+    final selected = await showModalBottomSheet<MembreCoop>(
+      context: context,
+      backgroundColor: AppColors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => _MembreSheet(membres: membres, selectedId: _membre?.id),
+    );
+    if (selected != null && mounted) {
+      setState(() => _membre = selected);
+    }
+  }
+
+  Future<void> _verser(double soldeCoop) async {
+    if (_busy) return;
+    if (_membre == null) {
+      Snackbars.showErreur(context, 'Choisis d\'abord un membre.');
+      return;
+    }
+    final montant = _montantValeur;
+    if (montant <= 0) {
+      Snackbars.showErreur(context, 'Saisis un montant valide.');
+      return;
+    }
+    if (montant > soldeCoop) {
+      Snackbars.showErreur(
+        context,
+        'Solde insuffisant. Solde coop : ${_fmtFcfa(soldeCoop)} F.',
+      );
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      await ref.read(cooperativesServiceProvider).payAdvance(
+            farmerId: _membre!.userId,
+            amount: montant.toDouble(),
+            motif: _motifCtrl.text.trim().isEmpty
+                ? null
+                : _motifCtrl.text.trim(),
+          );
+      if (!mounted) return;
+      Snackbars.showSucces(
+        context,
+        'Avance de ${_fmtFcfa(montant.toDouble())} F versée à ${_membre!.fullName ?? 'le membre'}.',
+      );
+      // Force le refresh du wallet/avances dans le reste de l'app.
+      ref.invalidate(_avanceBundleProvider);
+      if (context.canPop()) {
+        context.pop(true);
+      } else {
+        context.go(RouteNames.accueilCooperativePath);
+      }
+    } on ApiException catch (e) {
+      if (mounted) Snackbars.showErreur(context, e.message);
+    } catch (e) {
+      if (mounted) Snackbars.showErreur(context, 'Erreur : $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final montantAffiche = _montantCtrl.text.trim().isEmpty
-        ? '0 F'
-        : _montantCtrl.text.trim();
+    final async = ref.watch(_avanceBundleProvider);
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         bottom: false,
-        child: Column(
-          children: [
-            const _Header(),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(
-                  AppDimens.pagePaddingH,
-                  0,
-                  AppDimens.pagePaddingH,
-                  AppDimens.space16,
+        child: async.when(
+          loading: () => const Column(
+            children: [
+              _Header(),
+              Expanded(child: Chargement(size: 22)),
+            ],
+          ),
+          error: (e, _) => Column(
+            children: [
+              const _Header(),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppDimens.pagePaddingH),
+                  child: VueErreur(
+                    message: 'Impossible de charger les membres. $e',
+                    onRetry: () => ref.invalidate(_avanceBundleProvider),
+                  ),
                 ),
-                children: [
-                  const _FieldLabel('Membre'),
-                  AppDimens.vGap8,
-                  if (_membre == null)
-                    _ChoisirMembreButton(onTap: _choisirMembre)
-                  else
-                    _SelectedMember(
-                      membre: _membre!,
-                      onChange: _choisirMembre,
-                    ),
-                  AppDimens.vGap16,
-                  const _CoopBalanceCard(soldeFmt: '84 500 F'),
-                  AppDimens.vGap24,
-                  _AmountBlock(controller: _montantCtrl),
-                  AppDimens.vGap24,
-                  const _FieldLabel('Motif (optionnel)'),
-                  AppDimens.vGap8,
-                  _MotifInput(controller: _motifCtrl),
-                ],
               ),
-            ),
-            _StickyVerserButton(
-              label: 'Verser $montantAffiche maintenant',
-              onTap: _verser,
-            ),
-          ],
+            ],
+          ),
+          data: (bundle) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) _hydrateOnce(bundle);
+            });
+            return _build(bundle);
+          },
         ),
       ),
     );
   }
+
+  Widget _build(_AvanceBundle bundle) {
+    final soldeCoop = bundle.wallet?.balance ?? 0;
+    return Column(
+      children: [
+        const _Header(),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(
+              AppDimens.pagePaddingH,
+              0,
+              AppDimens.pagePaddingH,
+              AppDimens.space16,
+            ),
+            children: [
+              const _FieldLabel('Membre'),
+              AppDimens.vGap8,
+              if (_membre == null)
+                _ChoisirMembreButton(
+                  onTap: () => _choisirMembre(bundle.membres),
+                )
+              else
+                _SelectedMember(
+                  membre: _membre!,
+                  onChange: () => _choisirMembre(bundle.membres),
+                ),
+              if (bundle.membres.isEmpty) ...[
+                AppDimens.vGap8,
+                Text(
+                  'Aucun membre dans ta coopérative.',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.error,
+                  ),
+                ),
+              ],
+              AppDimens.vGap16,
+              _CoopBalanceCard(solde: soldeCoop),
+              AppDimens.vGap24,
+              _AmountBlock(controller: _montantCtrl),
+              AppDimens.vGap24,
+              const _FieldLabel('Motif (optionnel)'),
+              AppDimens.vGap8,
+              _MotifInput(controller: _motifCtrl, enabled: !_busy),
+            ],
+          ),
+        ),
+        _StickyVerserButton(
+          montant: _montantValeur,
+          busy: _busy,
+          enabled: _membre != null && _montantValeur > 0,
+          onTap: () => _verser(soldeCoop),
+        ),
+      ],
+    );
+  }
 }
 
-// ─── Header ──────────────────────────────────────────────────────────────
+// ─── Header ───────────────────────────────────────────────────────
 
 class _Header extends StatelessWidget {
   const _Header();
-
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -191,76 +289,15 @@ class _Header extends StatelessWidget {
               ),
             ),
           ),
-          _NotifsButton(
-            onTap: () => context.push(RouteNames.cooperativeNotificationsPath),
-          ),
         ],
       ),
     );
   }
 }
 
-class _NotifsButton extends StatelessWidget {
-  const _NotifsButton({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: SizedBox(
-        width: 40,
-        height: 40,
-        child: Stack(
-          children: [
-            const Center(
-              child: Icon(
-                Icons.notifications_none,
-                size: 22,
-                color: AppColors.text,
-              ),
-            ),
-            Positioned(
-              top: 6,
-              right: 6,
-              child: Container(
-                constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.error,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: AppColors.background,
-                    width: 1.5,
-                  ),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  '5',
-                  style: AppTextStyles.labelSmall.copyWith(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.onPrimary,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Label réutilisable ─────────────────────────────────────────────────
-
 class _FieldLabel extends StatelessWidget {
   const _FieldLabel(this.label);
-
   final String label;
-
   @override
   Widget build(BuildContext context) {
     return Text(
@@ -274,11 +311,10 @@ class _FieldLabel extends StatelessWidget {
   }
 }
 
-// ─── Sélection membre ───────────────────────────────────────────────────
+// ─── Sélection membre ───────────────────────────────────────────
 
 class _ChoisirMembreButton extends StatelessWidget {
   const _ChoisirMembreButton({required this.onTap});
-
   final VoidCallback onTap;
 
   @override
@@ -301,7 +337,11 @@ class _ChoisirMembreButton extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.person_add_alt_1, size: 18, color: AppColors.primary),
+            const Icon(
+              Icons.person_add_alt_1,
+              size: 18,
+              color: AppColors.primary,
+            ),
             const SizedBox(width: 8),
             Text(
               'Choisir un membre',
@@ -320,12 +360,13 @@ class _ChoisirMembreButton extends StatelessWidget {
 
 class _SelectedMember extends StatelessWidget {
   const _SelectedMember({required this.membre, required this.onChange});
-
-  final _MembreSelection membre;
+  final MembreCoop membre;
   final VoidCallback onChange;
 
   @override
   Widget build(BuildContext context) {
+    final nom = membre.fullName ?? 'Membre';
+    final phone = membre.phone ?? '';
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -349,19 +390,12 @@ class _SelectedMember extends StatelessWidget {
                 width: AppDimens.borderThin,
               ),
             ),
-            clipBehavior: Clip.antiAlias,
-            child: CachedNetworkImage(
-              imageUrl: membre.photo,
-              fit: BoxFit.cover,
-              placeholder: (_, _) => const ColoredBox(color: _kPrimarySoft),
-              errorWidget: (_, _, _) => Center(
-                child: Text(
-                  _initiales(membre.nom),
-                  style: AppTextStyles.titleSmall.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
-                  ),
-                ),
+            alignment: Alignment.center,
+            child: Text(
+              _initiales(nom),
+              style: AppTextStyles.titleSmall.copyWith(
+                fontWeight: FontWeight.w700,
+                color: AppColors.primary,
               ),
             ),
           ),
@@ -371,9 +405,8 @@ class _SelectedMember extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                // FULL — coop voit ses membres en clair
                 Text(
-                  membre.nom,
+                  nom,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.titleSmall.copyWith(
@@ -381,16 +414,16 @@ class _SelectedMember extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  'Solde wallet · ${membre.walletFmt}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.bodySmall.copyWith(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
+                if (phone.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    phone,
+                    style: AppTextStyles.bodySmall.copyWith(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
@@ -419,12 +452,104 @@ class _SelectedMember extends StatelessWidget {
   }
 }
 
-// ─── Carte solde coop ───────────────────────────────────────────────────
+// ─── Bottom-sheet de sélection ─────────────────────────────────────
+
+class _MembreSheet extends StatelessWidget {
+  const _MembreSheet({required this.membres, this.selectedId});
+  final List<MembreCoop> membres;
+  final String? selectedId;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.7,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.border,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Text(
+                'Choisir un membre',
+                style: AppTextStyles.titleSmall.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: membres.length,
+                itemBuilder: (_, i) {
+                  final m = membres[i];
+                  final selected = m.id == selectedId;
+                  return ListTile(
+                    leading: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: _kPrimarySoft,
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        _initiales(m.fullName ?? '?'),
+                        style: AppTextStyles.labelMedium.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                    title: Text(
+                      m.fullName ?? 'Membre',
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    subtitle: m.phone != null
+                        ? Text(
+                            m.phone!,
+                            style: AppTextStyles.bodySmall.copyWith(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                          )
+                        : null,
+                    trailing: selected
+                        ? const Icon(Icons.check, color: AppColors.primary)
+                        : null,
+                    onTap: () => Navigator.of(context).pop(m),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Carte solde coop ──────────────────────────────────────────────
 
 class _CoopBalanceCard extends StatelessWidget {
-  const _CoopBalanceCard({required this.soldeFmt});
-
-  final String soldeFmt;
+  const _CoopBalanceCard({required this.solde});
+  final double solde;
 
   @override
   Widget build(BuildContext context) {
@@ -449,7 +574,7 @@ class _CoopBalanceCard extends StatelessWidget {
             ),
             alignment: Alignment.center,
             child: const Icon(
-              Icons.credit_card_outlined,
+              Icons.account_balance_wallet_outlined,
               size: 18,
               color: AppColors.primary,
             ),
@@ -461,7 +586,7 @@ class _CoopBalanceCard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Ton solde',
+                  'Solde coop disponible',
                   style: AppTextStyles.bodySmall.copyWith(
                     fontSize: 12,
                     color: AppColors.textSecondary,
@@ -469,9 +594,9 @@ class _CoopBalanceCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  soldeFmt,
+                  '${_fmtFcfa(solde)} F',
                   style: AppTextStyles.titleLarge.copyWith(
-                    fontFamily: AppTextStyles.displayLarge.fontFamily,
+                    fontFamily: 'Poppins',
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                     color: AppColors.text,
@@ -486,13 +611,11 @@ class _CoopBalanceCard extends StatelessWidget {
   }
 }
 
-// ─── Bloc montant (input centré grandes lettres) ────────────────────────
+// ─── Bloc montant ──────────────────────────────────────────────────
 
 class _AmountBlock extends StatelessWidget {
   const _AmountBlock({required this.controller});
-
   final TextEditingController controller;
-
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -508,10 +631,8 @@ class _AmountBlock extends StatelessWidget {
         TextField(
           controller: controller,
           textAlign: TextAlign.center,
-          keyboardType: TextInputType.text,
-          inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'[0-9 F]')),
-          ],
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           style: AppTextStyles.displayLarge.copyWith(
             fontSize: 36,
             fontWeight: FontWeight.w700,
@@ -524,7 +645,15 @@ class _AmountBlock extends StatelessWidget {
             enabledBorder: InputBorder.none,
             focusedBorder: InputBorder.none,
             contentPadding: EdgeInsets.symmetric(vertical: 4),
-            hintText: '0 F',
+            hintText: '0',
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'FCFA',
+          style: AppTextStyles.labelMedium.copyWith(
+            fontSize: 12,
+            color: AppColors.textSubtle,
           ),
         ),
       ],
@@ -532,13 +661,10 @@ class _AmountBlock extends StatelessWidget {
   }
 }
 
-// ─── Input motif ────────────────────────────────────────────────────────
-
 class _MotifInput extends StatelessWidget {
-  const _MotifInput({required this.controller});
-
+  const _MotifInput({required this.controller, required this.enabled});
   final TextEditingController controller;
-
+  final bool enabled;
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -552,6 +678,7 @@ class _MotifInput extends StatelessWidget {
       ),
       child: TextField(
         controller: controller,
+        enabled: enabled,
         decoration: InputDecoration(
           hintText: 'Ex : Avance récolte juin',
           border: InputBorder.none,
@@ -568,16 +695,23 @@ class _MotifInput extends StatelessWidget {
   }
 }
 
-// ─── Sticky bottom (CTA plein vert dynamique) ───────────────────────────
+// ─── Sticky bottom ──────────────────────────────────────────────────
 
 class _StickyVerserButton extends StatelessWidget {
-  const _StickyVerserButton({required this.label, required this.onTap});
-
-  final String label;
+  const _StickyVerserButton({
+    required this.montant,
+    required this.busy,
+    required this.enabled,
+    required this.onTap,
+  });
+  final int montant;
+  final bool busy;
+  final bool enabled;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final actif = enabled && !busy;
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.background,
@@ -592,27 +726,34 @@ class _StickyVerserButton extends StatelessWidget {
       child: SizedBox(
         width: double.infinity,
         child: InkWell(
-          onTap: onTap,
+          onTap: actif ? onTap : null,
           borderRadius: AppDimens.brCard,
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 14),
             decoration: BoxDecoration(
-              color: AppColors.primary,
+              color: actif ? AppColors.primary : AppColors.borderStrong,
               borderRadius: AppDimens.brCard,
-              border: Border.all(
-                color: AppColors.primary,
-                width: AppDimens.borderThin,
-              ),
             ),
             alignment: Alignment.center,
-            child: Text(
-              label,
-              style: AppTextStyles.labelLarge.copyWith(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: AppColors.onPrimary,
-              ),
-            ),
+            child: busy
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: Colors.white,
+                    ),
+                  )
+                : Text(
+                    montant > 0
+                        ? 'Verser ${_fmtFcfa(montant.toDouble())} F maintenant'
+                        : 'Saisir un montant',
+                    style: AppTextStyles.labelLarge.copyWith(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.onPrimary,
+                    ),
+                  ),
           ),
         ),
       ),
@@ -620,7 +761,11 @@ class _StickyVerserButton extends StatelessWidget {
   }
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────
+// ─── Helpers ────────────────────────────────────────────────────────
+
+final _nf = NumberFormat('#,##0', 'fr_FR');
+
+String _fmtFcfa(double v) => _nf.format(v.round());
 
 String _initiales(String s) {
   final t = s.trim();

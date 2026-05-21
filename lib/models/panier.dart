@@ -6,6 +6,10 @@ import 'converters.dart';
 part 'panier.freezed.dart';
 part 'panier.g.dart';
 
+/// Panier d'achats d'un BUYER.
+///
+/// Le backend expose la relation Prisma `panier_items[]` directement,
+/// avec pour chaque item l'annonce jointe (`annonces_vente`).
 @freezed
 class Panier with _$Panier {
   const Panier._();
@@ -13,8 +17,10 @@ class Panier with _$Panier {
   const factory Panier({
     @Default('') String id,
     @Default('') String userId,
-    @Default(<PanierItem>[]) List<PanierItem> items,
-    DateTime? updatedAt,
+    @JsonKey(name: 'panier_items')
+    @Default(<PanierItem>[])
+    List<PanierItem> items,
+    DateTime? createdAt,
   }) = _Panier;
 
   factory Panier.fromJson(Map<String, dynamic> json) => _$PanierFromJson(json);
@@ -32,15 +38,19 @@ class PanierItem with _$PanierItem {
     @Default('') String panierId,
     required String annonceId,
     @FlexDouble() required double quantiteKg,
-    @FlexDouble() required double prixUnitaire,
-    AnnonceVente? annonce,
+    @JsonKey(name: 'prix_unitaire')
+    @FlexDouble()
+    required double prixUnitaire,
+    @JsonKey(name: 'annonces_vente') AnnonceVente? annonce,
   }) = _PanierItem;
 
   factory PanierItem.fromJson(Map<String, dynamic> json) =>
       _$PanierItemFromJson(json);
 
   double get sousTotal => quantiteKg * prixUnitaire;
-  String? get annonceTitre => annonce?.titre;
+  String? get annonceTitre => annonce?.produitLabel ?? annonce?.titre;
   String? get annoncePhotoUrl =>
       (annonce?.photos.isNotEmpty ?? false) ? annonce!.photos.first : null;
+  String? get vendeurNom => annonce?.vendeurNom;
+  String? get localisation => annonce?.localisationLabel;
 }

@@ -1,80 +1,45 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
+import '../../../../models/payout.dart';
 import '../../../../routing/route_names.dart';
+import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
+import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/vue_erreur.dart';
 
-// ─── Couleurs accent (conformes au mockup) ───────────────────────────────
+// ─── Couleurs accent ─────────────────────────────────────────────────────
 
 const Color _kPrimarySoft = Color(0xFFE8F5E9);
-
-/// Distribution mock conforme à la maquette HTML.
-class _PayoutMock {
-  final String id;
-  final String titre;
-  final String sousTitre;
-  final String date;
-  const _PayoutMock({
-    required this.id,
-    required this.titre,
-    required this.sousTitre,
-    required this.date,
-  });
-}
-
-const List<_PayoutMock> _kPayouts = [
-  _PayoutMock(
-    id: 'po-mais-blanc-500',
-    titre: 'Publication Maïs blanc · 500 kg',
-    sousTitre: '4 farmers contributeurs · 175 000 F net',
-    date: 'Vente clôturée 12/05',
-  ),
-  _PayoutMock(
-    id: 'po-manioc-1t',
-    titre: 'Publication Manioc · 1 t',
-    sousTitre: '6 farmers contributeurs · 95 000 F net',
-    date: 'Vente clôturée 11/05',
-  ),
-  _PayoutMock(
-    id: 'po-riz-200',
-    titre: 'Publication Riz local · 200 kg',
-    sousTitre: '2 farmers contributeurs · 72 000 F net',
-    date: 'Vente clôturée 10/05',
-  ),
-  _PayoutMock(
-    id: 'po-igname-300',
-    titre: 'Publication Igname · 300 kg',
-    sousTitre: '3 farmers contributeurs · 48 000 F net',
-    date: 'Vente clôturée 09/05',
-  ),
-  _PayoutMock(
-    id: 'po-cacao-80',
-    titre: 'Publication Cacao fève · 80 kg',
-    sousTitre: '2 farmers contributeurs · 35 000 F net',
-    date: 'Vente clôturée 08/05',
-  ),
-];
 
 /// Tabs disponibles sur la liste des distributions.
 enum _PayoutTab { aDistribuer, historique }
 
-/// Page Distributions coopérative — liste des publications clôturées
-/// pour lesquelles la coop doit payer les contributeurs.
-/// Reproduction fidèle de `mockups/cooperative/payouts.html`.
-class PayoutsCooperativePage extends StatefulWidget {
+/// Provider qui charge les batches du backend.
+final _payoutsProvider = FutureProvider.autoDispose<List<PayoutBatch>>((ref) {
+  return ref.read(financeServiceProvider).listPayoutBatches();
+});
+
+/// Page Distributions coopérative — liste des batches de payouts.
+class PayoutsCooperativePage extends ConsumerStatefulWidget {
   const PayoutsCooperativePage({super.key});
 
   @override
-  State<PayoutsCooperativePage> createState() => _PayoutsCooperativePageState();
+  ConsumerState<PayoutsCooperativePage> createState() =>
+      _PayoutsCooperativePageState();
 }
 
-class _PayoutsCooperativePageState extends State<PayoutsCooperativePage> {
+class _PayoutsCooperativePageState
+    extends ConsumerState<PayoutsCooperativePage> {
   _PayoutTab _tab = _PayoutTab.aDistribuer;
 
   @override
   Widget build(BuildContext context) {
+    final async = ref.watch(_payoutsProvider);
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -83,30 +48,86 @@ class _PayoutsCooperativePageState extends State<PayoutsCooperativePage> {
           children: [
             const _Header(),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(
-                  AppDimens.pagePaddingH,
-                  0,
-                  AppDimens.pagePaddingH,
-                  AppDimens.space16,
+              child: async.when(
+                loading: () => const Padding(
+                  padding: EdgeInsets.only(top: 48),
+                  child: Chargement(size: 22),
                 ),
-                children: [
-                  // Compteur primary-soft : total à distribuer
-                  const _CounterCard(
-                    value: '5 distributions à faire',
-                    sub: '425 000 F total',
+                error: (e, _) => Padding(
+                  padding: const EdgeInsets.all(AppDimens.pagePaddingH),
+                  child: VueErreur(
+                    message: 'Impossible de charger les distributions. $e',
+                    onRetry: () => ref.invalidate(_payoutsProvider),
                   ),
-                  AppDimens.vGap16,
-                  _TabsBar(
-                    tab: _tab,
-                    onChange: (t) => setState(() => _tab = t),
-                  ),
-                  AppDimens.vGap16,
-                  for (final p in _kPayouts) ...[
-                    _PayoutCard(payout: p),
-                    const SizedBox(height: 12),
-                  ],
-                ],
+                ),
+                data: (all) {
+                  final aDistribuer = all
+                      .where((p) =>
+                          p.status.toUpperCase() == 'PENDING' ||
+                          p.status.toUpperCase() == 'PROCESSING')
+                      .toList(growable: false);
+                  final historique = all
+                      .where((p) =>
+                          p.status.toUpperCase() != 'PENDING' &&
+                          p.status.toUpperCase() != 'PROCESSING')
+                      .toList(growable: false);
+                  final tabList = _tab == _PayoutTab.aDistribuer
+                      ? aDistribuer
+                      : historique;
+                  final totalMontant = aDistribuer.fold<double>(
+                    0,
+                    (acc, p) => acc + p.totalAmount,
+                  );
+                  return RefreshIndicator(
+                    color: AppColors.primary,
+                    onRefresh: () async {
+                      ref.invalidate(_payoutsProvider);
+                      await ref.read(_payoutsProvider.future);
+                    },
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppDimens.pagePaddingH,
+                        0,
+                        AppDimens.pagePaddingH,
+                        AppDimens.space16,
+                      ),
+                      children: [
+                        _CounterCard(
+                          value:
+                              '${aDistribuer.length} distribution(s) à faire',
+                          sub: '${_fmt(totalMontant)} F total',
+                        ),
+                        AppDimens.vGap16,
+                        _TabsBar(
+                          tab: _tab,
+                          aDistribuerCount: aDistribuer.length,
+                          historiqueCount: historique.length,
+                          onChange: (t) => setState(() => _tab = t),
+                        ),
+                        AppDimens.vGap16,
+                        if (tabList.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 24),
+                            child: Center(
+                              child: Text(
+                                _tab == _PayoutTab.aDistribuer
+                                    ? 'Aucune distribution en attente.'
+                                    : 'Aucun historique pour le moment.',
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                          )
+                        else
+                          for (final p in tabList) ...[
+                            _PayoutCard(payout: p),
+                            const SizedBox(height: 12),
+                          ],
+                      ],
+                    ),
+                  );
+                },
               ),
             ),
           ],
@@ -183,41 +204,12 @@ class _NotifsButton extends StatelessWidget {
       child: SizedBox(
         width: 40,
         height: 40,
-        child: Stack(
-          children: [
-            const Center(
-              child: Icon(
-                Icons.notifications_none,
-                size: 22,
-                color: AppColors.text,
-              ),
-            ),
-            Positioned(
-              top: 6,
-              right: 6,
-              child: Container(
-                constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.error,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: AppColors.background,
-                    width: 1.5,
-                  ),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  '5',
-                  style: AppTextStyles.labelSmall.copyWith(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.onPrimary,
-                  ),
-                ),
-              ),
-            ),
-          ],
+        child: const Center(
+          child: Icon(
+            Icons.notifications_none,
+            size: 22,
+            color: AppColors.text,
+          ),
         ),
       ),
     );
@@ -273,9 +265,16 @@ class _CounterCard extends StatelessWidget {
 // ─── Tabs (À distribuer / Historique) ────────────────────────────────────
 
 class _TabsBar extends StatelessWidget {
-  const _TabsBar({required this.tab, required this.onChange});
+  const _TabsBar({
+    required this.tab,
+    required this.aDistribuerCount,
+    required this.historiqueCount,
+    required this.onChange,
+  });
 
   final _PayoutTab tab;
+  final int aDistribuerCount;
+  final int historiqueCount;
   final ValueChanged<_PayoutTab> onChange;
 
   @override
@@ -292,12 +291,12 @@ class _TabsBar extends StatelessWidget {
       child: Row(
         children: [
           _TabItem(
-            label: 'À distribuer (${_kPayouts.length})',
+            label: 'À distribuer ($aDistribuerCount)',
             active: tab == _PayoutTab.aDistribuer,
             onTap: () => onChange(_PayoutTab.aDistribuer),
           ),
           _TabItem(
-            label: 'Historique',
+            label: 'Historique ($historiqueCount)',
             active: tab == _PayoutTab.historique,
             onTap: () => onChange(_PayoutTab.historique),
           ),
@@ -353,10 +352,17 @@ class _TabItem extends StatelessWidget {
 class _PayoutCard extends StatelessWidget {
   const _PayoutCard({required this.payout});
 
-  final _PayoutMock payout;
+  final PayoutBatch payout;
 
   @override
   Widget build(BuildContext context) {
+    final memo = 'Distribution #${payout.id.substring(0, payout.id.length.clamp(0, 8))}';
+    final sousTitre = '${payout.items.length} ligne(s) · '
+        '${_fmt(payout.totalAmount)} F';
+    final dateLabel = payout.createdAt != null
+        ? 'Créé le ${DateFormat('dd/MM').format(payout.createdAt!.toLocal())}'
+        : '';
+    final statusKey = payout.status.toUpperCase();
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -372,7 +378,7 @@ class _PayoutCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            payout.titre,
+            memo,
             style: AppTextStyles.titleSmall.copyWith(
               fontSize: 14,
               fontWeight: FontWeight.w600,
@@ -380,27 +386,29 @@ class _PayoutCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            payout.sousTitre,
+            sousTitre,
             style: AppTextStyles.bodySmall.copyWith(
               fontSize: 12,
               color: AppColors.textSecondary,
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            payout.date,
-            style: AppTextStyles.labelSmall.copyWith(
-              fontSize: 11,
-              color: AppColors.textSubtle,
+          if (dateLabel.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              dateLabel,
+              style: AppTextStyles.labelSmall.copyWith(
+                fontSize: 11,
+                color: AppColors.textSubtle,
+              ),
             ),
-          ),
+          ],
           const SizedBox(height: 12),
           Row(
             children: [
-              const _ChipStatus(label: 'Prête à distribuer'),
+              _ChipStatus(label: _statusLabel(statusKey)),
               const Spacer(),
               _MiniButton(
-                label: 'Distribuer',
+                label: 'Détail',
                 onTap: () => context.push(
                   RouteNames.cooperativePayoutDetailPathFor(payout.id),
                 ),
@@ -410,6 +418,21 @@ class _PayoutCard extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+String _statusLabel(String s) {
+  switch (s) {
+    case 'PENDING':
+      return 'En attente';
+    case 'PROCESSING':
+      return 'En cours';
+    case 'COMPLETED':
+      return 'Complétée';
+    case 'FAILED':
+      return 'Échouée';
+    default:
+      return s;
   }
 }
 
@@ -472,3 +495,16 @@ class _MiniButton extends StatelessWidget {
   }
 }
 
+// ─── Helpers ─────────────────────────────────────────────────────────────
+
+String _fmt(double v) {
+  final i = v.round();
+  if (i < 1000) return '$i';
+  final s = '$i';
+  final buf = StringBuffer();
+  for (var k = 0; k < s.length; k++) {
+    if (k > 0 && (s.length - k) % 3 == 0) buf.write(' ');
+    buf.write(s[k]);
+  }
+  return buf.toString();
+}

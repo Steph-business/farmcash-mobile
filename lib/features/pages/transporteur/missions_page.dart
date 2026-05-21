@@ -1,120 +1,69 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
+import '../../../models/enums.dart';
+import '../../../models/livraison.dart';
 import '../../../routing/route_names.dart';
+import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
 import '../../../theme/app_text_styles.dart';
+import '../../widgets/communs/chargement.dart';
 import '../../widgets/communs/header_utilisateur.dart';
+import '../../widgets/communs/vue_erreur.dart';
 
-// ─── Couleurs locales (alignées sur la maquette) ────────────────────────
+// ─── Couleurs locales ──────────────────────────────────────────────────
 
 const Color _kPrimarySoft = Color(0xFFE8F5E9);
 const Color _kWarnSoft = Color(0xFFFEF3C7);
 const Color _kWarn = Color(0xFFB45309);
 
-/// Sémantique du chip / badge mission.
-enum _MissionKind { ok, warn }
-
-/// Onglet en haut de la page Missions transporteur.
 enum _MissionTab { enCours, disponibles, terminees }
 
-/// Modèle local pour une mission mock — calqué sur la maquette HTML.
-class _MockMission {
-  final String id;
-  final String badgeLabel;
-  final _MissionKind badgeKind;
-  final String photoUrl;
-  final String titre; // « 500 kg Maïs blanc »
-  final String route; // « Yao Konan (Yopougon) → … »
-  final String meta; // « 12 km · ETA 14h »
-  final String chipLabel; // « En route vers enlèvement »
-  final _MissionKind chipKind;
-  final IconData chipIcon;
-  final String prixLabel; // « +18 500 F »
-  final _MissionTab tab;
+const Set<ShipmentStatus> _kEnCours = {
+  ShipmentStatus.accepted,
+  ShipmentStatus.loading,
+  ShipmentStatus.inTransit,
+};
 
-  const _MockMission({
-    required this.id,
-    required this.badgeLabel,
-    required this.badgeKind,
-    required this.photoUrl,
-    required this.titre,
-    required this.route,
-    required this.meta,
-    required this.chipLabel,
-    required this.chipKind,
-    required this.chipIcon,
-    required this.prixLabel,
-    required this.tab,
+const Set<ShipmentStatus> _kTerminees = {
+  ShipmentStatus.delivered,
+  ShipmentStatus.cancelled,
+};
+
+/// Bundle missions transporteur : ses missions (statuts confondus) +
+/// les missions disponibles à accepter (pour le compteur de l'onglet).
+class _MissionsData {
+  const _MissionsData({
+    required this.mesShipments,
+    required this.disponibles,
   });
+  final List<Livraison> mesShipments;
+  final List<Livraison> disponibles;
 }
 
-/// Liste mock alignée 1:1 sur `mockups/transporteur/missions.html` (3
-/// missions en cours). Noms FULL — le transporteur voit son chantier en clair.
-const List<_MockMission> _kMockMissions = [
-  _MockMission(
-    id: 'mission_baoule_mais',
-    badgeLabel: 'Enlèvement en route',
-    badgeKind: _MissionKind.ok,
-    photoUrl:
-        'https://images.unsplash.com/photo-1601493700631-2b16ec4b4716'
-        '?w=200&h=200&fit=crop&auto=format',
-    titre: '500 kg Maïs blanc',
-    route: 'Yao Konan (Yopougon) → Restaurant Le Baoulé (Cocody)',
-    meta: '12 km · ETA 14h',
-    chipLabel: 'En route vers enlèvement',
-    chipKind: _MissionKind.ok,
-    chipIcon: Icons.local_shipping_outlined,
-    prixLabel: '+18 500 F',
-    tab: _MissionTab.enCours,
-  ),
-  _MockMission(
-    id: 'mission_industries_manioc',
-    badgeLabel: 'Livraison en cours',
-    badgeKind: _MissionKind.ok,
-    photoUrl:
-        'https://images.unsplash.com/photo-1574484284002-952d92456975'
-        '?w=200&h=200&fit=crop&auto=format',
-    titre: '300 kg Manioc',
-    route: 'COOP Sassandra → Industries Agricoles (Treichville)',
-    meta: '235 km · ETA dans 1h',
-    chipLabel: 'En route vers livraison',
-    chipKind: _MissionKind.ok,
-    chipIcon: Icons.local_shipping_outlined,
-    prixLabel: '+28 000 F',
-    tab: _MissionTab.enCours,
-  ),
-  _MockMission(
-    id: 'mission_aya_tomate',
-    badgeLabel: "En attente d'enlèvement",
-    badgeKind: _MissionKind.warn,
-    photoUrl:
-        'https://images.unsplash.com/photo-1518977956812-cd3dbadaaf31'
-        '?w=200&h=200&fit=crop&auto=format',
-    titre: '80 kg Tomate',
-    route: "Aya N'Guessan → Marie Yao",
-    meta: '8 km · départ programmé 16h',
-    chipLabel: 'Programmée',
-    chipKind: _MissionKind.warn,
-    chipIcon: Icons.schedule,
-    prixLabel: '+6 500 F',
-    tab: _MissionTab.enCours,
-  ),
-];
-
-const int _kDisponibles = 5;
-
-/// Onglet Missions du transporteur — accessible via le bottom-nav (shell).
+/// On charge à la fois les missions disponibles (pour le compteur
+/// "Disponibles (N)") et celles déjà acceptées par le transporteur
+/// (lifecycle en cours/terminées).
 ///
-/// Reproduction fidèle de `mockups/transporteur/missions.html` : header
-/// transporteur, compteur primary-soft, tab bar « En cours / Disponibles
-/// / Terminées », et liste de cards mission avec badge statut, photo,
-/// route, chip d'état, prix.
-///
-/// Mock-first : à brancher sur `transporteurSvc.listMissions()` quand prêt.
+/// `GET /logistics/missions/available` ne renvoie que les REQUESTED
+/// matchant les routes du transporteur. `GET /logistics/shipments/my`
+/// retourne les shipments acceptés (tous statuts confondus).
+final _missionsTransporteurProvider =
+    FutureProvider.autoDispose<_MissionsData>((ref) async {
+  final svc = ref.watch(logisticsServiceProvider);
+  final results = await Future.wait([
+    svc.getMyMissions(),
+    svc.getAvailableMissions(),
+  ]);
+  return _MissionsData(
+    mesShipments: results[0],
+    disponibles: results[1],
+  );
+});
+
 class MissionsTransporteurPage extends ConsumerStatefulWidget {
   const MissionsTransporteurPage({super.key});
 
@@ -127,19 +76,14 @@ class _MissionsTransporteurPageState
     extends ConsumerState<MissionsTransporteurPage> {
   _MissionTab _tab = _MissionTab.enCours;
 
-  List<_MockMission> get _filtered =>
-      _kMockMissions.where((m) => m.tab == _tab).toList(growable: false);
-
-  int get _countEnCours =>
-      _kMockMissions.where((m) => m.tab == _MissionTab.enCours).length;
-
-  void _ouvrirMission(_MockMission m) {
-    context.push(RouteNames.transporteurMissionDetailPathFor(m.id));
+  Future<void> _refresh() async {
+    ref.invalidate(_missionsTransporteurProvider);
+    await ref.read(_missionsTransporteurProvider.future);
   }
 
   @override
   Widget build(BuildContext context) {
-    final missions = _filtered;
+    final async = ref.watch(_missionsTransporteurProvider);
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -148,52 +92,88 @@ class _MissionsTransporteurPageState
           children: [
             const HeaderUtilisateur(variant: HeaderVariant.transporteur),
             const _PageTitle(),
-            const Padding(
-              padding: EdgeInsets.fromLTRB(
-                AppDimens.pagePaddingH,
-                0,
-                AppDimens.pagePaddingH,
-                AppDimens.space12,
-              ),
-              child: _CounterHero(
-                texte: '3 missions actives · 87 km au total',
-              ),
-            ),
-            _TabBar(
-              current: _tab,
-              enCoursCount: _countEnCours,
-              disponiblesCount: _kDisponibles,
-              onSelect: (t) => setState(() => _tab = t),
-            ),
             Expanded(
-              child: missions.isEmpty
-                  ? const _EmptyState()
-                  : ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppDimens.pagePaddingH,
-                        AppDimens.space12,
-                        AppDimens.pagePaddingH,
-                        AppDimens.space16,
-                      ),
-                      itemCount: missions.length,
-                      itemBuilder: (_, i) => _MissionCard(
-                        mission: missions[i],
-                        onTap: () => _ouvrirMission(missions[i]),
-                      ),
-                    ),
+              child: async.when(
+                loading: () => const Padding(
+                  padding: EdgeInsets.only(top: 48),
+                  child: Chargement(size: 22),
+                ),
+                error: (e, _) => Padding(
+                  padding: const EdgeInsets.all(AppDimens.pagePaddingH),
+                  child: VueErreur(
+                    message: 'Impossible de charger les missions. $e',
+                    onRetry: _refresh,
+                  ),
+                ),
+                data: (data) => _buildContent(data),
+              ),
             ),
           ],
         ),
       ),
     );
   }
+
+  Widget _buildContent(_MissionsData data) {
+    final enCours = data.mesShipments
+        .where((m) => _kEnCours.contains(m.status))
+        .toList();
+    final terminees = data.mesShipments
+        .where((m) => _kTerminees.contains(m.status))
+        .toList();
+    final listeFiltree = switch (_tab) {
+      _MissionTab.enCours => enCours,
+      _MissionTab.terminees => terminees,
+      _MissionTab.disponibles => data.disponibles,
+    };
+
+    final headerText = enCours.isEmpty
+        ? 'Aucune mission en cours · ${data.disponibles.length} dispo'
+        : '${enCours.length} mission${enCours.length > 1 ? 's' : ''} en cours';
+
+    return RefreshIndicator(
+      color: AppColors.primary,
+      onRefresh: _refresh,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(
+          AppDimens.pagePaddingH,
+          0,
+          AppDimens.pagePaddingH,
+          AppDimens.space16,
+        ),
+        children: [
+          _CounterHero(texte: headerText),
+          AppDimens.vGap16,
+          _TabBar(
+            current: _tab,
+            enCoursCount: enCours.length,
+            disponiblesCount: data.disponibles.length,
+            terminees: terminees.length,
+            onSelect: (t) => setState(() => _tab = t),
+          ),
+          AppDimens.vGap12,
+          if (listeFiltree.isEmpty)
+            _EmptyState(tab: _tab)
+          else
+            ...listeFiltree.map(
+              (m) => _MissionCard(
+                mission: m,
+                onTap: () => context.push(
+                  RouteNames.transporteurMissionDetailPathFor(m.id),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }
 
-// ─── Titre de page ──────────────────────────────────────────────────────
+// ─── Titre ─────────────────────────────────────────────────────────────
 
 class _PageTitle extends StatelessWidget {
   const _PageTitle();
-
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -216,21 +196,16 @@ class _PageTitle extends StatelessWidget {
   }
 }
 
-// ─── Compteur hero (primary soft) ───────────────────────────────────────
+// ─── Hero ──────────────────────────────────────────────────────────────
 
 class _CounterHero extends StatelessWidget {
   const _CounterHero({required this.texte});
-
   final String texte;
-
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 14,
-        vertical: 12,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: _kPrimarySoft,
         borderRadius: BorderRadius.circular(12),
@@ -268,25 +243,25 @@ class _CounterHero extends StatelessWidget {
   }
 }
 
-// ─── Tab bar ────────────────────────────────────────────────────────────
+// ─── Tabs ──────────────────────────────────────────────────────────────
 
 class _TabBar extends StatelessWidget {
   const _TabBar({
     required this.current,
     required this.enCoursCount,
     required this.disponiblesCount,
+    required this.terminees,
     required this.onSelect,
   });
-
   final _MissionTab current;
   final int enCoursCount;
   final int disponiblesCount;
+  final int terminees;
   final ValueChanged<_MissionTab> onSelect;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppDimens.pagePaddingH),
       decoration: const BoxDecoration(
         border: Border(
           bottom: BorderSide(
@@ -301,7 +276,7 @@ class _TabBar extends StatelessWidget {
           const SizedBox(width: 18),
           _tab(_MissionTab.disponibles, 'Disponibles ($disponiblesCount)'),
           const SizedBox(width: 18),
-          _tab(_MissionTab.terminees, 'Terminées'),
+          _tab(_MissionTab.terminees, 'Terminées ($terminees)'),
         ],
       ),
     );
@@ -334,155 +309,160 @@ class _TabBar extends StatelessWidget {
   }
 }
 
-// ─── Mission card ───────────────────────────────────────────────────────
+// ─── Mission card ─────────────────────────────────────────────────────
 
 class _MissionCard extends StatelessWidget {
   const _MissionCard({required this.mission, required this.onTap});
-
-  final _MockMission mission;
+  final Livraison mission;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final reference = mission.reference ??
+        mission.commandeId.substring(0, 8).toUpperCase();
+    final itineraire = mission.itineraireLabel ??
+        '${mission.pickupAddress ?? '—'} → ${mission.deliveryAddress ?? '—'}';
+    final qte = mission.quantiteKg != null
+        ? '${_nf.format(mission.quantiteKg!.round())} kg'
+        : null;
+    final prix = mission.prixDevis ?? mission.prixFinal;
+    final prixLabel =
+        prix != null ? '+${_nf.format(prix.round())} F' : 'à fixer';
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Material(
-        color: AppColors.surface,
+      padding: const EdgeInsets.only(bottom: 12),
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(14),
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: AppColors.border,
-                width: AppDimens.borderThin,
-              ),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: AppColors.border,
+              width: AppDimens.borderThin,
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _Badge(label: mission.badgeLabel, kind: mission.badgeKind),
-                const SizedBox(height: 10),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 60,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceSoft,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: AppColors.border,
-                          width: AppDimens.borderThin,
-                        ),
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: CachedNetworkImage(
-                        imageUrl: mission.photoUrl,
-                        fit: BoxFit.cover,
-                        placeholder: (_, _) =>
-                            const ColoredBox(color: AppColors.surfaceSoft),
-                        errorWidget: (_, _, _) => const Icon(
-                          Icons.local_shipping_outlined,
-                          color: AppColors.textSubtle,
-                          size: 22,
-                        ),
-                      ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _StatusBadge(status: mission.status),
+              const SizedBox(height: 10),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: _kPrimarySoft,
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            mission.titre,
-                            style: AppTextStyles.bodyMedium.copyWith(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.text,
-                              height: 1.35,
-                            ),
+                    alignment: Alignment.center,
+                    child: const Icon(
+                      Icons.local_shipping_outlined,
+                      size: 24,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Commande #$reference',
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            mission.route,
-                            style: AppTextStyles.bodySmall.copyWith(
-                              fontSize: 11,
-                              color: AppColors.textSecondary,
-                              height: 1.4,
-                            ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          itineraire,
+                          style: AppTextStyles.bodySmall.copyWith(
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
+                            height: 1.4,
                           ),
-                          const SizedBox(height: 4),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (qte != null) ...[
+                          const SizedBox(height: 3),
                           Text(
-                            mission.meta,
+                            qte,
                             style: AppTextStyles.labelSmall.copyWith(
                               fontSize: 11,
                               color: AppColors.textSubtle,
                             ),
                           ),
                         ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  const Icon(
+                    Icons.chevron_right,
+                    size: 18,
+                    color: AppColors.textSubtle,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              const Divider(
+                height: 1,
+                thickness: 1,
+                color: AppColors.border,
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _scheduleLabel(mission),
+                      style: AppTextStyles.labelSmall.copyWith(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
                       ),
                     ),
-                    const SizedBox(width: 6),
-                    const Icon(
-                      Icons.chevron_right,
-                      size: 18,
-                      color: AppColors.textSubtle,
+                  ),
+                  Text(
+                    prixLabel,
+                    style: AppTextStyles.titleSmall.copyWith(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                      fontFamily: 'Poppins',
                     ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                const Divider(
-                  height: 1,
-                  thickness: 1,
-                  color: AppColors.border,
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _Chip(
-                        label: mission.chipLabel,
-                        kind: mission.chipKind,
-                        icon: mission.chipIcon,
-                      ),
-                    ),
-                    Text(
-                      mission.prixLabel,
-                      style: AppTextStyles.titleSmall.copyWith(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),
     );
   }
+
+  String _scheduleLabel(Livraison m) {
+    final df = DateFormat('d MMM HH:mm', 'fr_FR');
+    if (m.scheduledAt != null) return 'Prévu ${df.format(m.scheduledAt!)}';
+    if (m.createdAt != null) return 'Publié ${df.format(m.createdAt!)}';
+    return '—';
+  }
 }
 
-class _Badge extends StatelessWidget {
-  const _Badge({required this.label, required this.kind});
-
-  final String label;
-  final _MissionKind kind;
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({required this.status});
+  final ShipmentStatus status;
 
   @override
   Widget build(BuildContext context) {
-    final (bg, fg) = switch (kind) {
-      _MissionKind.ok => (_kPrimarySoft, AppColors.primary),
-      _MissionKind.warn => (_kWarnSoft, _kWarn),
-    };
+    final (bg, fg, label) = _spec();
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
@@ -495,10 +475,7 @@ class _Badge extends StatelessWidget {
           Container(
             width: 5,
             height: 5,
-            decoration: BoxDecoration(
-              color: fg,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: fg, shape: BoxShape.circle),
           ),
           const SizedBox(width: 5),
           Text(
@@ -514,44 +491,63 @@ class _Badge extends StatelessWidget {
       ),
     );
   }
+
+  (Color, Color, String) _spec() {
+    switch (status) {
+      case ShipmentStatus.requested:
+        return (_kWarnSoft, _kWarn, 'À accepter');
+      case ShipmentStatus.accepted:
+        return (_kPrimarySoft, AppColors.primary, 'Acceptée');
+      case ShipmentStatus.loading:
+        return (_kPrimarySoft, AppColors.primary, 'Enlèvement');
+      case ShipmentStatus.inTransit:
+        return (_kPrimarySoft, AppColors.primary, 'En route');
+      case ShipmentStatus.delivered:
+        return (_kPrimarySoft, AppColors.primary, 'Livrée');
+      case ShipmentStatus.cancelled:
+        return (const Color(0xFFE5E7EB), AppColors.textSecondary, 'Annulée');
+      case ShipmentStatus.unknown:
+        return (const Color(0xFFE5E7EB), AppColors.textSecondary, '—');
+    }
+  }
 }
 
-class _Chip extends StatelessWidget {
-  const _Chip({required this.label, required this.kind, required this.icon});
+// ─── Empty state ───────────────────────────────────────────────────
 
-  final String label;
-  final _MissionKind kind;
-  final IconData icon;
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({required this.tab});
+  final _MissionTab tab;
 
   @override
   Widget build(BuildContext context) {
-    final (bg, fg) = switch (kind) {
-      _MissionKind.ok => (_kPrimarySoft, AppColors.primary),
-      _MissionKind.warn => (_kWarnSoft, _kWarn),
+    final msg = switch (tab) {
+      _MissionTab.enCours =>
+        'Aucune mission en cours. Accepte une mission depuis « Disponibles ».',
+      _MissionTab.disponibles =>
+        'Aucune mission disponible dans tes zones. Vérifie tes itinéraires.',
+      _MissionTab.terminees => 'Tu n\'as pas encore livré de mission.',
     };
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 32,
+      ),
+      child: Center(
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 12, color: fg),
-            const SizedBox(width: 5),
-            Flexible(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppTextStyles.labelSmall.copyWith(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: fg,
-                ),
+            Icon(
+              Icons.local_shipping_outlined,
+              size: 40,
+              color: AppColors.textSubtle.withValues(alpha: 0.9),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              msg,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textSecondary,
+                height: 1.4,
               ),
             ),
           ],
@@ -561,32 +557,4 @@ class _Chip extends StatelessWidget {
   }
 }
 
-// ─── État vide ──────────────────────────────────────────────────────────
-
-class _EmptyState extends StatelessWidget {
-  const _EmptyState();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppDimens.space24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.local_shipping_outlined,
-              size: 40,
-              color: AppColors.textSubtle.withValues(alpha: 0.9),
-            ),
-            const SizedBox(height: AppDimens.space12),
-            Text(
-              'Aucune mission dans cet onglet',
-              style: AppTextStyles.titleSmall,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+final _nf = NumberFormat('#,##0', 'fr_FR');

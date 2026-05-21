@@ -1,11 +1,13 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../models/enums.dart';
 import '../../../models/livraison.dart';
 import '../../../models/portefeuille.dart';
+import '../../../routing/route_names.dart';
 import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
@@ -37,20 +39,21 @@ const String _kPhotoOptimisation =
 /// vide et les sections concernées sont masquées (graceful degradation).
 class _AccueilTransporteurData {
   final Portefeuille? wallet;
-  final List<Livraison> missions;
+  final List<Livraison> mesShipments;
+  final List<Livraison> disponibles;
   final List<TransporterRoute> routes;
 
   const _AccueilTransporteurData({
     required this.wallet,
-    required this.missions,
+    required this.mesShipments,
+    required this.disponibles,
     required this.routes,
   });
 
-  /// Mission en cours actuellement (status LOADING ou IN_TRANSIT).
-  /// Le backend ne fournit pas d'endpoint "active" dédié ; on filtre côté
-  /// client parmi les missions retournées.
+  /// Mission en cours actuellement (status LOADING ou IN_TRANSIT) parmi
+  /// les shipments acceptés par le transporteur.
   Livraison? get missionActive {
-    for (final m in missions) {
+    for (final m in mesShipments) {
       if (m.status == ShipmentStatus.loading ||
           m.status == ShipmentStatus.inTransit) {
         return m;
@@ -59,36 +62,19 @@ class _AccueilTransporteurData {
     return null;
   }
 
-  /// Missions ouvertes à acceptation (status REQUESTED). Si l'endpoint
-  /// renvoie déjà filtré, on retombe sur l'ensemble — la maquette V1 reste
-  /// cohérente tant qu'on évite la mission active.
-  List<Livraison> get missionsDisponibles {
-    final actives = [
-      for (final m in missions)
-        if (m.status == ShipmentStatus.requested) m,
-    ];
-    if (actives.isNotEmpty) return actives;
-    // Fallback : on garde tout ce qui n'est ni active ni acceptée ni livrée.
-    return [
-      for (final m in missions)
-        if (m.status != ShipmentStatus.loading &&
-            m.status != ShipmentStatus.inTransit &&
-            m.status != ShipmentStatus.accepted &&
-            m.status != ShipmentStatus.delivered &&
-            m.status != ShipmentStatus.cancelled)
-          m,
-    ];
-  }
+  /// Missions ouvertes à acceptation — toujours fournies par l'endpoint
+  /// `getAvailableMissions` (statut REQUESTED matchant les routes).
+  List<Livraison> get missionsDisponibles => disponibles;
 
   /// Prochains chargements : missions déjà acceptées par le transporteur
   /// mais pas encore en LOADING/IN_TRANSIT.
   List<Livraison> get prochainsChargements => [
-        for (final m in missions)
+        for (final m in mesShipments)
           if (m.status == ShipmentStatus.accepted) m,
       ];
 
   int get nbLivrees =>
-      missions.where((m) => m.status == ShipmentStatus.delivered).length;
+      mesShipments.where((m) => m.status == ShipmentStatus.delivered).length;
 
   bool get isEmpty =>
       missionActive == null &&
@@ -97,12 +83,21 @@ class _AccueilTransporteurData {
 }
 
 /// Charge en parallèle les données nécessaires à l'accueil transporteur.
+///
+/// **3 sources distinctes** : `getMyMissions()` pour les shipments acceptés
+/// (compteur livrées, mission active, prochains chargements),
+/// `getAvailableMissions()` pour les missions à accepter, et `getWallet()`
+/// pour le solde affiché en KPI.
 final accueilTransporteurDataProvider =
     FutureProvider.autoDispose<_AccueilTransporteurData>((ref) async {
   final logistics = ref.watch(logisticsServiceProvider);
   final finance = ref.watch(financeServiceProvider);
 
   final results = await Future.wait<dynamic>([
+    logistics
+        .getMyMissions()
+        .then<Object?>((v) => v)
+        .catchError((_) => <Livraison>[]),
     logistics
         .getAvailableMissions()
         .then<Object?>((v) => v)
@@ -114,15 +109,17 @@ final accueilTransporteurDataProvider =
     finance.getWallet().then<Object?>((v) => v).catchError((_) => null),
   ]);
 
-  final missions = (results[0] as List<Livraison>?) ?? const [];
-  final routes = (results[1] as List<TransporterRoute>?) ?? const [];
-  final walletBundle = results[2];
+  final mesShipments = (results[0] as List<Livraison>?) ?? const [];
+  final disponibles = (results[1] as List<Livraison>?) ?? const [];
+  final routes = (results[2] as List<TransporterRoute>?) ?? const [];
+  final walletBundle = results[3];
   final Portefeuille? wallet =
       walletBundle == null ? null : (walletBundle as dynamic).wallet as Portefeuille;
 
   return _AccueilTransporteurData(
     wallet: wallet,
-    missions: missions,
+    mesShipments: mesShipments,
+    disponibles: disponibles,
     routes: routes,
   );
 });
@@ -226,7 +223,7 @@ class _ContenuAccueil extends StatelessWidget {
         //    (sinon redondant avec le FAB du shell)
         if (mActive == null) ...[
           _CtaDeclarerItineraire(
-            onTap: () => _snack(context, 'Déclarer itinéraire — à venir'),
+            onTap: () => context.push(RouteNames.transporteurItinerairesPath),
           ),
           AppDimens.vGap24,
         ],
@@ -243,6 +240,8 @@ class _ContenuAccueil extends StatelessWidget {
           _SectionMissions(
             titre: 'Missions disponibles',
             lienTexte: 'Voir tout',
+            onLienTap: () =>
+                context.push(RouteNames.transporteurDemandesEntrantesPath),
             missions: disponibles.take(3).toList(),
             avecBoutonAccepter: true,
           ),
@@ -364,14 +363,17 @@ class _MissionActiveCard extends StatelessWidget {
               Expanded(
                 child: _BoutonSecondaire(
                   label: 'Suivre',
-                  onTap: () => _snack(context, 'Suivi GPS — à venir'),
+                  onTap: () => context.push(
+                    RouteNames.transporteurMissionEnRoutePathFor(mission.id),
+                  ),
                 ),
               ),
               AppDimens.hGap8,
               Expanded(
                 child: _BoutonPrimaire(
                   label: 'Marquer livré',
-                  onTap: () => _snack(context, 'Confirmation livraison — à venir'),
+                  onTap: () =>
+                      context.push(RouteNames.transporteurScannerPath),
                 ),
               ),
             ],
@@ -521,10 +523,12 @@ class _SectionMissions extends StatelessWidget {
     required this.missions,
     required this.avecBoutonAccepter,
     this.lienTexte,
+    this.onLienTap,
   });
 
   final String titre;
   final String? lienTexte;
+  final VoidCallback? onLienTap;
   final List<Livraison> missions;
   final bool avecBoutonAccepter;
 
@@ -533,7 +537,11 @@ class _SectionMissions extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _SectionHead(titre: titre, lienTexte: lienTexte),
+        _SectionHead(
+          titre: titre,
+          lienTexte: lienTexte,
+          onLienTap: onLienTap,
+        ),
         for (var i = 0; i < missions.length; i++) ...[
           _MissionCard(
             mission: missions[i],
@@ -621,8 +629,9 @@ class _MissionCard extends StatelessWidget {
               child: SizedBox(
                 height: 34,
                 child: ElevatedButton(
-                  onPressed: () =>
-                      _snack(context, 'Acceptation mission — à venir'),
+                  onPressed: () => context.push(
+                    RouteNames.transporteurMissionDetailPathFor(mission.id),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: AppColors.onPrimary,
@@ -649,10 +658,15 @@ class _MissionCard extends StatelessWidget {
 // ─── SECTION HEAD ────────────────────────────────────────────────────────
 
 class _SectionHead extends StatelessWidget {
-  const _SectionHead({required this.titre, this.lienTexte});
+  const _SectionHead({
+    required this.titre,
+    this.lienTexte,
+    this.onLienTap,
+  });
 
   final String titre;
   final String? lienTexte;
+  final VoidCallback? onLienTap;
 
   @override
   Widget build(BuildContext context) {
@@ -670,11 +684,21 @@ class _SectionHead extends StatelessWidget {
             ),
           ),
           if (lienTexte != null)
-            Text(
-              lienTexte!,
-              style: AppTextStyles.link.copyWith(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
+            InkWell(
+              onTap: onLienTap,
+              borderRadius: BorderRadius.circular(6),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 4,
+                  vertical: 2,
+                ),
+                child: Text(
+                  lienTexte!,
+                  style: AppTextStyles.link.copyWith(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ),
         ],
@@ -773,7 +797,7 @@ class _EtatVide extends StatelessWidget {
             height: AppDimens.buttonHeight,
             child: ElevatedButton(
               onPressed: () =>
-                  _snack(context, 'Déclaration d\'itinéraire — à venir'),
+                  context.push(RouteNames.transporteurItinerairesPath),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: AppColors.onPrimary,
@@ -877,9 +901,11 @@ class _SectionItineraires extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _SectionHead(
+        _SectionHead(
           titre: 'Mes itinéraires actifs',
           lienTexte: 'Voir tout',
+          onLienTap: () =>
+              context.push(RouteNames.transporteurItinerairesPath),
         ),
         SizedBox(
           height: 96,
@@ -907,8 +933,8 @@ class _ItineraireCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final trajet = _formatTrajet(route, index);
     final capacite =
-        NumberFormat('#,##0', 'fr_FR').format(route.capaciteKg);
-    final prix = NumberFormat('#,##0', 'fr_FR').format(route.prixParKm);
+        NumberFormat('#,##0', 'fr_FR').format(route.capaciteMaxKg);
+    final prix = NumberFormat('#,##0', 'fr_FR').format(route.tarifKg);
 
     return Container(
       width: 220,
@@ -1164,11 +1190,14 @@ String _formatPrix(double? prix) {
   return '${NumberFormat('#,##0', 'fr_FR').format(prix)} F';
 }
 
-/// `origine → destination` à partir d'une [Livraison]. Si l'une des
-/// extrémités manque, on tombe sur "Trajet" pour rester sobre.
+/// `origine → destination` à partir d'une [Livraison]. Préfère
+/// `origine_zone`/`destination_zone` (libellés courts du back) et
+/// retombe sur l'adresse pickup/delivery sinon.
 String _formatRoute(Livraison m) {
-  final origine = (m.pickupLocation ?? '').trim();
-  final dest = (m.deliveryLocation ?? '').trim();
+  final itin = m.itineraireLabel;
+  if (itin != null && itin.isNotEmpty) return itin;
+  final origine = (m.pickupAddress ?? '').trim();
+  final dest = (m.deliveryAddress ?? '').trim();
   if (origine.isEmpty && dest.isEmpty) return 'Trajet';
   if (origine.isEmpty) return dest;
   if (dest.isEmpty) return origine;
@@ -1205,21 +1234,12 @@ void _snack(BuildContext context, String message) {
   );
 }
 
-/// Affichage du trajet d'une route déclarée. Le backend ne fournit que des
-/// UUID pour origine/destination (pas de nom de ville), donc on tronque
-/// aux 8 premiers caractères avec un préfixe "Zone ". Si même tronqué la
-/// chaîne devient trop longue à afficher, on retombe sur "Itinéraire N".
+/// Affichage du trajet d'une route déclarée. Le backend renvoie les zones
+/// sous forme de noms lisibles (« Bouaké », « Abidjan »).
 String _formatTrajet(TransporterRoute r, int index) {
-  String zone(String id) {
-    final trimmed = id.trim();
-    if (trimmed.isEmpty) return '—';
-    final short = trimmed.length > 8 ? trimmed.substring(0, 8) : trimmed;
-    return 'Zone $short';
-  }
-
-  final origine = zone(r.origineVilleId);
-  final dest = zone(r.destinationVilleId);
-  if (origine == '—' && dest == '—') {
+  final origine = r.origineZone.trim();
+  final dest = r.destinationZone.trim();
+  if (origine.isEmpty && dest.isEmpty) {
     return 'Itinéraire ${index + 1}';
   }
   return '$origine → $dest';

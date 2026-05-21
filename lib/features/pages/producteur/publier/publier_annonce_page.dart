@@ -21,107 +21,128 @@ import '../../../widgets/communs/bouton_principal.dart';
 import '../../../widgets/communs/chargement.dart';
 import '../../../widgets/communs/snackbars.dart';
 
-/// Publier une annonce de vente — flow producteur (FARMER).
-///
-/// 2 pages dans un PageView :
-///   1. Détails (parcelle, produit, qualité, quantité, prix, dispo).
-///   2. Photos (max 5) + audience (public ou ma coop).
-///
-/// Pré-requis : au moins 1 parcelle. Sinon on pousse `parcelle_creer_page`
-/// d'abord ; si l'utilisateur abandonne, on quitte ce flow.
+/// Publier une annonce de vente — flow optimisé producteur, 4 étapes :
+///   1. **Culture** — sélection parmi les cultures du producteur (déjà
+///      enregistrées sur ses parcelles). Pas de saisie libre.
+///   2. **Photo + Vente** — photo du produit, quantité, prix, qualité.
+///   3. **Traçabilité** — certifications + traitements appliqués
+///      (multi-select sur catalogues communs).
+///   4. **Audience** — public / ma coop, date limite, description.
 class PublierAnnoncePage extends ConsumerStatefulWidget {
   const PublierAnnoncePage({super.key});
 
   @override
-  ConsumerState<PublierAnnoncePage> createState() =>
-      _PublierAnnoncePageState();
+  ConsumerState<PublierAnnoncePage> createState() => _PublierAnnoncePageState();
 }
+
+const _kSoftBg = Color(0xFFE8F5E9);
+
+/// Traitements communs en CI — affichés en multi-select sur l'étape 3.
+/// Le backend matche en recherche partielle (`produit_traitement_nom`),
+/// donc l'admin peut compléter le catalogue côté backend sans
+/// redéployer l'app.
+const _kTraitementsCommuns = <String>[
+  'Aucun traitement chimique',
+  'Engrais naturel (compost, fumier)',
+  'Engrais chimique NPK',
+  'Pesticides naturels (Neem)',
+  'Pesticides chimiques',
+  'Désherbants',
+];
+
+/// Certifications communes — multi-select libre.
+const _kCertifsCommunes = <String>[
+  'Bio',
+  'Équitable',
+  'Origine Côte d\'Ivoire',
+];
 
 class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
   final PageController _pageController = PageController();
   int _pageIndex = 0;
 
-  // ── Données chargées (bootstrap) ───────────────────────────────────────
+  // ─ Bootstrap ───────────────────────────────────────────────────────
   bool _loading = true;
   List<Parcelle> _parcelles = const [];
+  List<Culture> _cultures = const [];
 
-  // ── Page 1 ─────────────────────────────────────────────────────────────
-  Parcelle? _parcelle;
+  // ─ Étape 1 ─────────────────────────────────────────────────────────
   Culture? _culture;
-  ProductQuality _qualite = ProductQuality.standard;
-  final _quantiteCtrl = TextEditingController();
+
+  // ─ Étape 2 ─────────────────────────────────────────────────────────
+  File? _photo;
+  final _qteCtrl = TextEditingController();
   final _prixCtrl = TextEditingController();
-  DateTime? _dispoJusqu;
+  ProductQuality _qualite = ProductQuality.standard;
 
-  // ── Page 2 ─────────────────────────────────────────────────────────────
-  final List<File> _photos = [];
-  final _titreCtrl = TextEditingController();
-  final _descriptionCtrl = TextEditingController();
+  // ─ Étape 3 ─────────────────────────────────────────────────────────
+  final Set<String> _certifications = {};
+  final Set<String> _traitements = {};
+  final _certifAutreCtrl = TextEditingController();
+  final _traitementAutreCtrl = TextEditingController();
+
+  // ─ Étape 4 ─────────────────────────────────────────────────────────
   bool _audienceCoop = false;
+  DateTime? _disponibleJusqu;
+  final _descriptionCtrl = TextEditingController();
+  final _titreCtrl = TextEditingController();
 
-  // ── Type de publication (segmented control étape 1) ───────────────────
-  /// `false` = "Annonce immédiate" (par défaut, fonctionnel).
-  /// `true` = "Prévision future" (à venir — feedback snackbar pour l'instant).
-  bool _estPrevision = false;
-
-  // ── État submit ────────────────────────────────────────────────────────
   bool _isSubmitting = false;
-
-  static const int _maxPhotos = 5;
 
   @override
   void initState() {
     super.initState();
-    _quantiteCtrl.addListener(_onAnyChange);
-    _prixCtrl.addListener(_onAnyChange);
-    _titreCtrl.addListener(_onAnyChange);
-    _descriptionCtrl.addListener(_onAnyChange);
+    _qteCtrl.addListener(_onChange);
+    _prixCtrl.addListener(_onChange);
+    _certifAutreCtrl.addListener(_onChange);
+    _traitementAutreCtrl.addListener(_onChange);
+    _titreCtrl.addListener(_onChange);
+    _descriptionCtrl.addListener(_onChange);
     WidgetsBinding.instance.addPostFrameCallback((_) => _bootstrap());
   }
 
   @override
   void dispose() {
     _pageController.dispose();
-    _quantiteCtrl.dispose();
+    _qteCtrl.dispose();
     _prixCtrl.dispose();
+    _certifAutreCtrl.dispose();
+    _traitementAutreCtrl.dispose();
     _titreCtrl.dispose();
     _descriptionCtrl.dispose();
     super.dispose();
   }
 
-  void _onAnyChange() {
+  void _onChange() {
     if (mounted) setState(() {});
   }
 
-  // ── Bootstrap : on garantit au moins 1 parcelle ───────────────────────
+  // ── Bootstrap : charge parcelles + cultures du producteur ─────────
+
   Future<void> _bootstrap() async {
     try {
-      final parcelles =
-          await ref.read(marketplaceServiceProvider).listParcelles();
+      final svc = ref.read(marketplaceServiceProvider);
+      final results = await Future.wait([
+        svc.listParcelles(),
+        svc.listCultures(),
+      ]);
+      final parcelles = results[0] as List<Parcelle>;
+      final cultures = results[1] as List<Culture>;
       if (!mounted) return;
-      if (parcelles.isEmpty) {
-        final created = await context
-            .push<Parcelle>(RouteNames.producteurCreerParcellePath);
-        if (!mounted) return;
-        if (created == null) {
-          // l'utilisateur a abandonné la création — on quitte le flow.
-          Navigator.of(context).pop();
-          return;
-        }
-        _parcelles = [created];
-      } else {
-        _parcelles = parcelles;
+
+      if (cultures.isEmpty) {
+        // Pas de culture : impossible de publier. On dirige le
+        // producteur vers la création d'une parcelle + culture.
+        _redirigerVersMesParcelles();
+        return;
       }
 
-      // Présélection si on n'a qu'une parcelle. La culture, elle, est
-      // toujours choisie manuellement par l'utilisateur (cascade via le
-      // sélecteur dédié page 1).
-      final autoParcelle = _parcelles.length == 1 ? _parcelles.first : null;
-
-      if (!mounted) return;
       setState(() {
-        _parcelle = autoParcelle;
+        _parcelles = parcelles;
+        _cultures = cultures;
         _loading = false;
+        // Présélection si une seule culture.
+        if (cultures.length == 1) _culture = cultures.first;
       });
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -129,193 +150,83 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
       Navigator.of(context).pop();
     } catch (_) {
       if (!mounted) return;
-      Snackbars.showErreur(
-        context,
-        'Impossible de charger tes parcelles.',
-      );
+      Snackbars.showErreur(context, 'Impossible de charger tes cultures.');
       Navigator.of(context).pop();
     }
   }
 
-  // ── Validations & helpers ──────────────────────────────────────────────
-
-  double? get _quantiteValeur {
-    final raw = _quantiteCtrl.text.trim().replaceAll(',', '.');
-    if (raw.isEmpty) return null;
-    final v = double.tryParse(raw);
-    if (v == null || v <= 0) return null;
-    return v;
+  void _redirigerVersMesParcelles() {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Aucune culture enregistrée'),
+        content: const Text(
+          'Tu n\'as pas encore de culture sur une parcelle. '
+          'Ajoute d\'abord une parcelle et indique ce que tu cultives.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              Navigator.of(context).pop();
+            },
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              Navigator.of(context).pop();
+              context.push(RouteNames.producteurMesParcellesPath);
+            },
+            child: const Text('Aller à mes parcelles'),
+          ),
+        ],
+      ),
+    );
   }
 
-  double? get _prixValeur {
+  // ── Helpers ───────────────────────────────────────────────────────
+
+  Parcelle? _parcelleDeLaCulture(Culture c) {
+    if (c.parcelleId == null) return null;
+    try {
+      return _parcelles.firstWhere((p) => p.id == c.parcelleId);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  double? get _qte {
+    final raw = _qteCtrl.text.trim().replaceAll(',', '.');
+    if (raw.isEmpty) return null;
+    final v = double.tryParse(raw);
+    return (v == null || v <= 0) ? null : v;
+  }
+
+  double? get _prix {
     final raw = _prixCtrl.text.trim().replaceAll(',', '.');
     if (raw.isEmpty) return null;
     final v = double.tryParse(raw);
-    if (v == null || v <= 0) return null;
-    return v;
+    return (v == null || v <= 0) ? null : v;
   }
 
-  bool get _page1Valid {
-    if (_parcelle == null) return false;
-    if (_culture == null) return false;
-    if (_quantiteValeur == null) return false;
-    if (_prixValeur == null) return false;
-    return true;
-  }
+  double get _total => (_qte ?? 0) * (_prix ?? 0);
 
-  bool get _canPublier {
-    if (_isSubmitting) return false;
-    if (!_page1Valid) return false;
-    return true;
-  }
+  bool get _step1Valid => _culture != null;
+  bool get _step2Valid => _qte != null && _prix != null;
+  bool get _step3Valid => true; // optionnel
+  bool get _canPublier => _step1Valid && _step2Valid && !_isSubmitting;
 
-  // ── Sélecteurs ─────────────────────────────────────────────────────────
-
-  Future<void> _choisirCulture() async {
-    final parcelle = _parcelle;
-    if (parcelle == null) return;
-    FocusScope.of(context).unfocus();
-    final selected = await showModalBottomSheet<Culture>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: AppDimens.brBottomSheet,
-      ),
-      builder: (_) => _SelectionCultureSheet(
-        parcelleId: parcelle.id,
-        initialId: _culture?.id,
-      ),
-    );
-    if (selected != null && mounted) {
-      setState(() => _culture = selected);
-    }
-  }
-
-  Future<void> _ouvrirMesParcelles() async {
-    if (!mounted) return;
-    Navigator.of(context).pop();
-    if (!mounted) return;
-    context.push(RouteNames.producteurMesParcellesPath);
-  }
-
-  Future<void> _choisirDate() async {
-    FocusScope.of(context).unfocus();
-    final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _dispoJusqu ?? now.add(const Duration(days: 14)),
-      firstDate: now,
-      lastDate: now.add(const Duration(days: 365)),
-      locale: const Locale('fr', 'FR'),
-    );
-    if (picked != null && mounted) {
-      setState(() => _dispoJusqu = picked);
-    }
-  }
-
-  // ── Photos ─────────────────────────────────────────────────────────────
-
-  Future<void> _ajouterPhoto() async {
-    if (_photos.length >= _maxPhotos) return;
-    FocusScope.of(context).unfocus();
-
-    final source = await showModalBottomSheet<ImageSource>(
-      context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: AppDimens.brBottomSheet,
-      ),
-      builder: (ctx) {
-        return SafeArea(
-          top: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AppDimens.vGap8,
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppDimens.space24,
-                  vertical: AppDimens.space8,
-                ),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Ajouter une photo',
-                    style: AppTextStyles.titleLarge,
-                  ),
-                ),
-              ),
-              const Divider(
-                height: 1,
-                thickness: AppDimens.borderThin,
-                color: AppColors.border,
-              ),
-              ListTile(
-                leading: const Icon(
-                  Icons.photo_camera_outlined,
-                  color: AppColors.primary,
-                  size: AppDimens.iconL,
-                ),
-                title: Text(
-                  'Prendre une photo',
-                  style: AppTextStyles.titleSmall,
-                ),
-                onTap: () => Navigator.of(ctx).pop(ImageSource.camera),
-              ),
-              const Divider(
-                height: 1,
-                thickness: AppDimens.borderThin,
-                color: AppColors.border,
-              ),
-              ListTile(
-                leading: const Icon(
-                  Icons.photo_library_outlined,
-                  color: AppColors.primary,
-                  size: AppDimens.iconL,
-                ),
-                title: Text(
-                  'Choisir dans la galerie',
-                  style: AppTextStyles.titleSmall,
-                ),
-                onTap: () => Navigator.of(ctx).pop(ImageSource.gallery),
-              ),
-              AppDimens.vGap8,
-            ],
-          ),
-        );
-      },
-    );
-
-    if (source == null || !mounted) return;
-    try {
-      final picker = ImagePicker();
-      final picked = await picker.pickImage(
-        source: source,
-        maxWidth: 1600,
-        imageQuality: 80,
-      );
-      if (picked == null || !mounted) return;
-      setState(() => _photos.add(File(picked.path)));
-    } catch (_) {
-      if (mounted) {
-        Snackbars.showErreur(context, 'Impossible d\'ajouter la photo.');
-      }
-    }
-  }
-
-  void _supprimerPhoto(int index) {
-    setState(() => _photos.removeAt(index));
-  }
-
-  // ── Navigation pages ──────────────────────────────────────────────────
+  // ── Navigation pages ──────────────────────────────────────────────
 
   void _suivant() {
-    if (!_page1Valid) {
-      Snackbars.showErreur(
-        context,
-        'Remplis tous les champs requis pour continuer.',
-      );
+    if (_pageIndex == 0 && !_step1Valid) {
+      Snackbars.showErreur(context, 'Choisis une culture.');
+      return;
+    }
+    if (_pageIndex == 1 && !_step2Valid) {
+      Snackbars.showErreur(context, 'Indique la quantité et le prix.');
       return;
     }
     FocusScope.of(context).unfocus();
@@ -333,20 +244,99 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
     );
   }
 
-  // ── Publication ────────────────────────────────────────────────────────
+  // ── Photo ─────────────────────────────────────────────────────────
+
+  Future<void> _prendrePhoto() async {
+    FocusScope.of(context).unfocus();
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: AppDimens.brBottomSheet,
+      ),
+      builder: (ctx) => SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppDimens.vGap8,
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppDimens.space24,
+                vertical: AppDimens.space8,
+              ),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Photo du produit',
+                  style: AppTextStyles.titleLarge,
+                ),
+              ),
+            ),
+            const Divider(height: 1, color: AppColors.border),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined,
+                  color: AppColors.primary),
+              title: const Text('Prendre une photo'),
+              onTap: () => Navigator.of(ctx).pop(ImageSource.camera),
+            ),
+            const Divider(height: 1, color: AppColors.border),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined,
+                  color: AppColors.primary),
+              title: const Text('Choisir dans la galerie'),
+              onTap: () => Navigator.of(ctx).pop(ImageSource.gallery),
+            ),
+            AppDimens.vGap8,
+          ],
+        ),
+      ),
+    );
+    if (source == null || !mounted) return;
+    try {
+      final picked = await ImagePicker().pickImage(
+        source: source,
+        maxWidth: 1600,
+        imageQuality: 80,
+      );
+      if (picked == null || !mounted) return;
+      setState(() => _photo = File(picked.path));
+    } catch (_) {
+      if (mounted) {
+        Snackbars.showErreur(context, 'Impossible d\'ajouter la photo.');
+      }
+    }
+  }
+
+  // ── Date limite ───────────────────────────────────────────────────
+
+  Future<void> _choisirDate() async {
+    FocusScope.of(context).unfocus();
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _disponibleJusqu ?? now.add(const Duration(days: 14)),
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 365)),
+      locale: const Locale('fr', 'FR'),
+    );
+    if (picked != null && mounted) {
+      setState(() => _disponibleJusqu = picked);
+    }
+  }
+
+  // ── Publication ───────────────────────────────────────────────────
 
   Future<void> _publier() async {
     if (!_canPublier) return;
     final user = ref.read(currentUserProvider);
-    final culture = _culture;
-    final quantite = _quantiteValeur;
-    final prix = _prixValeur;
-    if (culture == null || quantite == null || prix == null) return;
+    final culture = _culture!;
+    final qte = _qte!;
+    final prix = _prix!;
 
     setState(() => _isSubmitting = true);
-
     try {
-      // 1) GPS — obligatoire pour le back (champ `coordinates`).
+      // 1) GPS — capture silencieuse, obligatoire pour le back.
       final serviceOk = await Geolocator.isLocationServiceEnabled();
       if (!serviceOk) {
         if (mounted) {
@@ -357,7 +347,6 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
         }
         return;
       }
-
       var permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
@@ -372,7 +361,6 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
         }
         return;
       }
-
       final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
@@ -381,60 +369,68 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
 
       final svc = ref.read(marketplaceServiceProvider);
 
-      // 2) Titre — auto-généré si vide. Le nom du produit vient de la
-      //    culture (jointure backend) ; fallback "Produit" si absent.
+      // 2) Titre — auto-généré si vide.
       final produitNom = culture.produitNom ?? 'Produit';
       final titreSaisi = _titreCtrl.text.trim();
       final titre = titreSaisi.isEmpty
           ? '$produitNom ${_libelleQualite(_qualite)} — '
-                '${_formatNombre(quantite)}kg'
+                '${_formatNombre(qte)}kg'
           : titreSaisi;
-
       final description = _descriptionCtrl.text.trim();
 
-      // 3) Cible coop (si demandé ET membre d'une coop).
+      // 3) Audience coop.
       final coopId = (_audienceCoop && user?.cooperativeId != null)
           ? user!.cooperativeId
           : null;
 
-      // 4) Création de l'annonce — `produitId` vient de la culture
-      //    sélectionnée (cascade parcelle → culture → produit).
+      // 4) Certifications consolidées (chips + saisie libre).
+      final certifs = <String>{..._certifications};
+      final certifAutre = _certifAutreCtrl.text.trim();
+      if (certifAutre.isNotEmpty) certifs.add(certifAutre);
+
+      // 5) Traitements consolidés en payload backend.
+      final traitements = <Map<String, dynamic>>[
+        for (final t in _traitements) {'produit_traitement_nom': t},
+      ];
+      final traitementAutre = _traitementAutreCtrl.text.trim();
+      if (traitementAutre.isNotEmpty) {
+        traitements.add({'produit_traitement_nom': traitementAutre});
+      }
+
+      // 6) Création annonce.
       final annonce = await svc.createAnnonceVente(
         produitId: culture.produitId,
         titre: titre,
-        quantiteKg: quantite,
+        quantiteKg: qte,
         prixParKg: prix,
         lat: position.latitude,
         lng: position.longitude,
         qualite: _qualite,
         description: description.isEmpty ? null : description,
-        disponibleJusqu: _dispoJusqu,
+        disponibleJusqu: _disponibleJusqu,
         assignedToCooperativeId: coopId,
+        certifications: certifs.toList(growable: false),
+        traitements: traitements.isEmpty ? null : traitements,
       );
 
-      // 5) Upload des photos en séquentiel — on continue même si l'une
-      //    échoue, mais on signale l'erreur globalement à la fin.
-      var photosOk = true;
-      for (final file in _photos) {
+      // 7) Upload photo si présente.
+      var photoOk = true;
+      if (_photo != null) {
         try {
-          await svc.uploadAnnonceMedia(file: file, annonceId: annonce.id);
+          await svc.uploadAnnonceMedia(file: _photo!, annonceId: annonce.id);
         } catch (_) {
-          photosOk = false;
+          photoOk = false;
         }
       }
 
       if (!mounted) return;
-      if (!photosOk) {
+      if (!photoOk) {
         Snackbars.showInfo(
           context,
-          'Annonce publiée. Certaines photos n\'ont pas pu être ajoutées.',
+          'Annonce publiée. La photo n\'a pas pu être ajoutée.',
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Annonce publiée avec succès !'),
-          ),
-        );
+        Snackbars.showSucces(context, 'Annonce publiée avec succès !');
       }
       Navigator.of(context).pop();
     } on ApiException catch (e) {
@@ -448,7 +444,37 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
     }
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────
+  static String _libelleQualite(ProductQuality q) {
+    switch (q) {
+      case ProductQuality.standard:
+        return 'Standard';
+      case ProductQuality.premium:
+        return 'Premium';
+      case ProductQuality.bio:
+        return 'Bio';
+      case ProductQuality.equitable:
+        return 'Équitable';
+      case ProductQuality.unknown:
+        return 'Standard';
+    }
+  }
+
+  static String _formatNombre(double v) {
+    if ((v - v.truncate()).abs() < 0.01) return v.toStringAsFixed(0);
+    return v.toStringAsFixed(1);
+  }
+
+  static String _formatDate(DateTime d) =>
+      DateFormat('dd MMM yyyy', 'fr_FR').format(d);
+
+  static String _formatMontant(double v) {
+    final formatter = NumberFormat('#,##0', 'fr_FR');
+    return formatter.format(v).replaceAll(',', ' ');
+  }
+
+  // ═════════════════════════════════════════════════════════════════
+  // BUILD
+  // ═════════════════════════════════════════════════════════════════
 
   @override
   Widget build(BuildContext context) {
@@ -467,7 +493,7 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
             onPressed: _isSubmitting
                 ? null
                 : () {
-                    if (_pageIndex == 1) {
+                    if (_pageIndex > 0) {
                       _precedent();
                     } else {
                       Navigator.of(context).pop();
@@ -479,7 +505,7 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                _pageIndex == 0 ? 'Publier' : 'Publier · 2/2',
+                _titrePage(),
                 style: AppTextStyles.titleMedium.copyWith(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
@@ -488,9 +514,7 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
               ),
               const SizedBox(height: 2),
               Text(
-                _pageIndex == 0
-                    ? 'Étape 1 sur 2'
-                    : 'Photos & audience',
+                'Étape ${_pageIndex + 1} sur 4',
                 style: AppTextStyles.bodySmall.copyWith(
                   fontSize: 12,
                   color: AppColors.textSecondary,
@@ -507,13 +531,22 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
                   padding: EdgeInsets.only(top: AppDimens.space32),
                   child: Chargement(size: 22),
                 )
-              : PageView(
-                  controller: _pageController,
-                  physics: const NeverScrollableScrollPhysics(),
-                  onPageChanged: (i) => setState(() => _pageIndex = i),
+              : Column(
                   children: [
-                    _buildPage1(),
-                    _buildPage2(),
+                    _ProgressBar(index: _pageIndex, total: 4),
+                    Expanded(
+                      child: PageView(
+                        controller: _pageController,
+                        physics: const NeverScrollableScrollPhysics(),
+                        onPageChanged: (i) => setState(() => _pageIndex = i),
+                        children: [
+                          _buildStep1(),
+                          _buildStep2(),
+                          _buildStep3(),
+                          _buildStep4(),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
         ),
@@ -521,10 +554,24 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
     );
   }
 
-  // ── Page 1 ─────────────────────────────────────────────────────────────
+  String _titrePage() {
+    switch (_pageIndex) {
+      case 0:
+        return 'Choisir la culture';
+      case 1:
+        return 'Photo & vente';
+      case 2:
+        return 'Traçabilité';
+      case 3:
+        return 'Publier';
+      default:
+        return 'Publier une annonce';
+    }
+  }
 
-  Widget _buildPage1() {
-    final parcelle = _parcelle;
+  // ─── Step 1 : Sélection culture ───────────────────────────────────
+
+  Widget _buildStep1() {
     return Column(
       children: [
         Expanded(
@@ -536,197 +583,267 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
               AppDimens.space16,
             ),
             children: [
-              // ═══ Segmented : immédiate / prévision ═══════════════
-              _SegmentedToggle(
-                leftLabel: 'Annonce immédiate',
-                rightLabel: 'Prévision future',
-                rightSelected: _estPrevision,
-                enabled: !_isSubmitting,
-                onChanged: (right) {
-                  if (right) {
-                    Snackbars.showInfo(
-                      context,
-                      'Prévision future — à venir prochainement.',
-                    );
-                    return;
-                  }
-                  setState(() => _estPrevision = false);
-                },
-              ),
-              const SizedBox(height: 20),
-
-              // ═══ Section : Parcelle & culture ════════════════════
-              const _SectionTitle('Parcelle & culture'),
-              AppDimens.vGap12,
-              _ChampLabel(
-                label: 'Parcelle',
-                child: _SelecteurMaquette(
-                  icon: Icons.location_on_outlined,
-                  title: parcelle == null
-                      ? 'Choisir une parcelle'
-                      : parcelle.nom,
-                  subtitle: parcelle == null
-                      ? null
-                      : _sousTitreParcelle(parcelle),
-                  placeholder: parcelle == null,
-                  enabled: !_isSubmitting,
-                  onTap: () => _choisirParcelleSheet(),
+              Text(
+                'Sélectionne ce que tu veux vendre. La parcelle source '
+                'est rattachée automatiquement.',
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: AppColors.textSecondary,
                 ),
               ),
-              const SizedBox(height: 14),
-              _ChampLabel(
-                label: 'Culture',
-                child: parcelle == null
-                    ? _SelecteurMaquette(
-                        icon: Icons.eco_outlined,
-                        title: 'Choisis d\'abord une parcelle',
-                        placeholder: true,
-                        enabled: false,
-                        onTap: () {},
-                      )
-                    : _SelecteurCultureMaquette(
-                        parcelleId: parcelle.id,
-                        culture: _culture,
-                        enabled: !_isSubmitting,
-                        onTap: _choisirCulture,
-                        onOuvrirMesParcelles: _ouvrirMesParcelles,
-                      ),
-              ),
-              const SizedBox(height: 20),
-
-              // ═══ Section : Détails ═══════════════════════════════
-              const _SectionTitle('Détails'),
-              AppDimens.vGap12,
-              _ChampLabel(
-                label: 'Qualité',
-                child: Wrap(
-                  spacing: AppDimens.space8,
-                  runSpacing: AppDimens.space8,
-                  children: [
-                    for (final q in const [
-                      ProductQuality.standard,
-                      ProductQuality.premium,
-                      ProductQuality.bio,
-                      ProductQuality.equitable,
-                    ])
-                      _ChipQualite(
-                        label: _libelleQualite(q),
-                        selected: _qualite == q,
-                        enabled: !_isSubmitting,
-                        onTap: () => setState(() => _qualite = q),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-              _ChampLabel(
-                label: 'Quantité',
-                child: TextField(
-                  controller: _quantiteCtrl,
-                  enabled: !_isSubmitting,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-                  ],
-                  decoration: const InputDecoration(
-                    hintText: '0',
-                    suffixText: 'kg',
-                    suffixStyle: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
+              const SizedBox(height: 16),
+              for (final c in _cultures)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _CultureCard(
+                    culture: c,
+                    parcelle: _parcelleDeLaCulture(c),
+                    selected: _culture?.id == c.id,
+                    onTap: () => setState(() => _culture = c),
                   ),
                 ),
-              ),
-              const SizedBox(height: 14),
-              _ChampLabel(
-                label: 'Prix par kg',
-                child: TextField(
-                  controller: _prixCtrl,
-                  enabled: !_isSubmitting,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-                  ],
-                  decoration: const InputDecoration(
-                    hintText: '0',
-                    suffixText: 'F CFA / kg',
-                    suffixStyle: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              _ChampLabel(
-                label: 'Disponible jusqu\'au',
-                child: _BoutonSelection(
-                  placeholder: 'Optionnel — choisir une date',
-                  valeur: _dispoJusqu == null
-                      ? null
-                      : _formatDate(_dispoJusqu!),
-                  enabled: !_isSubmitting,
-                  onTap: _choisirDate,
-                  icon: Icons.calendar_today_outlined,
-                ),
-              ),
             ],
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppDimens.pagePaddingH,
-            AppDimens.space12,
-            AppDimens.pagePaddingH,
-            AppDimens.space16,
-          ),
-          child: BoutonPrincipal(
-            label: 'Suivant',
-            enabled: _page1Valid && !_isSubmitting,
-            onPressed: _page1Valid && !_isSubmitting ? _suivant : null,
-          ),
+        _FooterButton(
+          label: 'Suivant',
+          enabled: _step1Valid && !_isSubmitting,
+          onTap: _suivant,
         ),
       ],
     );
   }
 
-  String _sousTitreParcelle(Parcelle p) {
-    final ha = p.superficieHa;
-    return ha == null ? 'Superficie inconnue' : '${ha.toStringAsFixed(1)} ha';
-  }
+  // ─── Step 2 : Photo + Vente ──────────────────────────────────────
 
-  Future<void> _choisirParcelleSheet() async {
-    FocusScope.of(context).unfocus();
-    final selected = await showModalBottomSheet<Parcelle>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: AppDimens.brBottomSheet,
-      ),
-      builder: (_) => _SelectionParcelleSheet(
-        parcelles: _parcelles,
-        initialId: _parcelle?.id,
-      ),
+  Widget _buildStep2() {
+    return Column(
+      children: [
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(
+              AppDimens.pagePaddingH,
+              AppDimens.space16,
+              AppDimens.pagePaddingH,
+              AppDimens.space16,
+            ),
+            children: [
+              _PhotoSlot(
+                photo: _photo,
+                enabled: !_isSubmitting,
+                onTap: _prendrePhoto,
+                onRemove: () => setState(() => _photo = null),
+              ),
+              const SizedBox(height: 20),
+              const _SectionTitle('Quantité'),
+              AppDimens.vGap12,
+              TextField(
+                controller: _qteCtrl,
+                enabled: !_isSubmitting,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                ],
+                decoration: const InputDecoration(
+                  hintText: '0',
+                  suffixText: 'kg',
+                  suffixStyle: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              _QuickKgChips(onPick: (kg) {
+                _qteCtrl.text = kg.toString();
+              }),
+              const SizedBox(height: 20),
+              const _SectionTitle('Prix par kg'),
+              AppDimens.vGap12,
+              TextField(
+                controller: _prixCtrl,
+                enabled: !_isSubmitting,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                ],
+                decoration: const InputDecoration(
+                  hintText: '0',
+                  suffixText: 'F CFA / kg',
+                  suffixStyle: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              if (_total > 0) ...[
+                const SizedBox(height: 10),
+                _TotalCard(total: _total),
+              ],
+              const SizedBox(height: 20),
+              const _SectionTitle('Qualité'),
+              AppDimens.vGap12,
+              Wrap(
+                spacing: AppDimens.space8,
+                runSpacing: AppDimens.space8,
+                children: [
+                  for (final q in const [
+                    ProductQuality.standard,
+                    ProductQuality.premium,
+                    ProductQuality.bio,
+                    ProductQuality.equitable,
+                  ])
+                    _Chip(
+                      label: _libelleQualite(q),
+                      selected: _qualite == q,
+                      enabled: !_isSubmitting,
+                      onTap: () => setState(() => _qualite = q),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        _FooterButton(
+          label: 'Suivant',
+          enabled: _step2Valid && !_isSubmitting,
+          onTap: _suivant,
+        ),
+      ],
     );
-    if (selected != null && mounted) {
-      setState(() {
-        _parcelle = selected;
-        _culture = null;
-      });
-    }
   }
 
-  // ── Page 2 ─────────────────────────────────────────────────────────────
+  // ─── Step 3 : Traçabilité ─────────────────────────────────────────
 
-  Widget _buildPage2() {
+  Widget _buildStep3() {
+    return Column(
+      children: [
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(
+              AppDimens.pagePaddingH,
+              AppDimens.space16,
+              AppDimens.pagePaddingH,
+              AppDimens.space16,
+            ),
+            children: [
+              Text(
+                'Ces infos rassurent les acheteurs et permettent la '
+                'traçabilité. Tout est optionnel.',
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const _SectionTitle('Traitements appliqués'),
+              AppDimens.vGap8,
+              Text(
+                'Sélectionne tout ce qui s\'applique',
+                style: AppTextStyles.bodySmall.copyWith(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              AppDimens.vGap12,
+              Wrap(
+                spacing: AppDimens.space8,
+                runSpacing: AppDimens.space8,
+                children: [
+                  for (final t in _kTraitementsCommuns)
+                    _Chip(
+                      label: t,
+                      selected: _traitements.contains(t),
+                      enabled: !_isSubmitting,
+                      onTap: () {
+                        setState(() {
+                          if (_traitements.contains(t)) {
+                            _traitements.remove(t);
+                          } else {
+                            _traitements.add(t);
+                          }
+                        });
+                      },
+                    ),
+                ],
+              ),
+              AppDimens.vGap12,
+              _ChampLabel(
+                label: 'Autre traitement (optionnel)',
+                child: TextField(
+                  controller: _traitementAutreCtrl,
+                  enabled: !_isSubmitting,
+                  textCapitalization: TextCapitalization.sentences,
+                  maxLength: 200,
+                  decoration: const InputDecoration(
+                    hintText: 'Ex : Pulvérisation cuivre',
+                    counterText: '',
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const _SectionTitle('Certification'),
+              AppDimens.vGap8,
+              Text(
+                'Sélectionne si tu as une certification reconnue',
+                style: AppTextStyles.bodySmall.copyWith(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              AppDimens.vGap12,
+              Wrap(
+                spacing: AppDimens.space8,
+                runSpacing: AppDimens.space8,
+                children: [
+                  for (final c in _kCertifsCommunes)
+                    _Chip(
+                      label: c,
+                      selected: _certifications.contains(c),
+                      enabled: !_isSubmitting,
+                      onTap: () {
+                        setState(() {
+                          if (_certifications.contains(c)) {
+                            _certifications.remove(c);
+                          } else {
+                            _certifications.add(c);
+                          }
+                        });
+                      },
+                    ),
+                ],
+              ),
+              AppDimens.vGap12,
+              _ChampLabel(
+                label: 'Autre certification (optionnel)',
+                child: TextField(
+                  controller: _certifAutreCtrl,
+                  enabled: !_isSubmitting,
+                  textCapitalization: TextCapitalization.sentences,
+                  maxLength: 200,
+                  decoration: const InputDecoration(
+                    hintText: 'Ex : Label Origine CI',
+                    counterText: '',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        _FooterButton(
+          label: 'Suivant',
+          enabled: _step3Valid && !_isSubmitting,
+          onTap: _suivant,
+        ),
+      ],
+    );
+  }
+
+  // ─── Step 4 : Audience + publier ──────────────────────────────────
+
+  Widget _buildStep4() {
     final user = ref.watch(currentUserProvider);
     final aDesCoop =
         user?.cooperativeId != null && user!.cooperativeId!.isNotEmpty;
@@ -742,20 +859,32 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
               AppDimens.space16,
             ),
             children: [
-              // ═══ Section : Photos ════════════════════════════════
-              _SectionTitle('Photos (max $_maxPhotos)'),
+              const _SectionTitle('Publier vers'),
               AppDimens.vGap12,
-              _GrillePhotos(
-                photos: _photos,
-                max: _maxPhotos,
-                enabled: !_isSubmitting,
-                onAdd: _ajouterPhoto,
-                onRemove: _supprimerPhoto,
+              _RadioCard(
+                children: [
+                  _RadioCardItem(
+                    emoji: '🌍',
+                    title: 'Tout le marché (public)',
+                    subtitle: 'Visible par tous les acheteurs',
+                    selected: !_audienceCoop,
+                    enabled: !_isSubmitting,
+                    onTap: () => setState(() => _audienceCoop = false),
+                  ),
+                  if (aDesCoop)
+                    _RadioCardItem(
+                      emoji: '🤝',
+                      title: 'Ma coopérative',
+                      subtitle:
+                          'La coop valide et agrège avec d\'autres avant publication',
+                      selected: _audienceCoop,
+                      enabled: !_isSubmitting,
+                      onTap: () => setState(() => _audienceCoop = true),
+                    ),
+                ],
               ),
               const SizedBox(height: 20),
-
-              // ═══ Section : Description ═══════════════════════════
-              const _SectionTitle('Description'),
+              const _SectionTitle('Détails (optionnel)'),
               AppDimens.vGap12,
               _ChampLabel(
                 label: 'Titre court',
@@ -778,90 +907,111 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
                   textCapitalization: TextCapitalization.sentences,
                   decoration: const InputDecoration(
                     hintText:
-                        'Optionnel — donne plus de contexte sur ta récolte…',
+                        'Donne plus de contexte sur ta récolte (séchage, conditionnement…)',
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              _ChampLabel(
+                label: 'Disponible jusqu\'au',
+                child: InkWell(
+                  onTap: _isSubmitting ? null : _choisirDate,
+                  borderRadius: AppDimens.brInput,
+                  child: Container(
+                    height: AppDimens.inputHeight,
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    decoration: BoxDecoration(
+                      color: AppColors.background,
+                      borderRadius: AppDimens.brInput,
+                      border: Border.all(
+                        color: AppColors.borderStrong,
+                        width: AppDimens.borderThin,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _disponibleJusqu == null
+                                ? 'Optionnel — choisir une date'
+                                : _formatDate(_disponibleJusqu!),
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              color: _disponibleJusqu == null
+                                  ? AppColors.textSubtle
+                                  : AppColors.text,
+                            ),
+                          ),
+                        ),
+                        const Icon(
+                          Icons.calendar_today_outlined,
+                          size: AppDimens.iconM,
+                          color: AppColors.textSecondary,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
               const SizedBox(height: 20),
-
-              // ═══ Section : Publier vers ══════════════════════════
-              const _SectionTitle('Publier vers'),
-              AppDimens.vGap12,
-              _RadioCard(
-                children: [
-                  _RadioCardItem(
-                    emoji: '🌍',
-                    title: 'Tout le marché (public)',
-                    subtitle: 'Visible par tous les acheteurs',
-                    selected: !_audienceCoop,
-                    enabled: !_isSubmitting,
-                    onTap: () => setState(() => _audienceCoop = false),
-                  ),
-                  if (aDesCoop)
-                    _RadioCardItem(
-                      emoji: '🤝',
-                      title: 'Ma coopérative',
-                      subtitle:
-                          'Ta coop valide et agrège avec d\'autres avant publication',
-                      selected: _audienceCoop,
-                      enabled: !_isSubmitting,
-                      onTap: () => setState(() => _audienceCoop = true),
-                    ),
-                ],
+              _RecapCard(
+                culture: _culture!,
+                parcelle: _parcelleDeLaCulture(_culture!),
+                qte: _qte ?? 0,
+                prix: _prix ?? 0,
+                total: _total,
+                qualite: _libelleQualite(_qualite),
               ),
             ],
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppDimens.pagePaddingH,
-            AppDimens.space12,
-            AppDimens.pagePaddingH,
-            AppDimens.space16,
-          ),
-          child: BoutonPrincipal(
-            label: 'Publier mon annonce',
-            isLoading: _isSubmitting,
-            enabled: _canPublier,
-            onPressed: _canPublier ? _publier : null,
-          ),
+        _FooterButton(
+          label: 'Publier mon annonce',
+          isLoading: _isSubmitting,
+          enabled: _canPublier,
+          onTap: _publier,
         ),
       ],
     );
   }
+}
 
-  // ── Helpers locaux ────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════
+// COMPOSANTS
+// ═══════════════════════════════════════════════════════════════════════
 
-  static String _libelleQualite(ProductQuality q) {
-    switch (q) {
-      case ProductQuality.standard:
-        return 'Standard';
-      case ProductQuality.premium:
-        return 'Premium';
-      case ProductQuality.bio:
-        return 'Bio';
-      case ProductQuality.equitable:
-        return 'Équitable';
-      case ProductQuality.unknown:
-        return 'Standard';
-    }
-  }
+class _ProgressBar extends StatelessWidget {
+  const _ProgressBar({required this.index, required this.total});
+  final int index;
+  final int total;
 
-  static String _formatNombre(double value) {
-    if ((value - value.truncate()).abs() < 0.01) {
-      return value.toStringAsFixed(0);
-    }
-    return value.toStringAsFixed(1);
-  }
-
-  static String _formatDate(DateTime d) {
-    return DateFormat('dd MMM yyyy', 'fr_FR').format(d);
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppDimens.pagePaddingH,
+        AppDimens.space4,
+        AppDimens.pagePaddingH,
+        AppDimens.space8,
+      ),
+      child: Row(
+        children: List.generate(total, (i) {
+          final actif = i <= index;
+          return Expanded(
+            child: Container(
+              margin: EdgeInsets.only(right: i == total - 1 ? 0 : 6),
+              height: 4,
+              decoration: BoxDecoration(
+                color: actif ? AppColors.primary : AppColors.border,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          );
+        }),
+      ),
+    );
   }
 }
 
-// ─── Composants locaux ─────────────────────────────────────────────────
-
-/// Titre de section bold 14px (style "section-title" des maquettes).
 class _SectionTitle extends StatelessWidget {
   const _SectionTitle(this.label);
   final String label;
@@ -879,61 +1029,65 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
-/// Segmented control 2 options (maquette publier étape 1).
-/// Fond gris léger, item actif fond vert plein + texte blanc.
-class _SegmentedToggle extends StatelessWidget {
-  const _SegmentedToggle({
-    required this.leftLabel,
-    required this.rightLabel,
-    required this.rightSelected,
-    required this.enabled,
-    required this.onChanged,
-  });
-
-  final String leftLabel;
-  final String rightLabel;
-  final bool rightSelected;
-  final bool enabled;
-  final ValueChanged<bool> onChanged;
+class _ChampLabel extends StatelessWidget {
+  const _ChampLabel({required this.label, required this.child});
+  final String label;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceSoft,
-        borderRadius: AppDimens.brInput,
-        border: Border.all(
-          color: AppColors.border,
-          width: AppDimens.borderThin,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: AppTextStyles.bodySmall.copyWith(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textSecondary,
+          ),
         ),
+        const SizedBox(height: 6),
+        child,
+      ],
+    );
+  }
+}
+
+class _FooterButton extends StatelessWidget {
+  const _FooterButton({
+    required this.label,
+    required this.onTap,
+    this.enabled = true,
+    this.isLoading = false,
+  });
+
+  final String label;
+  final VoidCallback onTap;
+  final bool enabled;
+  final bool isLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppDimens.pagePaddingH,
+        AppDimens.space12,
+        AppDimens.pagePaddingH,
+        AppDimens.space16,
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _SegItem(
-              label: leftLabel,
-              selected: !rightSelected,
-              enabled: enabled,
-              onTap: () => onChanged(false),
-            ),
-          ),
-          Expanded(
-            child: _SegItem(
-              label: rightLabel,
-              selected: rightSelected,
-              enabled: enabled,
-              onTap: () => onChanged(true),
-            ),
-          ),
-        ],
+      child: BoutonPrincipal(
+        label: label,
+        isLoading: isLoading,
+        enabled: enabled,
+        onPressed: enabled ? onTap : null,
       ),
     );
   }
 }
 
-class _SegItem extends StatelessWidget {
-  const _SegItem({
+class _Chip extends StatelessWidget {
+  const _Chip({
     required this.label,
     required this.selected,
     required this.enabled,
@@ -947,22 +1101,28 @@ class _SegItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: enabled ? onTap : null,
-      borderRadius: BorderRadius.circular(9),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: selected ? AppColors.primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(9),
-        ),
-        child: Text(
-          label,
-          style: AppTextStyles.labelMedium.copyWith(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: selected ? AppColors.onPrimary : AppColors.textSecondary,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.primary : AppColors.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: selected ? AppColors.primary : AppColors.border,
+              width: AppDimens.borderThin,
+            ),
+          ),
+          child: Text(
+            label,
+            style: AppTextStyles.labelMedium.copyWith(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: selected ? AppColors.onPrimary : AppColors.textSecondary,
+            ),
           ),
         ),
       ),
@@ -970,99 +1130,297 @@ class _SegItem extends StatelessWidget {
   }
 }
 
-/// Sélecteur "select" style maquette : icône carrée verte 36×36 + 2 lignes
-/// texte (title + subtitle optionnel) + chevron à droite.
-class _SelecteurMaquette extends StatelessWidget {
-  const _SelecteurMaquette({
-    required this.icon,
-    required this.title,
-    this.subtitle,
-    required this.placeholder,
-    required this.enabled,
+// ─── Step 1 : culture card ─────────────────────────────────────────────
+
+class _CultureCard extends StatelessWidget {
+  const _CultureCard({
+    required this.culture,
+    required this.parcelle,
+    required this.selected,
     required this.onTap,
   });
 
-  final IconData icon;
-  final String title;
-  final String? subtitle;
-  final bool placeholder;
-  final bool enabled;
+  final Culture culture;
+  final Parcelle? parcelle;
+  final bool selected;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: enabled ? onTap : null,
-      borderRadius: AppDimens.brInput,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppColors.background,
-          borderRadius: AppDimens.brInput,
-          border: Border.all(
-            color: AppColors.border,
-            width: AppDimens.borderThin,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: const Color(0xFFE8F5E9),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              alignment: Alignment.center,
-              child: Icon(icon, size: 18, color: AppColors.primary),
+    final parcelleNom = parcelle?.nom ?? 'Parcelle inconnue';
+    final ha = parcelle?.superficieHa;
+    final haTxt = ha == null ? null : '${ha.toStringAsFixed(1)} ha';
+    final sousTitre = haTxt == null ? parcelleNom : '$parcelleNom · $haTxt';
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: selected ? _kSoftBg : AppColors.background,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected ? AppColors.primary : AppColors.border,
+              width: selected ? 1.5 : AppDimens.borderThin,
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: placeholder
-                          ? AppColors.textSubtle
-                          : AppColors.text,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8F5E9),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.eco_outlined,
+                  size: 22,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      culture.produitNom ?? '(produit inconnu)',
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                  if (subtitle != null) ...[
                     const SizedBox(height: 2),
                     Text(
-                      subtitle!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      sousTitre,
                       style: AppTextStyles.bodySmall.copyWith(
-                        fontSize: 11,
+                        fontSize: 12,
                         color: AppColors.textSecondary,
                       ),
                     ),
                   ],
-                ],
+                ),
               ),
-            ),
-            const Icon(
-              Icons.keyboard_arrow_down,
-              size: 18,
-              color: AppColors.textSubtle,
-            ),
-          ],
+              const SizedBox(width: 8),
+              _RadioDot(selected: selected),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-/// Card englobante pour les options radio (maquette "Publier vers").
-/// Items séparés par un divider interne.
+class _RadioDot extends StatelessWidget {
+  const _RadioDot({required this.selected});
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 20,
+      height: 20,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: selected ? AppColors.primary : AppColors.borderStrong,
+          width: 1.5,
+        ),
+      ),
+      child: selected
+          ? Center(
+              child: Container(
+                width: 10,
+                height: 10,
+                decoration: const BoxDecoration(
+                  color: AppColors.primary,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            )
+          : null,
+    );
+  }
+}
+
+// ─── Step 2 : photo + quantité ─────────────────────────────────────────
+
+class _PhotoSlot extends StatelessWidget {
+  const _PhotoSlot({
+    required this.photo,
+    required this.enabled,
+    required this.onTap,
+    required this.onRemove,
+  });
+
+  final File? photo;
+  final bool enabled;
+  final VoidCallback onTap;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    if (photo == null) {
+      return InkWell(
+        onTap: enabled ? onTap : null,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          height: 180,
+          decoration: BoxDecoration(
+            color: AppColors.surfaceSoft,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppColors.borderStrong,
+              width: AppDimens.borderThin,
+            ),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.add_a_photo_outlined,
+                size: 32,
+                color: AppColors.primary,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Prendre une photo du produit',
+                style: AppTextStyles.bodyMedium.copyWith(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Rassure l\'acheteur',
+                style: AppTextStyles.bodySmall.copyWith(
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    return Stack(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Image.file(
+            photo!,
+            width: double.infinity,
+            height: 200,
+            fit: BoxFit.cover,
+          ),
+        ),
+        Positioned(
+          top: 8,
+          right: 8,
+          child: InkWell(
+            onTap: enabled ? onRemove : null,
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: AppColors.text.withValues(alpha: 0.6),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.close,
+                size: 18,
+                color: AppColors.onPrimary,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _QuickKgChips extends StatelessWidget {
+  const _QuickKgChips({required this.onPick});
+  final ValueChanged<int> onPick;
+
+  static const _kg = [10, 25, 50, 100];
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: AppDimens.space8,
+      runSpacing: AppDimens.space8,
+      children: [
+        for (final kg in _kg)
+          _Chip(
+            label: '$kg kg',
+            selected: false,
+            enabled: true,
+            onTap: () => onPick(kg),
+          ),
+      ],
+    );
+  }
+}
+
+class _TotalCard extends StatelessWidget {
+  const _TotalCard({required this.total});
+  final double total;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: _kSoftBg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.primary,
+          width: AppDimens.borderThin,
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.calculate_outlined,
+            size: 18,
+            color: AppColors.primary,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Total estimé',
+              style: AppTextStyles.bodyMedium.copyWith(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+          Text(
+            '${_PublierAnnoncePageState._formatMontant(total)} F',
+            style: AppTextStyles.titleMedium.copyWith(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: AppColors.primary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Step 4 : audience radio-card + recap ─────────────────────────────
+
 class _RadioCard extends StatelessWidget {
   const _RadioCard({required this.children});
   final List<Widget> children;
@@ -1095,8 +1453,6 @@ class _RadioCard extends StatelessWidget {
   }
 }
 
-/// Une option radio dans `_RadioCard` (avec emoji circulaire, titre,
-/// subtitle, dot radio à droite).
 class _RadioCardItem extends StatelessWidget {
   const _RadioCardItem({
     required this.emoji,
@@ -1170,503 +1526,32 @@ class _RadioCardItem extends StatelessWidget {
   }
 }
 
-class _RadioDot extends StatelessWidget {
-  const _RadioDot({required this.selected});
-  final bool selected;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 20,
-      height: 20,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: selected ? AppColors.primary : AppColors.borderStrong,
-          width: 1.5,
-        ),
-      ),
-      child: selected
-          ? Center(
-              child: Container(
-                width: 10,
-                height: 10,
-                decoration: const BoxDecoration(
-                  color: AppColors.primary,
-                  shape: BoxShape.circle,
-                ),
-              ),
-            )
-          : null,
-    );
-  }
-}
-
-/// Bottom sheet sélection parcelle (liste).
-class _SelectionParcelleSheet extends StatelessWidget {
-  const _SelectionParcelleSheet({
-    required this.parcelles,
-    this.initialId,
-  });
-
-  final List<Parcelle> parcelles;
-  final String? initialId;
-
-  @override
-  Widget build(BuildContext context) {
-    final mq = MediaQuery.of(context);
-    return Padding(
-      padding: EdgeInsets.only(bottom: mq.viewInsets.bottom),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: mq.size.height * 0.6,
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppDimens.space24,
-                  AppDimens.space16,
-                  AppDimens.space24,
-                  AppDimens.space12,
-                ),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Choisir une parcelle',
-                    style: AppTextStyles.titleLarge,
-                  ),
-                ),
-              ),
-              const Divider(
-                height: 1,
-                thickness: AppDimens.borderThin,
-                color: AppColors.border,
-              ),
-              Expanded(
-                child: parcelles.isEmpty
-                    ? Padding(
-                        padding: const EdgeInsets.all(AppDimens.space24),
-                        child: Text(
-                          'Aucune parcelle disponible.',
-                          style: AppTextStyles.bodyMedium.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      )
-                    : ListView.separated(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: AppDimens.space8,
-                        ),
-                        itemCount: parcelles.length,
-                        separatorBuilder: (_, _) => const Divider(
-                          height: 1,
-                          thickness: AppDimens.borderThin,
-                          color: AppColors.border,
-                        ),
-                        itemBuilder: (ctx, i) {
-                          final p = parcelles[i];
-                          final isCurrent = initialId == p.id;
-                          final ha = p.superficieHa;
-                          final haTxt = ha == null
-                              ? 'Superficie inconnue'
-                              : '${ha.toStringAsFixed(1)} ha';
-                          return ListTile(
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: AppDimens.space24,
-                              vertical: 2,
-                            ),
-                            title: Text(p.nom,
-                                style: AppTextStyles.titleSmall),
-                            subtitle: Text(
-                              haTxt,
-                              style: AppTextStyles.bodySmall,
-                            ),
-                            trailing: isCurrent
-                                ? const Icon(
-                                    Icons.check,
-                                    size: AppDimens.iconM,
-                                    color: AppColors.primary,
-                                  )
-                                : null,
-                            onTap: () => Navigator.of(context).pop(p),
-                          );
-                        },
-                      ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ChampLabel extends StatelessWidget {
-  const _ChampLabel({required this.label, required this.child});
-
-  final String label;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: AppTextStyles.labelMedium),
-        AppDimens.vGap8,
-        child,
-      ],
-    );
-  }
-}
-
-class _BoutonSelection extends StatelessWidget {
-  const _BoutonSelection({
-    required this.placeholder,
-    required this.valeur,
-    required this.enabled,
-    required this.onTap,
-    this.icon,
-  });
-
-  final String placeholder;
-  final String? valeur;
-  final bool enabled;
-  final VoidCallback onTap;
-  final IconData? icon;
-
-  @override
-  Widget build(BuildContext context) {
-    final hasValeur = valeur != null && valeur!.isNotEmpty;
-    return InkWell(
-      onTap: enabled ? onTap : null,
-      borderRadius: AppDimens.brInput,
-      child: Container(
-        height: AppDimens.inputHeight,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        decoration: BoxDecoration(
-          color: AppColors.background,
-          borderRadius: AppDimens.brInput,
-          border: Border.all(
-            color: AppColors.borderStrong,
-            width: AppDimens.borderThin,
-          ),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                hasValeur ? valeur! : placeholder,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: hasValeur ? AppColors.text : AppColors.textSubtle,
-                  fontWeight:
-                      hasValeur ? FontWeight.w500 : FontWeight.w400,
-                ),
-              ),
-            ),
-            Icon(
-              icon ?? Icons.keyboard_arrow_down,
-              size: AppDimens.iconM,
-              color: AppColors.textSecondary,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ChipQualite extends StatelessWidget {
-  const _ChipQualite({
-    required this.label,
-    required this.selected,
-    required this.enabled,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final bool enabled;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: enabled ? onTap : null,
-      borderRadius: const BorderRadius.all(
-        Radius.circular(AppDimens.radiusPill),
-      ),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.primary : AppColors.background,
-          borderRadius: const BorderRadius.all(
-            Radius.circular(AppDimens.radiusPill),
-          ),
-          border: Border.all(
-            color: selected ? AppColors.primary : AppColors.borderStrong,
-            width: AppDimens.borderThin,
-          ),
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          label,
-          style: AppTextStyles.labelMedium.copyWith(
-            color: selected ? AppColors.onPrimary : AppColors.text,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _GrillePhotos extends StatelessWidget {
-  const _GrillePhotos({
-    required this.photos,
-    required this.max,
-    required this.enabled,
-    required this.onAdd,
-    required this.onRemove,
-  });
-
-  final List<File> photos;
-  final int max;
-  final bool enabled;
-  final VoidCallback onAdd;
-  final ValueChanged<int> onRemove;
-
-  @override
-  Widget build(BuildContext context) {
-    final slots = <Widget>[];
-    for (var i = 0; i < photos.length; i++) {
-      slots.add(_VignettePhoto(
-        file: photos[i],
-        enabled: enabled,
-        onRemove: () => onRemove(i),
-      ));
-    }
-    if (photos.length < max) {
-      slots.add(_SlotAjout(enabled: enabled, onTap: onAdd));
-    }
-
-    return GridView.count(
-      crossAxisCount: 3,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: AppDimens.space8,
-      crossAxisSpacing: AppDimens.space8,
-      children: slots,
-    );
-  }
-}
-
-class _SlotAjout extends StatelessWidget {
-  const _SlotAjout({required this.enabled, required this.onTap});
-
-  final bool enabled;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: enabled ? onTap : null,
-      borderRadius: BorderRadius.circular(AppDimens.radius),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.surfaceSoft,
-          borderRadius: BorderRadius.circular(AppDimens.radius),
-          border: Border.all(
-            color: AppColors.borderStrong,
-            width: AppDimens.borderThin,
-          ),
-        ),
-        alignment: Alignment.center,
-        child: const Icon(
-          Icons.add,
-          size: 28,
-          color: AppColors.textSecondary,
-        ),
-      ),
-    );
-  }
-}
-
-class _VignettePhoto extends StatelessWidget {
-  const _VignettePhoto({
-    required this.file,
-    required this.enabled,
-    required this.onRemove,
-  });
-
-  final File file;
-  final bool enabled;
-  final VoidCallback onRemove;
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppDimens.radius),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.file(file, fit: BoxFit.cover),
-          // Overlay click pour suppression.
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: enabled ? onRemove : null,
-            ),
-          ),
-          Positioned(
-            top: 4,
-            right: 4,
-            child: Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: AppColors.text.withValues(alpha: 0.6),
-                shape: BoxShape.circle,
-              ),
-              alignment: Alignment.center,
-              child: const Icon(
-                Icons.close,
-                size: 14,
-                color: AppColors.onPrimary,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Cultures de la parcelle (cascade) ─────────────────────────────────
-
-/// Cultures d'une parcelle donnée. `autoDispose` pour libérer la liste
-/// dès que l'utilisateur quitte la page, `family` pour clé sur la
-/// parcelleId (chaque parcelle a son propre cache).
-final _culturesParcelleProvider =
-    FutureProvider.autoDispose.family<List<Culture>, String>(
-  (ref, parcelleId) async {
-    return ref
-        .watch(marketplaceServiceProvider)
-        .listCultures(parcelleId: parcelleId);
-  },
-);
-
-/// Sélecteur culture cascade — style maquette (icône carrée + 2 lignes).
-/// La 2e ligne affiche "N cultures dispo sur cette parcelle".
-class _SelecteurCultureMaquette extends ConsumerWidget {
-  const _SelecteurCultureMaquette({
-    required this.parcelleId,
+class _RecapCard extends StatelessWidget {
+  const _RecapCard({
     required this.culture,
-    required this.enabled,
-    required this.onTap,
-    required this.onOuvrirMesParcelles,
+    required this.parcelle,
+    required this.qte,
+    required this.prix,
+    required this.total,
+    required this.qualite,
   });
 
-  final String parcelleId;
-  final Culture? culture;
-  final bool enabled;
-  final VoidCallback onTap;
-  final VoidCallback onOuvrirMesParcelles;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(_culturesParcelleProvider(parcelleId));
-    return async.when(
-      loading: () => const _BoutonSelectionLoading(),
-      error: (_, _) => _SelecteurMaquette(
-        icon: Icons.error_outline,
-        title: 'Erreur de chargement',
-        placeholder: true,
-        enabled: false,
-        onTap: () {},
-      ),
-      data: (cultures) {
-        if (cultures.isEmpty) {
-          return _CulturesVidesCard(onOuvrir: onOuvrirMesParcelles);
-        }
-        final hasSel = culture != null;
-        return _SelecteurMaquette(
-          icon: Icons.eco_outlined,
-          title: hasSel
-              ? (culture!.produitNom ?? '(produit inconnu)')
-              : 'Choisir une culture',
-          subtitle: hasSel
-              ? '${cultures.length} cultures dispo sur cette parcelle'
-              : null,
-          placeholder: !hasSel,
-          enabled: enabled,
-          onTap: onTap,
-        );
-      },
-    );
-  }
-}
-
-class _BoutonSelectionLoading extends StatelessWidget {
-  const _BoutonSelectionLoading();
+  final Culture culture;
+  final Parcelle? parcelle;
+  final double qte;
+  final double prix;
+  final double total;
+  final String qualite;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: AppDimens.inputHeight,
-      padding: const EdgeInsets.symmetric(horizontal: 14),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: AppDimens.brInput,
+        color: AppColors.surfaceSoft,
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: AppColors.borderStrong,
-          width: AppDimens.borderThin,
-        ),
-      ),
-      child: Row(
-        children: [
-          const SizedBox(
-            width: 18,
-            height: 18,
-            child: CircularProgressIndicator(
-              strokeWidth: 2.2,
-              color: AppColors.primary,
-            ),
-          ),
-          AppDimens.hGap12,
-          Expanded(
-            child: Text(
-              'Chargement des cultures…',
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Card affichée quand la parcelle sélectionnée n'a aucune culture.
-/// Texte d'erreur (rouge léger) + CTA vert pour aller dans "Mes parcelles".
-class _CulturesVidesCard extends StatelessWidget {
-  const _CulturesVidesCard({required this.onOuvrir});
-
-  final VoidCallback onOuvrir;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppDimens.space12),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: AppDimens.brInput,
-        border: Border.all(
-          color: AppColors.error,
+          color: AppColors.border,
           width: AppDimens.borderThin,
         ),
       ),
@@ -1674,22 +1559,45 @@ class _CulturesVidesCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Cette parcelle n\'a pas encore de culture. Ajoute-en '
-            'depuis "Mes parcelles".',
-            style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
-          ),
-          AppDimens.vGap8,
-          InkWell(
-            onTap: onOuvrir,
-            child: Text(
-              'Ouvrir mes parcelles',
-              style: AppTextStyles.labelMedium.copyWith(
-                color: AppColors.primary,
-                fontWeight: FontWeight.w600,
-                decoration: TextDecoration.underline,
-                decorationColor: AppColors.primary,
-              ),
+            'Récapitulatif',
+            style: AppTextStyles.titleSmall.copyWith(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
             ),
+          ),
+          const SizedBox(height: 10),
+          _RecapRow('Culture', culture.produitNom ?? '(inconnu)'),
+          _RecapRow(
+            'Parcelle',
+            parcelle?.nom ?? '—',
+          ),
+          _RecapRow('Quantité', '${_PublierAnnoncePageState._formatNombre(qte)} kg'),
+          _RecapRow(
+            'Prix',
+            '${_PublierAnnoncePageState._formatMontant(prix)} F/kg',
+          ),
+          _RecapRow('Qualité', qualite),
+          const Divider(height: 16, color: AppColors.border),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Total estimé',
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Text(
+                '${_PublierAnnoncePageState._formatMontant(total)} F',
+                style: AppTextStyles.titleMedium.copyWith(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -1697,122 +1605,34 @@ class _CulturesVidesCard extends StatelessWidget {
   }
 }
 
-// ─── Bottom sheet sélection culture (cascade depuis parcelle) ──────────
+class _RecapRow extends StatelessWidget {
+  const _RecapRow(this.label, this.value);
+  final String label;
+  final String value;
 
-class _SelectionCultureSheet extends ConsumerStatefulWidget {
-  const _SelectionCultureSheet({
-    required this.parcelleId,
-    this.initialId,
-  });
-
-  final String parcelleId;
-  final String? initialId;
-
-  @override
-  ConsumerState<_SelectionCultureSheet> createState() =>
-      _SelectionCultureSheetState();
-}
-
-class _SelectionCultureSheetState
-    extends ConsumerState<_SelectionCultureSheet> {
   @override
   Widget build(BuildContext context) {
-    final mq = MediaQuery.of(context);
-    final async = ref.watch(_culturesParcelleProvider(widget.parcelleId));
     return Padding(
-      padding: EdgeInsets.only(bottom: mq.viewInsets.bottom),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: mq.size.height * 0.6,
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppDimens.space24,
-                  AppDimens.space16,
-                  AppDimens.space24,
-                  AppDimens.space12,
-                ),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Choisir une culture',
-                    style: AppTextStyles.titleLarge,
-                  ),
-                ),
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: AppTextStyles.bodySmall.copyWith(
+                fontSize: 12,
+                color: AppColors.textSecondary,
               ),
-              const Divider(
-                height: 1,
-                thickness: AppDimens.borderThin,
-                color: AppColors.border,
-              ),
-              Expanded(
-                child: async.when(
-                  loading: () => const Padding(
-                    padding: EdgeInsets.all(AppDimens.space24),
-                    child: Chargement(size: 20),
-                  ),
-                  error: (_, _) => Padding(
-                    padding: const EdgeInsets.all(AppDimens.space24),
-                    child: Text(
-                      'Impossible de charger les cultures.',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: AppColors.error,
-                      ),
-                    ),
-                  ),
-                  data: (cultures) {
-                    if (cultures.isEmpty) {
-                      return Padding(
-                        padding: const EdgeInsets.all(AppDimens.space24),
-                        child: Text(
-                          'Aucune culture sur cette parcelle.',
-                          style: AppTextStyles.bodyMedium.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      );
-                    }
-                    return ListView.separated(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: AppDimens.space8,
-                      ),
-                      itemCount: cultures.length,
-                      separatorBuilder: (_, _) => const Divider(
-                        height: 1,
-                        thickness: AppDimens.borderThin,
-                        color: AppColors.border,
-                      ),
-                      itemBuilder: (ctx, i) {
-                        final c = cultures[i];
-                        final isCurrent = widget.initialId == c.id;
-                        return ListTile(
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: AppDimens.space24,
-                            vertical: 2,
-                          ),
-                          title: Text(
-                            c.produitNom ?? '(produit inconnu)',
-                            style: AppTextStyles.titleSmall,
-                          ),
-                          trailing: isCurrent
-                              ? const Icon(
-                                  Icons.check,
-                                  size: AppDimens.iconM,
-                                  color: AppColors.primary,
-                                )
-                              : null,
-                          onTap: () => Navigator.of(context).pop(c),
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
+          Text(
+            value,
+            style: AppTextStyles.bodyMedium.copyWith(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
