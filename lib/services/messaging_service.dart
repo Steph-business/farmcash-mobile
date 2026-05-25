@@ -7,20 +7,39 @@ class MessagingService {
   final ApiClient _api;
   MessagingService(this._api);
 
-  Future<Conversation> createOrFindConversation({
-    required String otherUserId,
-    String? contextType,
-    String? contextId,
+  /// Crée (ou retrouve) une conversation 1-1 ou groupe.
+  ///
+  /// Aligné sur `CreateConversationDto` — attend
+  /// `{participants: string[], titre?, type?}`. Le créateur est ajouté
+  /// automatiquement côté serveur — n'inclure que les AUTRES
+  /// participants.
+  Future<Conversation> createConversation({
+    required List<String> participantIds,
+    String? titre,
+    String? type,
   }) async {
     final json = await _api.post<Map<String, dynamic>>(
       ApiEndpoints.conversations,
       body: {
-        'other_user_id': otherUserId,
-        if (contextType != null) 'context_type': contextType,
-        if (contextId != null) 'context_id': contextId,
+        'participants': participantIds,
+        if (titre != null) 'titre': titre,
+        if (type != null) 'type': type,
       },
     );
     return Conversation.fromJson(json);
+  }
+
+  /// Wrapper rétro-compatible pour le flow conversation 1-1.
+  ///
+  /// La signature historique était `{otherUserId, contextType?, contextId?}`.
+  /// Le backend ne supporte pas les `context_*` — on les ignore et on
+  /// délègue à [createConversation].
+  Future<Conversation> createOrFindConversation({
+    required String otherUserId,
+    String? contextType,
+    String? contextId,
+  }) {
+    return createConversation(participantIds: [otherUserId]);
   }
 
   Future<Paginated<Conversation>> listConversations({
@@ -34,19 +53,42 @@ class MessagingService {
     return Paginated.fromJsonOrList(raw, Conversation.fromJson);
   }
 
+  /// Envoie un message dans une conversation.
+  ///
+  /// Aligné sur `SendMessageDto` — `content` est REQUIRED (1..5000
+  /// chars). Pour un message purement média, l'UI doit injecter une
+  /// description ou le nom du fichier ; on substitue ici un fallback
+  /// minimal (média sans texte) afin d'éviter un 400.
   Future<Message> sendMessage({
     required String conversationId,
     String? content,
     String? mediaUrl,
     String? mediaType,
   }) async {
+    final body = <String, dynamic>{};
+    final c = content?.trim();
+    if (c != null && c.isNotEmpty) {
+      body['content'] = c;
+    } else if (mediaUrl != null && mediaUrl.isNotEmpty) {
+      // Le DTO refuse `content` vide → fallback documenté à partir du
+      // type de média.
+      body['content'] = mediaType == 'IMAGE'
+          ? '[photo]'
+          : mediaType == 'VIDEO'
+              ? '[vidéo]'
+              : mediaType == 'AUDIO'
+                  ? '[audio]'
+                  : mediaType == 'DOCUMENT'
+                      ? '[document]'
+                      : '[média]';
+    } else {
+      body['content'] = '';
+    }
+    if (mediaUrl != null) body['media_url'] = mediaUrl;
+    if (mediaType != null) body['media_type'] = mediaType;
     final json = await _api.post<Map<String, dynamic>>(
       ApiEndpoints.conversationMessages(conversationId),
-      body: {
-        if (content != null) 'content': content,
-        if (mediaUrl != null) 'media_url': mediaUrl,
-        if (mediaType != null) 'media_type': mediaType,
-      },
+      body: body,
     );
     return Message.fromJson(json);
   }

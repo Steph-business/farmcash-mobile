@@ -136,6 +136,10 @@ class MarketplaceService {
     double? quantiteMinKg,
     String? assignedToCooperativeId,
     DateTime? disponibleJusqu,
+    /// Date à laquelle le produit a été récolté. Aide l'acheteur à
+    /// évaluer la fraîcheur. Distincte de `disponibleJusqu` (durée de
+    /// validité de l'offre).
+    DateTime? dateRecolte,
     /// Traçabilité : traitements appliqués sur le lot.
     ///
     /// Chaque entrée doit fournir SOIT `produit_traitement_id` (UUID
@@ -164,23 +168,47 @@ class MarketplaceService {
         if (disponibleJusqu != null)
           'disponible_jusqu':
               disponibleJusqu.toIso8601String().split('T').first,
+        if (dateRecolte != null)
+          'date_recolte':
+              dateRecolte.toIso8601String().split('T').first,
         if (assignedToCooperativeId != null)
           'assigned_to_cooperative_id': assignedToCooperativeId,
         if (traitements != null && traitements.isNotEmpty)
           'traitements': traitements,
       },
     );
-    return AnnonceVente.fromJson(json);
+    // Backend nouveau : entité complète avec `id` + `farmer_id`. Backend
+    // ancien : `{ message, annonce_id }` qui faisait crasher le parser
+    // freezed sur les champs required. On gère les deux pour être robuste
+    // pendant la transition + en cas de rollback backend (defense in depth).
+    if (json.containsKey('id') && json.containsKey('farmer_id')) {
+      return AnnonceVente.fromJson(json);
+    }
+    final fallbackId =
+        (json['annonce_id'] ?? json['id']) as String?;
+    if (fallbackId == null) {
+      throw StateError(
+        'Réponse backend createAnnonceVente inattendue : ni entité ni id.',
+      );
+    }
+    return getAnnonceVente(fallbackId);
   }
 
+  /// Met à jour partiellement une annonce de vente.
+  ///
+  /// Aligné sur `UpdateAnnonceVenteDto` (annonces.dto.ts) — accepte
+  /// uniquement `titre`, `description`, `quantite_kg`, `prix_par_kg`,
+  /// `quantite_min_kg`, `qualite`, `status`. Les photos passent par
+  /// [uploadAnnonceMedia] (multipart séparé).
   Future<AnnonceVente> updateAnnonceVente(
     String id, {
     String? titre,
     double? quantiteKg,
     double? prixParKg,
+    double? quantiteMinKg,
     String? description,
+    ProductQuality? qualite,
     ProductStatus? status,
-    List<String>? photos,
   }) async {
     final json = await _api.put<Map<String, dynamic>>(
       ApiEndpoints.annonceVenteById(id),
@@ -188,9 +216,10 @@ class MarketplaceService {
         if (titre != null) 'titre': titre,
         if (quantiteKg != null) 'quantite_kg': quantiteKg,
         if (prixParKg != null) 'prix_par_kg': prixParKg,
+        if (quantiteMinKg != null) 'quantite_min_kg': quantiteMinKg,
         if (description != null) 'description': description,
+        if (qualite != null) 'qualite': qualite.apiValue,
         if (status != null) 'status': status.apiValue,
-        if (photos != null) 'photos': photos,
       },
     );
     return AnnonceVente.fromJson(json);
@@ -202,10 +231,15 @@ class MarketplaceService {
 
   // ─── Annonces d'achat ────────────────────────────────────────────────
 
+  /// Liste paginée des annonces d'achat (offres publiques).
+  ///
+  /// Aligné sur `ListerAnnoncesAchatQueryDto` (annonces.dto.ts) — accepte
+  /// uniquement `page`, `limit`, `produit_id`, `region_id`, `qualite`.
+  /// Le DTO refuse `prix_max` (whitelist stricte côté backend).
   Future<Paginated<AnnonceAchat>> listAnnoncesAchat({
     String? produitId,
     String? regionId,
-    double? prixMax,
+    ProductQuality? qualite,
     int page = 1,
     int limit = 20,
   }) async {
@@ -214,7 +248,7 @@ class MarketplaceService {
       query: {
         if (produitId != null) 'produit_id': produitId,
         if (regionId != null) 'region_id': regionId,
-        if (prixMax != null) 'prix_max': prixMax,
+        if (qualite != null) 'qualite': qualite.apiValue,
         'page': page,
         'limit': limit,
       },
@@ -229,50 +263,57 @@ class MarketplaceService {
     return AnnonceAchat.fromJson(json);
   }
 
+  /// Crée une annonce d'achat (BUYER).
+  ///
+  /// Aligné sur `CreateAnnonceAchatDto` (annonces.dto.ts). Le DTO exige
+  /// `produit_id`, `quantite_kg`, `region_id` ; les autres champs sont
+  /// optionnels. Le DTO refuse `titre`, `description`,
+  /// `date_limite_livraison` — ces champs n'existent pas dans la table
+  /// `annonces_achat`.
   Future<AnnonceAchat> createAnnonceAchat({
     required String produitId,
     required double quantiteKg,
-    required double prixMaxKg,
-    String? titre,
-    String? description,
-    String? regionId,
+    required String regionId,
+    double? prixMaxKg,
+    ProductQuality? qualite,
+    int? rayonKm,
     BuyOfferAudience? audience,
     String? targetCooperativeId,
-    DateTime? dateLimiteLivraison,
   }) async {
     final json = await _api.post<Map<String, dynamic>>(
       ApiEndpoints.annoncesAchat,
       body: {
         'produit_id': produitId,
         'quantite_kg': quantiteKg,
-        'prix_max_kg': prixMaxKg,
-        if (titre != null) 'titre': titre,
-        if (description != null) 'description': description,
-        if (regionId != null) 'region_id': regionId,
+        'region_id': regionId,
+        if (prixMaxKg != null) 'prix_max_kg': prixMaxKg,
+        if (qualite != null) 'qualite': qualite.apiValue,
+        if (rayonKm != null) 'rayon_km': rayonKm,
         if (audience != null) 'target_audience': audience.apiValue,
         if (targetCooperativeId != null)
           'target_cooperative_id': targetCooperativeId,
-        if (dateLimiteLivraison != null)
-          'date_limite_livraison': dateLimiteLivraison.toIso8601String(),
       },
     );
     return AnnonceAchat.fromJson(json);
   }
 
+  /// Met à jour une annonce d'achat.
+  ///
+  /// Aligné sur `UpdateAnnonceAchatDto` — accepte uniquement
+  /// `quantite_kg`, `prix_max_kg`, `is_active`. Les champs `description`
+  /// et `status` ne sont pas whitelistés côté backend.
   Future<AnnonceAchat> updateAnnonceAchat(
     String id, {
     double? quantiteKg,
     double? prixMaxKg,
-    String? description,
-    ProductStatus? status,
+    bool? isActive,
   }) async {
     final json = await _api.put<Map<String, dynamic>>(
       ApiEndpoints.annonceAchatById(id),
       body: {
         if (quantiteKg != null) 'quantite_kg': quantiteKg,
         if (prixMaxKg != null) 'prix_max_kg': prixMaxKg,
-        if (description != null) 'description': description,
-        if (status != null) 'status': status.apiValue,
+        if (isActive != null) 'is_active': isActive,
       },
     );
     return AnnonceAchat.fromJson(json);
@@ -320,20 +361,21 @@ class MarketplaceService {
 
   // ─── Avis ────────────────────────────────────────────────────────────
 
+  /// Poste un avis sur une annonce (vendeur ou produit).
+  ///
+  /// Aligné sur `AddAvisDto` (interactions.dto.ts) — attend
+  /// `{annonce_id, rating, commentaire?}`. La note doit être un entier
+  /// 1..5. L'identité du reviewer est déduite du JWT côté backend.
   Future<Avis> postAvis({
-    required String reviewedUserId,
-    required String contextType,
-    required String contextId,
-    required int note,
+    required String annonceId,
+    required int rating,
     String? commentaire,
   }) async {
     final json = await _api.post<Map<String, dynamic>>(
       ApiEndpoints.avis,
       body: {
-        'reviewed_user_id': reviewedUserId,
-        'context_type': contextType,
-        'context_id': contextId,
-        'note': note,
+        'annonce_id': annonceId,
+        'rating': rating,
         if (commentaire != null) 'commentaire': commentaire,
       },
     );
@@ -346,19 +388,29 @@ class MarketplaceService {
 
   // ─── Médias ──────────────────────────────────────────────────────────
 
+  /// Attache un média existant (URL déjà uploadée) à une cible
+  /// (annonce / publication / lot / parcelle).
+  ///
+  /// Aligné sur `AddMediaDto` (interactions.dto.ts) — attend
+  /// `{target_type, target_id, url, type, thumbnail_url?}`. Le DTO
+  /// rejette `annonce_id` et `position`. Pour uploader un nouveau
+  /// fichier, préférer [uploadAnnonceMedia] qui crée la ligne `medias`
+  /// directement côté serveur.
   Future<Media> addMedia({
-    String? annonceId,
+    required MediaTargetType targetType,
+    required String targetId,
     required String url,
-    String? type,
-    int? position,
+    required String type,
+    String? thumbnailUrl,
   }) async {
     final json = await _api.post<Map<String, dynamic>>(
       ApiEndpoints.medias,
       body: {
-        if (annonceId != null) 'annonce_id': annonceId,
+        'target_type': targetType.apiValue,
+        'target_id': targetId,
         'url': url,
-        if (type != null) 'type': type,
-        if (position != null) 'position': position,
+        'type': type,
+        if (thumbnailUrl != null) 'thumbnail_url': thumbnailUrl,
       },
     );
     return Media.fromJson(json);
@@ -426,44 +478,49 @@ class MarketplaceService {
     return _asList(raw, Entrepot.fromJson);
   }
 
+  /// Crée un entrepôt physique.
+  ///
+  /// Aligné sur `CreateEntrepotDto` (stock.dto.ts) — exige `nom`,
+  /// `region_id`, `ville_id` ; `capacite_kg`, `adresse`, `is_refrigere`
+  /// sont optionnels. Les champs `location`, `lat`, `lng`,
+  /// `temperature_min`, `temperature_max` ne sont pas whitelistés.
   Future<Entrepot> createEntrepot({
     required String nom,
-    required double capaciteKg,
-    String? location,
-    double? lat,
-    double? lng,
+    required String regionId,
+    required String villeId,
+    double? capaciteKg,
+    String? adresse,
     bool isRefrigere = false,
-    double? temperatureMin,
-    double? temperatureMax,
   }) async {
     final json = await _api.post<Map<String, dynamic>>(
       ApiEndpoints.entrepots,
       body: {
         'nom': nom,
-        'capacite_kg': capaciteKg,
-        if (location != null) 'location': location,
-        if (lat != null) 'lat': lat,
-        if (lng != null) 'lng': lng,
+        'region_id': regionId,
+        'ville_id': villeId,
+        if (capaciteKg != null) 'capacite_kg': capaciteKg,
+        if (adresse != null) 'adresse': adresse,
         'is_refrigere': isRefrigere,
-        if (temperatureMin != null) 'temperature_min': temperatureMin,
-        if (temperatureMax != null) 'temperature_max': temperatureMax,
       },
     );
     return Entrepot.fromJson(json);
   }
 
+  /// Met à jour un entrepôt. Aligné sur `UpdateEntrepotDto`.
   Future<Entrepot> updateEntrepot(
     String id, {
     String? nom,
     double? capaciteKg,
-    String? location,
+    bool? isRefrigere,
+    bool? isActive,
   }) async {
     final json = await _api.put<Map<String, dynamic>>(
       ApiEndpoints.entrepotById(id),
       body: {
         if (nom != null) 'nom': nom,
         if (capaciteKg != null) 'capacite_kg': capaciteKg,
-        if (location != null) 'location': location,
+        if (isRefrigere != null) 'is_refrigere': isRefrigere,
+        if (isActive != null) 'is_active': isActive,
       },
     );
     return Entrepot.fromJson(json);
@@ -501,26 +558,30 @@ class MarketplaceService {
         .toList();
   }
 
+  /// Crée un lot dans le stock (FARMER → INDIVIDUAL, COOP → COOPERATIVE).
+  ///
+  /// Aligné sur `CreateLotDto` (stock.dto.ts) — exige `lot_code` (3..30
+  /// chars), `type`, `quantite_kg` ; `produit_id`, `qualite`,
+  /// `date_recolte` optionnels. `farmer_id`/`cooperative_id` sont
+  /// déduits du JWT côté backend (à ne PAS envoyer).
   Future<Lot> createLot({
+    required String lotCode,
     required String type,
-    required String produitId,
     required double quantiteKg,
-    String? farmerId,
-    String? cooperativeId,
+    String? produitId,
     ProductQuality? qualite,
     DateTime? dateRecolte,
   }) async {
     final json = await _api.post<Map<String, dynamic>>(
       ApiEndpoints.lots,
       body: {
+        'lot_code': lotCode,
         'type': type,
-        'produit_id': produitId,
         'quantite_kg': quantiteKg,
-        if (farmerId != null) 'farmer_id': farmerId,
-        if (cooperativeId != null) 'cooperative_id': cooperativeId,
+        if (produitId != null) 'produit_id': produitId,
         if (qualite != null) 'qualite': qualite.apiValue,
         if (dateRecolte != null)
-          'date_recolte': dateRecolte.toIso8601String(),
+          'date_recolte': dateRecolte.toIso8601String().split('T').first,
       },
     );
     return Lot.fromJson(json);
@@ -561,6 +622,11 @@ class MarketplaceService {
   /// [villeId] est accepté en paramètre côté client mais PAS encore envoyé
   /// au backend (le DTO serveur ne le supporte pas pour l'instant).
   // TODO: brancher villeId une fois supporté côté backend.
+  ///
+  /// Le backend renvoie désormais l'entité `parcelle` complète. Les
+  /// versions antérieures renvoyaient `{message, id}` — on conserve un
+  /// fallback qui refait un GET de la parcelle créée pour rester
+  /// compatible avec un serveur pas encore déployé (defense in depth).
   Future<Parcelle> createParcelle({
     required String nom,
     required double superficieHa,
@@ -580,7 +646,28 @@ class MarketplaceService {
         // TODO: ajouter `'ville_id': villeId` ici une fois le backend prêt.
       },
     );
-    return Parcelle.fromJson(json);
+    // Backend nouveau : l'entité complète a au moins `nom` ou `user_id`.
+    // Backend ancien : shape `{message, id}` → on retombe sur un GET de
+    // la liste pour récupérer l'entité réelle (l'`id` retourné identifie
+    // sans ambiguïté la parcelle qu'on vient de créer).
+    if (json.containsKey('nom') || json.containsKey('user_id')) {
+      return Parcelle.fromJson(json);
+    }
+    final fallbackId = json['id'] as String?;
+    if (fallbackId == null) {
+      throw StateError(
+        'Réponse backend createParcelle inattendue : ni entité ni id.',
+      );
+    }
+    final all = await listParcelles();
+    final found =
+        all.where((p) => p.id == fallbackId).cast<Parcelle?>().firstOrNull;
+    if (found == null) {
+      throw StateError(
+        'Parcelle id=$fallbackId créée mais introuvable au GET.',
+      );
+    }
+    return found;
   }
 
   Future<Parcelle> updateParcelle(
@@ -615,15 +702,17 @@ class MarketplaceService {
     return _asList(raw, Culture.fromJson);
   }
 
-  /// Crée une culture sur une parcelle. `superficie_ha` est obligatoire
-  /// côté back (vérifie que la somme ne dépasse pas la parcelle).
+  /// Crée une culture sur une parcelle.
+  ///
+  /// Aligné sur `AddCultureDto` (agronomie.dto.ts) — exige
+  /// `parcelle_id`, `produit_id`, `superficie_ha`. `date_plantation`
+  /// (YYYY-MM-DD) est optionnelle. Le DTO refuse `date_semis`,
+  /// `date_recolte_prevue`, `quantite_estimee_kg`.
   Future<Culture> addCulture({
     required String parcelleId,
     required String produitId,
     required double superficieHa,
-    DateTime? dateSemis,
-    DateTime? dateRecoltePrevue,
-    double? quantiteEstimeeKg,
+    DateTime? datePlantation,
   }) async {
     final json = await _api.post<Map<String, dynamic>>(
       ApiEndpoints.cultures,
@@ -631,11 +720,9 @@ class MarketplaceService {
         'parcelle_id': parcelleId,
         'produit_id': produitId,
         'superficie_ha': superficieHa,
-        if (dateSemis != null) 'date_semis': dateSemis.toIso8601String(),
-        if (dateRecoltePrevue != null)
-          'date_recolte_prevue': dateRecoltePrevue.toIso8601String(),
-        if (quantiteEstimeeKg != null)
-          'quantite_estimee_kg': quantiteEstimeeKg,
+        if (datePlantation != null)
+          'date_plantation':
+              datePlantation.toIso8601String().split('T').first,
       },
     );
     return Culture.fromJson(json);
@@ -652,6 +739,17 @@ class MarketplaceService {
     return _asList(raw, Prevision.fromJson);
   }
 
+  /// Crée une prévision de récolte côté FARMER.
+  ///
+  /// La `dateRecoltePrev` est sérialisée en **YYYY-MM-DD** (et non en ISO
+  /// avec heure) car le backend valide `target.getTime() > Date.now()` —
+  /// envoyer "2026-06-15T00:00:00.000Z" risquait de tomber dans le passé
+  /// si on est le 15 juin l'après-midi. En format date pure, Postgres
+  /// stocke la journée entière → toujours future tant que le jour change.
+  ///
+  /// Retour : entité complète (depuis le fix backend récent). On garde
+  /// un fallback `listPrevisions().firstWhere(id)` si le serveur n'est
+  /// pas encore redéployé avec le nouveau shape.
   Future<Prevision> createPrevision({
     required String produitId,
     required double quantitePrevKg,
@@ -665,21 +763,104 @@ class MarketplaceService {
         'produit_id': produitId,
         'quantite_prev_kg': quantitePrevKg,
         if (dateRecoltePrev != null)
-          'date_recolte_prev': dateRecoltePrev.toIso8601String(),
+          'date_recolte_prev':
+              dateRecoltePrev.toIso8601String().split('T').first,
         if (prixCibleKg != null) 'prix_cible_kg': prixCibleKg,
         if (parcelleId != null) 'parcelle_id': parcelleId,
+      },
+    );
+    // Backend nouveau : entité complète (au moins `farmer_id`).
+    // Backend ancien : `{ message, id }` → fallback via GET liste.
+    if (json.containsKey('farmer_id') || json.containsKey('quantite_prev_kg')) {
+      return Prevision.fromJson(json);
+    }
+    final fallbackId = json['id'] as String?;
+    if (fallbackId == null) {
+      throw StateError(
+        'Réponse backend createPrevision inattendue : ni entité ni id.',
+      );
+    }
+    final all = await listPrevisions();
+    final found =
+        all.where((p) => p.id == fallbackId).cast<Prevision?>().firstOrNull;
+    if (found == null) {
+      throw StateError(
+        'Prévision id=$fallbackId créée mais introuvable au GET.',
+      );
+    }
+    return found;
+  }
+
+  /// Modifie une prévision existante (champs partiels). Le backend
+  /// refuse si l'utilisateur n'est pas le propriétaire OU si la coop a
+  /// déjà VALIDATED/INCLUDED la prévision (lock workflow coop).
+  Future<Prevision> updatePrevision(
+    String id, {
+    double? quantitePrevKg,
+    DateTime? dateRecoltePrev,
+    double? prixCibleKg,
+    String? saison,
+    String? notes,
+  }) async {
+    final json = await _api.put<Map<String, dynamic>>(
+      ApiEndpoints.previsionById(id),
+      body: {
+        if (quantitePrevKg != null) 'quantite_prev_kg': quantitePrevKg,
+        if (dateRecoltePrev != null)
+          'date_recolte_prev':
+              dateRecoltePrev.toIso8601String().split('T').first,
+        if (prixCibleKg != null) 'prix_cible_kg': prixCibleKg,
+        if (saison != null) 'saison': saison,
+        if (notes != null) 'notes': notes,
       },
     );
     return Prevision.fromJson(json);
   }
 
+  /// Supprime une prévision. Le backend rembourse AUTOMATIQUEMENT tous
+  /// les acheteurs ayant déjà réservé un acompte (crédite leur wallet
+  /// + notif `WALLET_CREDITED`). Retourne le résumé :
+  ///   • `refundedCount` : nombre d'acheteurs remboursés
+  ///   • `totalRefunded` : somme totale remboursée en F
+  /// Refus uniquement si :
+  ///   • pas propriétaire
+  ///   • coop a VALIDATED/INCLUDED
+  Future<({int refundedCount, double totalRefunded, String message})>
+      deletePrevision(String id) async {
+    final json = await _api.delete<Map<String, dynamic>>(
+      ApiEndpoints.previsionById(id),
+    );
+    final refundedCount = (json['refunded_count'] as num?)?.toInt() ?? 0;
+    final totalRefunded =
+        (json['total_refunded'] as num?)?.toDouble() ?? 0;
+    final message =
+        json['message'] as String? ?? 'Prévision supprimée.';
+    return (
+      refundedCount: refundedCount,
+      totalRefunded: totalRefunded,
+      message: message,
+    );
+  }
+
+  /// Réserve une part d'une prévision de récolte (paie un acompte).
+  ///
+  /// Aligné sur `CreateReservationDto` (previsions.dto.ts) — exige
+  /// `prevision_id`, `quantite_kg`, `payment_method_id` (UUID du moyen
+  /// de paiement) ; `prix_reserve_kg` optionnel.
   Future<Reservation> reserverPrevision({
     required String previsionId,
     required double quantiteKg,
+    required String paymentMethodId,
+    double? prixReserveKg,
   }) async {
     final json = await _api.post<Map<String, dynamic>>(
       ApiEndpoints.previsionsReserver,
-      body: {'prevision_id': previsionId, 'quantite_kg': quantiteKg},
+      body: {
+        'prevision_id': previsionId,
+        'quantite_kg': quantiteKg,
+        'payment_method_id': paymentMethodId,
+        if (prixReserveKg != null) 'prix_reserve_kg': prixReserveKg,
+      },
     );
     return Reservation.fromJson(json);
   }
@@ -692,14 +873,34 @@ class MarketplaceService {
     return _asList(raw, Reservation.fromJson);
   }
 
+  /// Convertit une prévision en annonce de vente officielle.
+  ///
+  /// Aligné sur `ConvertPrevisionDto` (previsions.dto.ts) — exige
+  /// `titre`, `prix_par_kg`, `quantite_min_kg`, `qualite`, `region_id`,
+  /// `ville_id`, `coordinates {lat, lng}`. `description` optionnel.
   Future<AnnonceVente> convertPrevision(
     String previsionId, {
-    double? prixParKg,
+    required String titre,
+    required double prixParKg,
+    required double quantiteMinKg,
+    required ProductQuality qualite,
+    required String regionId,
+    required String villeId,
+    required double lat,
+    required double lng,
+    String? description,
   }) async {
     final json = await _api.post<Map<String, dynamic>>(
       ApiEndpoints.previsionConvert(previsionId),
       body: {
-        if (prixParKg != null) 'prix_par_kg': prixParKg,
+        'titre': titre,
+        'prix_par_kg': prixParKg,
+        'quantite_min_kg': quantiteMinKg,
+        'qualite': qualite.apiValue,
+        'region_id': regionId,
+        'ville_id': villeId,
+        'coordinates': {'lat': lat, 'lng': lng},
+        if (description != null) 'description': description,
       },
     );
     return AnnonceVente.fromJson(json);

@@ -38,7 +38,12 @@ class ApiClient {
           'Accept': 'application/json',
         },
         responseType: ResponseType.json,
-        validateStatus: (status) => status != null && status < 500,
+        // On garde le défaut Dio (`status < 400`) — toute 4xx/5xx devient
+        // une DioException native. C'est CRITIQUE pour que les 401
+        // déclenchent `AuthInterceptor.onError` (qui fait le refresh
+        // automatique). Un `validateStatus` plus permissif (< 500)
+        // bypass-ait le onError → le refresh ne tournait jamais et
+        // l'utilisateur voyait l'erreur brute "Token JWT invalide".
       ),
     );
 
@@ -64,28 +69,9 @@ class ApiClient {
       );
     }
 
-    // Conversion 4xx/5xx en DioException pour qu'ApiException.fromDio
-    // construise un message lisible. (L'unwrap d'enveloppe NestJS se fait
-    // au niveau des helpers HTTP plus bas, pour rester indépendant de
-    // l'ordre des interceptors.)
-    dio.interceptors.add(
-      InterceptorsWrapper(
-        onResponse: (response, handler) {
-          final status = response.statusCode ?? 0;
-          if (status >= 400) {
-            handler.reject(
-              DioException(
-                requestOptions: response.requestOptions,
-                response: response,
-                type: DioExceptionType.badResponse,
-              ),
-            );
-            return;
-          }
-          handler.next(response);
-        },
-      ),
-    );
+    // L'unwrap d'enveloppe NestJS est fait dans _unwrap() ci-dessous.
+    // Pas besoin d'interceptor de conversion 4xx → DioException ici :
+    // avec le `validateStatus` par défaut, Dio le fait nativement.
 
     return ApiClient._(dio, storage);
   }

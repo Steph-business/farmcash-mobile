@@ -4,14 +4,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../api_client/api_exception.dart';
-import '../../../../routing/route_names.dart';
 import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
-import '../../../../theme/app_text_styles.dart';
 import '../../../widgets/communs/snackbars.dart';
-
-const BorderRadius _kBrCard12 = BorderRadius.all(Radius.circular(12));
+import '../../../widgets/cooperative/logistique/bouton_sticky_vehicule.dart';
+import '../../../widgets/cooperative/logistique/champ_texte_collecte.dart';
+import '../../../widgets/cooperative/logistique/chip_type_vehicule.dart';
+import '../../../widgets/cooperative/logistique/entete_vehicule_ajouter.dart';
+import '../../../widgets/cooperative/logistique/libelle_champ_collecte.dart';
 
 /// Types de véhicules acceptés côté backend coop (alignés sur la
 /// nomenclature transporteur).
@@ -96,7 +97,7 @@ class _VehiculeAjouterCooperativePageState
         bottom: false,
         child: Column(
           children: [
-            const _Header(),
+            const EnteteVehiculeAjouter(),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(
@@ -106,14 +107,14 @@ class _VehiculeAjouterCooperativePageState
                   AppDimens.space16,
                 ),
                 children: [
-                  _FieldLabel('Type de véhicule'),
+                  const LibelleChampCollecte('Type de véhicule'),
                   const SizedBox(height: 6),
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
                     children: [
                       for (int i = 0; i < _kTypes.length; i++)
-                        _Chip(
+                        ChipTypeVehicule(
                           label: _kTypes[i].label,
                           active: _typeIndex == i,
                           onTap: () => setState(() => _typeIndex = i),
@@ -121,23 +122,23 @@ class _VehiculeAjouterCooperativePageState
                     ],
                   ),
                   const SizedBox(height: 16),
-                  _FieldLabel('Immatriculation'),
+                  const LibelleChampCollecte('Immatriculation'),
                   const SizedBox(height: 6),
-                  _Input(
+                  ChampTexteCollecte(
                     controller: _immatCtrl,
                     placeholder: '5125 AB 01',
                   ),
                   const SizedBox(height: 14),
-                  _FieldLabel('Marque'),
+                  const LibelleChampCollecte('Marque'),
                   const SizedBox(height: 6),
-                  _Input(
+                  ChampTexteCollecte(
                     controller: _marqueCtrl,
                     placeholder: 'Toyota, Mercedes…',
                   ),
                   const SizedBox(height: 14),
-                  _FieldLabel('Charge max (kg)'),
+                  const LibelleChampCollecte('Charge max (kg)'),
                   const SizedBox(height: 6),
-                  _Input(
+                  ChampTexteCollecte(
                     controller: _chargeCtrl,
                     placeholder: '3500',
                     keyboardType:
@@ -147,16 +148,16 @@ class _VehiculeAjouterCooperativePageState
                     ],
                   ),
                   const SizedBox(height: 14),
-                  _FieldLabel('Chauffeur — nom'),
+                  const LibelleChampCollecte('Chauffeur — nom'),
                   const SizedBox(height: 6),
-                  _Input(
+                  ChampTexteCollecte(
                     controller: _chauffeurNomCtrl,
                     placeholder: 'Kouamé Konan',
                   ),
                   const SizedBox(height: 14),
-                  _FieldLabel('Chauffeur — téléphone'),
+                  const LibelleChampCollecte('Chauffeur — téléphone'),
                   const SizedBox(height: 6),
-                  _Input(
+                  ChampTexteCollecte(
                     controller: _chauffeurPhoneCtrl,
                     placeholder: '+225 0700000000',
                     keyboardType: TextInputType.phone,
@@ -164,213 +165,8 @@ class _VehiculeAjouterCooperativePageState
                 ],
               ),
             ),
-            _StickyButton(onTap: _enregistrer, busy: _busy),
+            BoutonStickyVehicule(onTap: _enregistrer, busy: _busy),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Header extends StatelessWidget {
-  const _Header();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppDimens.pagePaddingH,
-        AppDimens.space8,
-        AppDimens.pagePaddingH,
-        AppDimens.space12,
-      ),
-      child: Row(
-        children: [
-          InkWell(
-            onTap: () => context.canPop()
-                ? context.pop()
-                : context.go(RouteNames.cooperativeLogistiquePath),
-            borderRadius: BorderRadius.circular(20),
-            child: const SizedBox(
-              width: 40,
-              height: 40,
-              child: Icon(
-                Icons.arrow_back_ios_new,
-                size: 20,
-                color: AppColors.text,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              'Ajouter un véhicule',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.titleSmall.copyWith(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FieldLabel extends StatelessWidget {
-  const _FieldLabel(this.label);
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      label,
-      style: AppTextStyles.labelMedium.copyWith(
-        fontSize: 12,
-        fontWeight: FontWeight.w600,
-        color: AppColors.textSecondary,
-      ),
-    );
-  }
-}
-
-class _Chip extends StatelessWidget {
-  const _Chip({
-    required this.label,
-    required this.active,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(
-          color: active ? AppColors.primary : AppColors.background,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: active ? AppColors.primary : AppColors.border,
-            width: AppDimens.borderThin,
-          ),
-        ),
-        child: Text(
-          label,
-          style: AppTextStyles.labelMedium.copyWith(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: active ? AppColors.onPrimary : AppColors.textSecondary,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Input extends StatelessWidget {
-  const _Input({
-    required this.controller,
-    this.placeholder = '',
-    this.keyboardType,
-    this.inputFormatters,
-  });
-
-  final TextEditingController controller;
-  final String placeholder;
-  final TextInputType? keyboardType;
-  final List<TextInputFormatter>? inputFormatters;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: _kBrCard12,
-        border: Border.all(
-          color: AppColors.border,
-          width: AppDimens.borderThin,
-        ),
-      ),
-      child: TextField(
-        controller: controller,
-        keyboardType: keyboardType,
-        inputFormatters: inputFormatters,
-        decoration: InputDecoration(
-          hintText: placeholder,
-          border: InputBorder.none,
-          isDense: true,
-          contentPadding: const EdgeInsets.symmetric(vertical: 12),
-          hintStyle: AppTextStyles.bodyMedium.copyWith(
-            color: AppColors.textSubtle,
-          ),
-        ),
-        style: AppTextStyles.bodyMedium.copyWith(fontSize: 14),
-      ),
-    );
-  }
-}
-
-class _StickyButton extends StatelessWidget {
-  const _StickyButton({required this.onTap, required this.busy});
-
-  final VoidCallback onTap;
-  final bool busy;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(
-        AppDimens.pagePaddingH,
-        14,
-        AppDimens.pagePaddingH,
-        12,
-      ),
-      decoration: const BoxDecoration(
-        color: AppColors.background,
-        border: Border(
-          top: BorderSide(
-            color: AppColors.border,
-            width: AppDimens.borderThin,
-          ),
-        ),
-      ),
-      child: SizedBox(
-        width: double.infinity,
-        height: 48,
-        child: ElevatedButton(
-          onPressed: busy ? null : onTap,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: AppColors.onPrimary,
-            elevation: 0,
-            shape: const RoundedRectangleBorder(borderRadius: _kBrCard12),
-          ),
-          child: busy
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-              : Text(
-                  'Ajouter au parc',
-                  style: AppTextStyles.labelLarge.copyWith(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.onPrimary,
-                  ),
-                ),
         ),
       ),
     );

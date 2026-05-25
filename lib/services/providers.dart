@@ -80,5 +80,8 @@ final cooperativesServiceProvider = Provider<CooperativesService>((ref) {
 });
 
 final aiServiceProvider = Provider<AiService>((ref) {
-  return AiService(ref.watch(apiClientProvider));
+  return AiService(
+    ref.watch(apiClientProvider),
+    ref.watch(marketplaceServiceProvider),
+  );
 });

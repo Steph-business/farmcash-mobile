@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -14,34 +13,11 @@ import '../../../theme/app_text_styles.dart';
 import '../../widgets/communs/chargement.dart';
 import '../../widgets/communs/snackbars.dart';
 import '../../widgets/communs/vue_erreur.dart';
-
-const Color _kPrimarySoft = Color(0xFFE8F5E9);
-
-/// Types de documents proposés à l'upload. La valeur `apiValue` est le
-/// string attendu côté backend dans `doc_type`.
-enum _KycDocType {
-  cniRecto('CNI_RECTO', 'CNI — Recto', Icons.badge_outlined),
-  cniVerso('CNI_VERSO', 'CNI — Verso', Icons.badge_outlined),
-  selfie('SELFIE', 'Selfie', Icons.face_outlined),
-  carteProducteur('CARTE_PRODUCTEUR', 'Carte producteur', Icons.card_membership),
-  justificatifParcelle(
-    'JUSTIFICATIF_PARCELLE',
-    'Justificatif de parcelle',
-    Icons.landscape_outlined,
-  );
-
-  const _KycDocType(this.apiValue, this.label, this.icon);
-  final String apiValue;
-  final String label;
-  final IconData icon;
-
-  static _KycDocType? fromApi(String raw) {
-    for (final t in values) {
-      if (t.apiValue == raw) return t;
-    }
-    return null;
-  }
-}
+import '../../widgets/producteur/profil/add_button_kyc.dart';
+import '../../widgets/producteur/profil/doc_row_kyc.dart';
+import '../../widgets/producteur/profil/kyc_doc_type_kyc.dart';
+import '../../widgets/producteur/profil/sheet_source_doc_kyc.dart';
+import '../../widgets/producteur/profil/sheet_type_doc_kyc.dart';
 
 /// Provider : liste des documents KYC du user connecté.
 final _kycDocsProvider = FutureProvider.autoDispose<List<KycDocument>>(
@@ -119,7 +95,7 @@ class DocumentsKycPage extends ConsumerWidget {
                 )
               else
                 for (final d in docs) ...[
-                  _DocRow(
+                  DocRowKyc(
                     doc: d,
                     onDelete: d.status == 'PENDING'
                         ? () => _confirmAndDelete(context, ref, d.id)
@@ -128,12 +104,12 @@ class DocumentsKycPage extends ConsumerWidget {
                   AppDimens.vGap12,
                 ],
               AppDimens.vGap8,
-              _AddButton(onTap: () => _ouvrirAjout(context, ref)),
+              AddButtonKyc(onTap: () => _ouvrirAjout(context, ref)),
               AppDimens.vGap24,
               Container(
                 padding: const EdgeInsets.all(AppDimens.space12),
                 decoration: BoxDecoration(
-                  color: _kPrimarySoft,
+                  color: kPrimarySoftKyc,
                   borderRadius: AppDimens.brCard,
                 ),
                 child: Row(
@@ -164,97 +140,10 @@ class DocumentsKycPage extends ConsumerWidget {
   }
 
   Future<void> _ouvrirAjout(BuildContext context, WidgetRef ref) async {
-    final docType = await showModalBottomSheet<_KycDocType>(
-      context: context,
-      backgroundColor: AppColors.surface,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: AppDimens.brBottomSheet,
-      ),
-      builder: (ctx) => SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AppDimens.vGap8,
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppDimens.space24,
-                vertical: AppDimens.space8,
-              ),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Type de justificatif',
-                  style: AppTextStyles.titleLarge,
-                ),
-              ),
-            ),
-            const Divider(height: 1, color: AppColors.border),
-            for (final t in _KycDocType.values) ...[
-              ListTile(
-                leading: Icon(t.icon, color: AppColors.primary),
-                title: Text(t.label),
-                onTap: () => Navigator.of(ctx).pop(t),
-              ),
-              if (t != _KycDocType.values.last)
-                const Divider(height: 1, color: AppColors.border),
-            ],
-            AppDimens.vGap8,
-          ],
-        ),
-      ),
-    );
+    final docType = await showSheetTypeDocKyc(context);
     if (docType == null || !context.mounted) return;
 
-    final source = await showModalBottomSheet<ImageSource>(
-      context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: AppDimens.brBottomSheet,
-      ),
-      builder: (ctx) => SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AppDimens.vGap8,
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppDimens.space24,
-                vertical: AppDimens.space8,
-              ),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Source du document',
-                  style: AppTextStyles.titleLarge,
-                ),
-              ),
-            ),
-            const Divider(height: 1, color: AppColors.border),
-            ListTile(
-              leading: const Icon(
-                Icons.photo_camera_outlined,
-                color: AppColors.primary,
-              ),
-              title: const Text('Prendre une photo'),
-              onTap: () => Navigator.of(ctx).pop(ImageSource.camera),
-            ),
-            const Divider(height: 1, color: AppColors.border),
-            ListTile(
-              leading: const Icon(
-                Icons.photo_library_outlined,
-                color: AppColors.primary,
-              ),
-              title: const Text('Choisir dans la galerie'),
-              onTap: () => Navigator.of(ctx).pop(ImageSource.gallery),
-            ),
-            AppDimens.vGap8,
-          ],
-        ),
-      ),
-    );
+    final source = await showSheetSourceDocKyc(context);
     if (source == null || !context.mounted) return;
 
     XFile? picked;
@@ -278,7 +167,7 @@ class DocumentsKycPage extends ConsumerWidget {
   Future<void> _uploadAndRefresh(
     BuildContext context,
     WidgetRef ref,
-    _KycDocType docType,
+    KycDocTypeKyc docType,
     File file,
   ) async {
     final messenger = ScaffoldMessenger.of(context);
@@ -363,228 +252,5 @@ class DocumentsKycPage extends ConsumerWidget {
       if (!context.mounted) return;
       Snackbars.showErreur(context, 'Impossible de supprimer le document.');
     }
-  }
-}
-
-// ─── UI ──────────────────────────────────────────────────────────────
-
-class _DocRow extends StatelessWidget {
-  const _DocRow({required this.doc, required this.onDelete});
-
-  final KycDocument doc;
-  final VoidCallback? onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    final type = _KycDocType.fromApi(doc.docType);
-    final label = type?.label ?? doc.docType;
-    final icon = type?.icon ?? Icons.description_outlined;
-
-    return Container(
-      padding: const EdgeInsets.all(AppDimens.space12),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: AppDimens.brCard,
-        border: Border.all(
-          color: AppColors.border,
-          width: AppDimens.borderThin,
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          _Thumb(url: doc.url, icon: icon),
-          AppDimens.hGap12,
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  label,
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                _StatusChip(status: doc.status),
-                if (doc.status == 'REJECTED' &&
-                    doc.rejectionReason != null &&
-                    doc.rejectionReason!.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    'Motif : ${doc.rejectionReason}',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      fontSize: 11,
-                      color: AppColors.error,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          if (onDelete != null) ...[
-            AppDimens.hGap8,
-            IconButton(
-              tooltip: 'Supprimer',
-              onPressed: onDelete,
-              icon: const Icon(
-                Icons.delete_outline,
-                color: AppColors.error,
-                size: 20,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _Thumb extends StatelessWidget {
-  const _Thumb({required this.url, required this.icon});
-
-  final String url;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    final hasUrl = url.isNotEmpty &&
-        (url.startsWith('http://') || url.startsWith('https://'));
-    final isImageLike = hasUrl &&
-        (url.toLowerCase().endsWith('.jpg') ||
-            url.toLowerCase().endsWith('.jpeg') ||
-            url.toLowerCase().endsWith('.png') ||
-            url.toLowerCase().endsWith('.webp') ||
-            url.toLowerCase().endsWith('.heic') ||
-            url.toLowerCase().contains('/image'));
-
-    if (isImageLike) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(10),
-        child: SizedBox(
-          width: 44,
-          height: 44,
-          child: CachedNetworkImage(
-            imageUrl: url,
-            fit: BoxFit.cover,
-            placeholder: (_, _) => Container(color: _kPrimarySoft),
-            errorWidget: (_, _, _) => _IconBox(icon: icon),
-          ),
-        ),
-      );
-    }
-    return _IconBox(icon: icon);
-  }
-}
-
-class _IconBox extends StatelessWidget {
-  const _IconBox({required this.icon});
-
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        color: _kPrimarySoft,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      alignment: Alignment.center,
-      child: Icon(icon, size: 20, color: AppColors.primary),
-    );
-  }
-}
-
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.status});
-
-  final String status;
-
-  @override
-  Widget build(BuildContext context) {
-    late final String label;
-    late final Color fg;
-    late final Color bg;
-    switch (status) {
-      case 'VALIDATED':
-        label = 'Validé';
-        fg = AppColors.primary;
-        bg = _kPrimarySoft;
-        break;
-      case 'REJECTED':
-        label = 'Refusé';
-        fg = AppColors.error;
-        bg = const Color(0xFFFDECEA);
-        break;
-      case 'PENDING':
-      default:
-        label = 'En attente';
-        fg = const Color(0xFF1D4ED8);
-        bg = const Color(0xFFDBEAFE);
-        break;
-    }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        label,
-        style: AppTextStyles.labelSmall.copyWith(
-          color: fg,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-}
-
-class _AddButton extends StatelessWidget {
-  const _AddButton({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: AppDimens.brCard,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-        decoration: BoxDecoration(
-          color: _kPrimarySoft,
-          borderRadius: AppDimens.brCard,
-          border: Border.all(
-            color: AppColors.primary,
-            width: AppDimens.borderThin,
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.add_circle_outline,
-              size: 18,
-              color: AppColors.primary,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              'Ajouter un justificatif',
-              style: AppTextStyles.button.copyWith(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: AppColors.primary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }

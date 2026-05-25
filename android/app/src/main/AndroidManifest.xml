@@ -1,4 +1,21 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- ─── Permissions natives ────────────────────────────────────────
+         Reflètent les packages déclarés dans pubspec.yaml : geolocator
+         (GPS parcelles + retrait + tracking missions), image_picker /
+         camera (annonces, IA plante, KYC, bordereaux), Internet (Dio).
+         Foreground uniquement — pas de ACCESS_BACKGROUND_LOCATION car
+         le tracking transporteur ne tourne qu'app au premier plan. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Android 13+ : accès média ciblé. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <!-- Android ≤ 12 (legacy) : storage read pour image_picker galerie. -->
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
     <application
         android:label="farmcash_mobile"
         android:name="${applicationName}"

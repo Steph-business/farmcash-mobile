@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,9 +18,21 @@ import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
 import '../../../state/auth_state.dart';
-import '../../../widgets/communs/bouton_principal.dart';
 import '../../../widgets/communs/chargement.dart';
 import '../../../widgets/communs/snackbars.dart';
+import '../../../widgets/producteur/publier/_couleurs_publier.dart';
+import '../../../widgets/producteur/publier/barre_progression.dart';
+import '../../../widgets/producteur/publier/bouton_pied_page.dart';
+import '../../../widgets/producteur/publier/carte_culture.dart';
+import '../../../widgets/producteur/publier/carte_radio.dart';
+import '../../../widgets/producteur/publier/carte_radio_option.dart';
+import '../../../widgets/producteur/publier/carte_recap.dart';
+import '../../../widgets/producteur/publier/carte_total.dart';
+import '../../../widgets/producteur/publier/champ_label.dart';
+import '../../../widgets/producteur/publier/chips_kg_rapides.dart';
+import '../../../widgets/producteur/publier/emplacement_photo.dart';
+import '../../../widgets/producteur/publier/puce_publier.dart';
+import '../../../widgets/producteur/publier/titre_section.dart';
 
 /// Publier une annonce de vente — flow optimisé producteur, 4 étapes :
 ///   1. **Culture** — sélection parmi les cultures du producteur (déjà
@@ -35,7 +48,10 @@ class PublierAnnoncePage extends ConsumerStatefulWidget {
   ConsumerState<PublierAnnoncePage> createState() => _PublierAnnoncePageState();
 }
 
-const _kSoftBg = Color(0xFFE8F5E9);
+/// Choix offert au producteur après publication réussie. Le dialog de
+/// succès retourne l'un de ces deux choix ; `null` si le user dismiss
+/// (cas rare avec `barrierDismissible: false`).
+enum _PostSubmitAction { mesAnnonces, republier }
 
 /// Traitements communs en CI — affichés en multi-select sur l'étape 3.
 /// Le backend matche en recherche partielle (`produit_traitement_nom`),
@@ -83,7 +99,13 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
 
   // ─ Étape 4 ─────────────────────────────────────────────────────────
   bool _audienceCoop = false;
-  DateTime? _disponibleJusqu;
+  // Date à laquelle le produit a été récolté — info de fraîcheur affichée
+  // aux acheteurs. Limitée au passé (un an max) + aujourd'hui ; on ne
+  // peut pas vendre une récolte du futur. La date de publication est
+  // automatique (created_at backend). La date de disponibilité a été
+  // retirée du formulaire — info redondante avec la date de récolte +
+  // statut ACTIVE de l'annonce.
+  DateTime? _dateRecolte;
   final _descriptionCtrl = TextEditingController();
   final _titreCtrl = TextEditingController();
 
@@ -155,6 +177,15 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
     }
   }
 
+  /// Quand on ouvre "Publier une annonce" sans avoir de parcelle/culture
+  /// déclarée, on proposait avant d'aller vers la page "Mes parcelles" en
+  /// FERMANT la page publier — résultat : après création de la parcelle,
+  /// l'utilisateur retombait sur l'accueil et devait recliquer "Publier".
+  ///
+  /// Nouveau flow : la page publier reste empilée, on push directement
+  /// `ParcelleCreerPage` qui retourne la parcelle créée via `pop(parcelle)`.
+  /// Au retour, on recharge `_bootstrap()` pour que la liste des cultures
+  /// soit à jour, et l'utilisateur continue son annonce sans interruption.
   void _redirigerVersMesParcelles() {
     showDialog<void>(
       context: context,
@@ -162,8 +193,9 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
       builder: (ctx) => AlertDialog(
         title: const Text('Aucune culture enregistrée'),
         content: const Text(
-          'Tu n\'as pas encore de culture sur une parcelle. '
-          'Ajoute d\'abord une parcelle et indique ce que tu cultives.',
+          'Tu n\'as pas encore déclaré ce que tu cultives sur une parcelle. '
+          'Ajoute une parcelle et la culture associée — ensuite tu pourras '
+          'publier cette annonce.',
         ),
         actions: [
           TextButton(
@@ -174,12 +206,26 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
             child: const Text('Annuler'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
+              // Ferme le dialog SANS fermer la page publier (le flow reste
+              // empilé : publier → parcelle_creer → retour publier).
               Navigator.of(ctx).pop();
-              Navigator.of(context).pop();
-              context.push(RouteNames.producteurMesParcellesPath);
+              final created = await context.push<dynamic>(
+                RouteNames.producteurCreerParcellePath,
+              );
+              if (!mounted) return;
+              if (created != null) {
+                // Parcelle créée : on relance le bootstrap pour repeupler
+                // `_parcelles` + `_cultures` côté page publier. Le user
+                // poursuit son flow d'annonce sans navigation manuelle.
+                await _bootstrap();
+              } else {
+                // Annulé sans création → on ferme aussi la page publier
+                // (sinon le user reste bloqué sans culture sélectionnable).
+                if (mounted) Navigator.of(context).pop();
+              }
             },
-            child: const Text('Aller à mes parcelles'),
+            child: const Text('Créer une parcelle'),
           ),
         ],
       ),
@@ -309,20 +355,43 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
   }
 
   // ── Date limite ───────────────────────────────────────────────────
+  // Le picker pour "Disponible jusqu'au" a été retiré du formulaire ;
+  // seule la date de récolte (`_choisirDateRecolte`) est exposée.
 
-  Future<void> _choisirDate() async {
+  /// Picker pour la date de RÉCOLTE (≠ date de disponibilité).
+  /// Borné au passé + jour J : on ne récolte pas dans le futur. On
+  /// remonte à 365 jours pour gérer des produits longue conservation
+  /// (manioc, igname, etc.).
+  Future<void> _choisirDateRecolte() async {
     FocusScope.of(context).unfocus();
     final now = DateTime.now();
-    final picked = await showDatePicker(
+    final initial = _dateRecolte ?? now;
+    await showCupertinoModalPopup<DateTime>(
       context: context,
-      initialDate: _disponibleJusqu ?? now.add(const Duration(days: 14)),
-      firstDate: now,
-      lastDate: now.add(const Duration(days: 365)),
-      locale: const Locale('fr', 'FR'),
+      builder: (BuildContext context) => Container(
+        height: 250,
+        padding: const EdgeInsets.only(top: 6.0),
+        margin: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        color: CupertinoColors.systemBackground.resolveFrom(context),
+        child: SafeArea(
+          top: false,
+          child: CupertinoDatePicker(
+            initialDateTime: initial,
+            minimumDate: now.subtract(const Duration(days: 365)),
+            maximumDate: now,
+            mode: CupertinoDatePickerMode.date,
+            use24hFormat: true,
+            onDateTimeChanged: (DateTime newDate) {
+              if (mounted) {
+                setState(() => _dateRecolte = newDate);
+              }
+            },
+          ),
+        ),
+      ),
     );
-    if (picked != null && mounted) {
-      setState(() => _disponibleJusqu = picked);
-    }
   }
 
   // ── Publication ───────────────────────────────────────────────────
@@ -407,7 +476,9 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
         lng: position.longitude,
         qualite: _qualite,
         description: description.isEmpty ? null : description,
-        disponibleJusqu: _disponibleJusqu,
+        // Date de récolte saisie à l'étape 4 — info de fraîcheur pour
+        // les acheteurs. Reste null si le producteur ne l'a pas renseignée.
+        dateRecolte: _dateRecolte,
         assignedToCooperativeId: coopId,
         certifications: certifs.toList(growable: false),
         traitements: traitements.isEmpty ? null : traitements,
@@ -424,15 +495,12 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
       }
 
       if (!mounted) return;
-      if (!photoOk) {
-        Snackbars.showInfo(
-          context,
-          'Annonce publiée. La photo n\'a pas pu être ajoutée.',
-        );
-      } else {
-        Snackbars.showSucces(context, 'Annonce publiée avec succès !');
-      }
-      Navigator.of(context).pop();
+      // Dialog de confirmation explicite : avant on faisait un Snackbars
+      // + pop direct, l'utilisateur ne réalisait pas que l'annonce avait
+      // été publiée. Le dialog propose 2 actions claires :
+      // • « Voir mes annonces » → push vers la liste publications
+      // • « Publier une autre » → reset le formulaire et reste sur la page
+      await _afficherSuccesEtChoix(photoOk: photoOk);
     } on ApiException catch (e) {
       if (!mounted) return;
       Snackbars.showErreur(context, e.message);
@@ -442,6 +510,101 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
+  }
+
+  /// Affiche un dialog de succès avec 2 actions : voir mes annonces ou
+  /// publier une autre annonce. Le dialog n'est pas dismissible (force
+  /// un choix conscient — évite que le producteur croit que l'annonce
+  /// n'a pas été publiée s'il tape à côté).
+  Future<void> _afficherSuccesEtChoix({required bool photoOk}) async {
+    final action = await showDialog<_PostSubmitAction>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+        contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+        title: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: const BoxDecoration(
+                color: kSoftBgPublier,
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: const Icon(
+                Icons.check_circle_outline,
+                size: 22,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(child: Text('Annonce publiée')),
+          ],
+        ),
+        content: Text(
+          photoOk
+              ? 'Ton annonce est en ligne et visible par les acheteurs.'
+              : 'Annonce publiée, mais la photo n\'a pas pu être ajoutée. '
+                'Tu pourras la rajouter depuis le détail.',
+          style: AppTextStyles.bodyMedium.copyWith(fontSize: 14, height: 1.4),
+        ),
+        actionsAlignment: MainAxisAlignment.spaceBetween,
+        actionsPadding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(_PostSubmitAction.republier),
+            child: const Text('Publier une autre'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(_PostSubmitAction.mesAnnonces),
+            child: const Text('Voir mes annonces'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    switch (action) {
+      case _PostSubmitAction.mesAnnonces:
+        // Pop la page publier, push vers "Mes publications".
+        Navigator.of(context).pop();
+        context.push(RouteNames.producteurMesPublicationsPath);
+        break;
+      case _PostSubmitAction.republier:
+        // Reset le formulaire et reviens à l'étape 1 — le producteur
+        // peut enchaîner sans réouvrir la page publier (utile pour
+        // poster plusieurs annonces d'affilée après une grosse récolte).
+        _resetForm();
+        _pageController.jumpToPage(0);
+        break;
+      case null:
+        // Dialog dismissed inopinément (cas rare avec barrierDismissible:
+        // false mais on est défensif). On pop la page comme l'ancien comportement.
+        Navigator.of(context).pop();
+    }
+  }
+
+  /// Remet le formulaire à zéro pour permettre de publier une 2e annonce
+  /// sans réouvrir la page. Préserve les parcelles/cultures déjà chargées
+  /// pour éviter un nouveau `_bootstrap()` réseau inutile.
+  void _resetForm() {
+    setState(() {
+      _culture = _cultures.length == 1 ? _cultures.first : null;
+      _photo = null;
+      _qteCtrl.clear();
+      _prixCtrl.clear();
+      _qualite = ProductQuality.standard;
+      _certifications.clear();
+      _traitements.clear();
+      _certifAutreCtrl.clear();
+      _traitementAutreCtrl.clear();
+      _audienceCoop = false;
+      _dateRecolte = null;
+      _titreCtrl.clear();
+      _descriptionCtrl.clear();
+    });
   }
 
   static String _libelleQualite(ProductQuality q) {
@@ -533,7 +696,7 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
                 )
               : Column(
                   children: [
-                    _ProgressBar(index: _pageIndex, total: 4),
+                    BarreProgression(index: _pageIndex, total: 4),
                     Expanded(
                       child: PageView(
                         controller: _pageController,
@@ -594,7 +757,7 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
               for (final c in _cultures)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 10),
-                  child: _CultureCard(
+                  child: CarteCulture(
                     culture: c,
                     parcelle: _parcelleDeLaCulture(c),
                     selected: _culture?.id == c.id,
@@ -604,7 +767,7 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
             ],
           ),
         ),
-        _FooterButton(
+        BoutonPiedPage(
           label: 'Suivant',
           enabled: _step1Valid && !_isSubmitting,
           onTap: _suivant,
@@ -627,14 +790,14 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
               AppDimens.space16,
             ),
             children: [
-              _PhotoSlot(
+              EmplacementPhoto(
                 photo: _photo,
                 enabled: !_isSubmitting,
                 onTap: _prendrePhoto,
                 onRemove: () => setState(() => _photo = null),
               ),
               const SizedBox(height: 20),
-              const _SectionTitle('Quantité'),
+              const TitreSection('Quantité'),
               AppDimens.vGap12,
               TextField(
                 controller: _qteCtrl,
@@ -655,11 +818,11 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
                 ),
               ),
               const SizedBox(height: 8),
-              _QuickKgChips(onPick: (kg) {
+              ChipsKgRapides(onPick: (kg) {
                 _qteCtrl.text = kg.toString();
               }),
               const SizedBox(height: 20),
-              const _SectionTitle('Prix par kg'),
+              const TitreSection('Prix par kg'),
               AppDimens.vGap12,
               TextField(
                 controller: _prixCtrl,
@@ -681,10 +844,10 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
               ),
               if (_total > 0) ...[
                 const SizedBox(height: 10),
-                _TotalCard(total: _total),
+                CarteTotal(totalFormate: _formatMontant(_total)),
               ],
               const SizedBox(height: 20),
-              const _SectionTitle('Qualité'),
+              const TitreSection('Qualité'),
               AppDimens.vGap12,
               Wrap(
                 spacing: AppDimens.space8,
@@ -696,7 +859,7 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
                     ProductQuality.bio,
                     ProductQuality.equitable,
                   ])
-                    _Chip(
+                    PucePublier(
                       label: _libelleQualite(q),
                       selected: _qualite == q,
                       enabled: !_isSubmitting,
@@ -707,7 +870,7 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
             ],
           ),
         ),
-        _FooterButton(
+        BoutonPiedPage(
           label: 'Suivant',
           enabled: _step2Valid && !_isSubmitting,
           onTap: _suivant,
@@ -738,7 +901,7 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
                 ),
               ),
               const SizedBox(height: 16),
-              const _SectionTitle('Traitements appliqués'),
+              const TitreSection('Traitements appliqués'),
               AppDimens.vGap8,
               Text(
                 'Sélectionne tout ce qui s\'applique',
@@ -753,7 +916,7 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
                 runSpacing: AppDimens.space8,
                 children: [
                   for (final t in _kTraitementsCommuns)
-                    _Chip(
+                    PucePublier(
                       label: t,
                       selected: _traitements.contains(t),
                       enabled: !_isSubmitting,
@@ -770,7 +933,7 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
                 ],
               ),
               AppDimens.vGap12,
-              _ChampLabel(
+              ChampLabel(
                 label: 'Autre traitement (optionnel)',
                 child: TextField(
                   controller: _traitementAutreCtrl,
@@ -784,7 +947,7 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
                 ),
               ),
               const SizedBox(height: 20),
-              const _SectionTitle('Certification'),
+              const TitreSection('Certification'),
               AppDimens.vGap8,
               Text(
                 'Sélectionne si tu as une certification reconnue',
@@ -799,7 +962,7 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
                 runSpacing: AppDimens.space8,
                 children: [
                   for (final c in _kCertifsCommunes)
-                    _Chip(
+                    PucePublier(
                       label: c,
                       selected: _certifications.contains(c),
                       enabled: !_isSubmitting,
@@ -816,7 +979,7 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
                 ],
               ),
               AppDimens.vGap12,
-              _ChampLabel(
+              ChampLabel(
                 label: 'Autre certification (optionnel)',
                 child: TextField(
                   controller: _certifAutreCtrl,
@@ -832,7 +995,7 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
             ],
           ),
         ),
-        _FooterButton(
+        BoutonPiedPage(
           label: 'Suivant',
           enabled: _step3Valid && !_isSubmitting,
           onTap: _suivant,
@@ -844,6 +1007,33 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
   // ─── Step 4 : Audience + publier ──────────────────────────────────
 
   Widget _buildStep4() {
+    // Safety check: redirect to step 1 if culture is not selected
+    if (_culture == null) {
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  Text('Veuillez d\'abord sélectionner une culture',
+                      style: AppTextStyles.bodyMedium),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: () {
+                      _pageController.jumpToPage(0);
+                    },
+                    child: const Text('Retour à l\'étape 1'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
     final user = ref.watch(currentUserProvider);
     final aDesCoop =
         user?.cooperativeId != null && user!.cooperativeId!.isNotEmpty;
@@ -859,11 +1049,11 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
               AppDimens.space16,
             ),
             children: [
-              const _SectionTitle('Publier vers'),
+              const TitreSection('Publier vers'),
               AppDimens.vGap12,
-              _RadioCard(
+              CarteRadio(
                 children: [
-                  _RadioCardItem(
+                  CarteRadioOption(
                     emoji: '🌍',
                     title: 'Tout le marché (public)',
                     subtitle: 'Visible par tous les acheteurs',
@@ -871,22 +1061,31 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
                     enabled: !_isSubmitting,
                     onTap: () => setState(() => _audienceCoop = false),
                   ),
-                  if (aDesCoop)
-                    _RadioCardItem(
-                      emoji: '🤝',
-                      title: 'Ma coopérative',
-                      subtitle:
-                          'La coop valide et agrège avec d\'autres avant publication',
-                      selected: _audienceCoop,
-                      enabled: !_isSubmitting,
-                      onTap: () => setState(() => _audienceCoop = true),
-                    ),
+                  // L'option "Ma coopérative" est TOUJOURS affichée pour
+                  // que le producteur sache qu'elle existe. Si l'utilisateur
+                  // n'est membre d'aucune coop (`cooperativeId == null`),
+                  // l'option est désactivée + un sous-titre explique pourquoi
+                  // et où s'inscrire à une coop. Avant : on cachait l'option
+                  // → l'utilisateur croyait que le formulaire ne supportait
+                  // pas l'attribution coop.
+                  CarteRadioOption(
+                    emoji: '🤝',
+                    title: 'Ma coopérative',
+                    subtitle: aDesCoop
+                        ? 'La coop valide et agrège avec d\'autres avant publication'
+                        : 'Rejoins d\'abord une coopérative dans ton profil pour activer cette option',
+                    selected: aDesCoop && _audienceCoop,
+                    enabled: aDesCoop && !_isSubmitting,
+                    onTap: aDesCoop
+                        ? () => setState(() => _audienceCoop = true)
+                        : null,
+                  ),
                 ],
               ),
               const SizedBox(height: 20),
-              const _SectionTitle('Détails (optionnel)'),
+              const TitreSection('Détails (optionnel)'),
               AppDimens.vGap12,
-              _ChampLabel(
+              ChampLabel(
                 label: 'Titre court',
                 child: TextField(
                   controller: _titreCtrl,
@@ -898,7 +1097,7 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
                 ),
               ),
               const SizedBox(height: 14),
-              _ChampLabel(
+              ChampLabel(
                 label: 'Description',
                 child: TextField(
                   controller: _descriptionCtrl,
@@ -912,10 +1111,13 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
                 ),
               ),
               const SizedBox(height: 14),
-              _ChampLabel(
-                label: 'Disponible jusqu\'au',
+              // Date de RÉCOLTE — info de fraîcheur pour l'acheteur.
+              // Affichée AVANT la date "disponible jusqu'au" car c'est ce
+              // que le producteur a en tête immédiatement après sa récolte.
+              ChampLabel(
+                label: 'Date de récolte',
                 child: InkWell(
-                  onTap: _isSubmitting ? null : _choisirDate,
+                  onTap: _isSubmitting ? null : _choisirDateRecolte,
                   borderRadius: AppDimens.brInput,
                   child: Container(
                     height: AppDimens.inputHeight,
@@ -932,708 +1134,65 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
                       children: [
                         Expanded(
                           child: Text(
-                            _disponibleJusqu == null
-                                ? 'Optionnel — choisir une date'
-                                : _formatDate(_disponibleJusqu!),
+                            _dateRecolte == null
+                                ? 'Optionnel — quand as-tu récolté ?'
+                                : _formatDate(_dateRecolte!),
                             style: AppTextStyles.bodyMedium.copyWith(
-                              color: _disponibleJusqu == null
+                              color: _dateRecolte == null
                                   ? AppColors.textSubtle
                                   : AppColors.text,
                             ),
                           ),
                         ),
-                        const Icon(
-                          Icons.calendar_today_outlined,
-                          size: AppDimens.iconM,
-                          color: AppColors.textSecondary,
-                        ),
+                        if (_dateRecolte != null && !_isSubmitting)
+                          InkWell(
+                            onTap: () =>
+                                setState(() => _dateRecolte = null),
+                            borderRadius: BorderRadius.circular(16),
+                            child: const Padding(
+                              padding: EdgeInsets.all(4),
+                              child: Icon(
+                                Icons.close,
+                                size: 16,
+                                color: AppColors.textSubtle,
+                              ),
+                            ),
+                          )
+                        else
+                          const Icon(
+                            Icons.calendar_today_outlined,
+                            size: AppDimens.iconM,
+                            color: AppColors.textSecondary,
+                          ),
                       ],
                     ),
                   ),
                 ),
               ),
+              // Bloc "Disponible jusqu'au" retiré : la date est redondante
+              // avec la `dateRecolte` + le statut ACTIVE de l'annonce. Le
+              // producteur publie quand il a la marchandise prête, et il
+              // pause l'annonce manuellement quand c'est écoulé. Garder un
+              // champ supplémentaire embrouillait la saisie.
               const SizedBox(height: 20),
-              _RecapCard(
+              CarteRecap(
                 culture: _culture!,
                 parcelle: _parcelleDeLaCulture(_culture!),
-                qte: _qte ?? 0,
-                prix: _prix ?? 0,
-                total: _total,
+                qteFormatee: _formatNombre(_qte ?? 0),
+                prixFormate: _formatMontant(_prix ?? 0),
+                totalFormate: _formatMontant(_total),
                 qualite: _libelleQualite(_qualite),
               ),
             ],
           ),
         ),
-        _FooterButton(
+        BoutonPiedPage(
           label: 'Publier mon annonce',
           isLoading: _isSubmitting,
           enabled: _canPublier,
           onTap: _publier,
         ),
       ],
-    );
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// COMPOSANTS
-// ═══════════════════════════════════════════════════════════════════════
-
-class _ProgressBar extends StatelessWidget {
-  const _ProgressBar({required this.index, required this.total});
-  final int index;
-  final int total;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppDimens.pagePaddingH,
-        AppDimens.space4,
-        AppDimens.pagePaddingH,
-        AppDimens.space8,
-      ),
-      child: Row(
-        children: List.generate(total, (i) {
-          final actif = i <= index;
-          return Expanded(
-            child: Container(
-              margin: EdgeInsets.only(right: i == total - 1 ? 0 : 6),
-              height: 4,
-              decoration: BoxDecoration(
-                color: actif ? AppColors.primary : AppColors.border,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          );
-        }),
-      ),
-    );
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle(this.label);
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      label,
-      style: AppTextStyles.titleSmall.copyWith(
-        fontSize: 14,
-        fontWeight: FontWeight.w700,
-        color: AppColors.text,
-      ),
-    );
-  }
-}
-
-class _ChampLabel extends StatelessWidget {
-  const _ChampLabel({required this.label, required this.child});
-  final String label;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: AppTextStyles.bodySmall.copyWith(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        const SizedBox(height: 6),
-        child,
-      ],
-    );
-  }
-}
-
-class _FooterButton extends StatelessWidget {
-  const _FooterButton({
-    required this.label,
-    required this.onTap,
-    this.enabled = true,
-    this.isLoading = false,
-  });
-
-  final String label;
-  final VoidCallback onTap;
-  final bool enabled;
-  final bool isLoading;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppDimens.pagePaddingH,
-        AppDimens.space12,
-        AppDimens.pagePaddingH,
-        AppDimens.space16,
-      ),
-      child: BoutonPrincipal(
-        label: label,
-        isLoading: isLoading,
-        enabled: enabled,
-        onPressed: enabled ? onTap : null,
-      ),
-    );
-  }
-}
-
-class _Chip extends StatelessWidget {
-  const _Chip({
-    required this.label,
-    required this.selected,
-    required this.enabled,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final bool enabled;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: selected ? AppColors.primary : AppColors.surface,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: selected ? AppColors.primary : AppColors.border,
-              width: AppDimens.borderThin,
-            ),
-          ),
-          child: Text(
-            label,
-            style: AppTextStyles.labelMedium.copyWith(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: selected ? AppColors.onPrimary : AppColors.textSecondary,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Step 1 : culture card ─────────────────────────────────────────────
-
-class _CultureCard extends StatelessWidget {
-  const _CultureCard({
-    required this.culture,
-    required this.parcelle,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final Culture culture;
-  final Parcelle? parcelle;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final parcelleNom = parcelle?.nom ?? 'Parcelle inconnue';
-    final ha = parcelle?.superficieHa;
-    final haTxt = ha == null ? null : '${ha.toStringAsFixed(1)} ha';
-    final sousTitre = haTxt == null ? parcelleNom : '$parcelleNom · $haTxt';
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: selected ? _kSoftBg : AppColors.background,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: selected ? AppColors.primary : AppColors.border,
-              width: selected ? 1.5 : AppDimens.borderThin,
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE8F5E9),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                alignment: Alignment.center,
-                child: const Icon(
-                  Icons.eco_outlined,
-                  size: 22,
-                  color: AppColors.primary,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      culture.produitNom ?? '(produit inconnu)',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      sousTitre,
-                      style: AppTextStyles.bodySmall.copyWith(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              _RadioDot(selected: selected),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RadioDot extends StatelessWidget {
-  const _RadioDot({required this.selected});
-  final bool selected;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 20,
-      height: 20,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: selected ? AppColors.primary : AppColors.borderStrong,
-          width: 1.5,
-        ),
-      ),
-      child: selected
-          ? Center(
-              child: Container(
-                width: 10,
-                height: 10,
-                decoration: const BoxDecoration(
-                  color: AppColors.primary,
-                  shape: BoxShape.circle,
-                ),
-              ),
-            )
-          : null,
-    );
-  }
-}
-
-// ─── Step 2 : photo + quantité ─────────────────────────────────────────
-
-class _PhotoSlot extends StatelessWidget {
-  const _PhotoSlot({
-    required this.photo,
-    required this.enabled,
-    required this.onTap,
-    required this.onRemove,
-  });
-
-  final File? photo;
-  final bool enabled;
-  final VoidCallback onTap;
-  final VoidCallback onRemove;
-
-  @override
-  Widget build(BuildContext context) {
-    if (photo == null) {
-      return InkWell(
-        onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          height: 180,
-          decoration: BoxDecoration(
-            color: AppColors.surfaceSoft,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: AppColors.borderStrong,
-              width: AppDimens.borderThin,
-            ),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.add_a_photo_outlined,
-                size: 32,
-                color: AppColors.primary,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Prendre une photo du produit',
-                style: AppTextStyles.bodyMedium.copyWith(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primary,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Rassure l\'acheteur',
-                style: AppTextStyles.bodySmall.copyWith(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-    return Stack(
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Image.file(
-            photo!,
-            width: double.infinity,
-            height: 200,
-            fit: BoxFit.cover,
-          ),
-        ),
-        Positioned(
-          top: 8,
-          right: 8,
-          child: InkWell(
-            onTap: enabled ? onRemove : null,
-            borderRadius: BorderRadius.circular(20),
-            child: Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: AppColors.text.withValues(alpha: 0.6),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.close,
-                size: 18,
-                color: AppColors.onPrimary,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _QuickKgChips extends StatelessWidget {
-  const _QuickKgChips({required this.onPick});
-  final ValueChanged<int> onPick;
-
-  static const _kg = [10, 25, 50, 100];
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: AppDimens.space8,
-      runSpacing: AppDimens.space8,
-      children: [
-        for (final kg in _kg)
-          _Chip(
-            label: '$kg kg',
-            selected: false,
-            enabled: true,
-            onTap: () => onPick(kg),
-          ),
-      ],
-    );
-  }
-}
-
-class _TotalCard extends StatelessWidget {
-  const _TotalCard({required this.total});
-  final double total;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: _kSoftBg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.primary,
-          width: AppDimens.borderThin,
-        ),
-      ),
-      child: Row(
-        children: [
-          const Icon(
-            Icons.calculate_outlined,
-            size: 18,
-            color: AppColors.primary,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Total estimé',
-              style: AppTextStyles.bodyMedium.copyWith(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.primary,
-              ),
-            ),
-          ),
-          Text(
-            '${_PublierAnnoncePageState._formatMontant(total)} F',
-            style: AppTextStyles.titleMedium.copyWith(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: AppColors.primary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Step 4 : audience radio-card + recap ─────────────────────────────
-
-class _RadioCard extends StatelessWidget {
-  const _RadioCard({required this.children});
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: AppDimens.brInput,
-        border: Border.all(
-          color: AppColors.border,
-          width: AppDimens.borderThin,
-        ),
-      ),
-      child: Column(
-        children: [
-          for (var i = 0; i < children.length; i++) ...[
-            children[i],
-            if (i < children.length - 1)
-              const Divider(
-                height: 1,
-                thickness: AppDimens.borderThin,
-                color: AppColors.border,
-              ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _RadioCardItem extends StatelessWidget {
-  const _RadioCardItem({
-    required this.emoji,
-    required this.title,
-    this.subtitle,
-    required this.selected,
-    required this.enabled,
-    required this.onTap,
-  });
-
-  final String emoji;
-  final String title;
-  final String? subtitle;
-  final bool selected;
-  final bool enabled;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: enabled ? onTap : null,
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: const BoxDecoration(
-                color: Color(0xFFF9FAFB),
-                shape: BoxShape.circle,
-              ),
-              alignment: Alignment.center,
-              child: Text(emoji, style: const TextStyle(fontSize: 18)),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    title,
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      height: 1.3,
-                    ),
-                  ),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle!,
-                      style: AppTextStyles.bodySmall.copyWith(
-                        fontSize: 11,
-                        color: AppColors.textSecondary,
-                        height: 1.3,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            _RadioDot(selected: selected),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _RecapCard extends StatelessWidget {
-  const _RecapCard({
-    required this.culture,
-    required this.parcelle,
-    required this.qte,
-    required this.prix,
-    required this.total,
-    required this.qualite,
-  });
-
-  final Culture culture;
-  final Parcelle? parcelle;
-  final double qte;
-  final double prix;
-  final double total;
-  final String qualite;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceSoft,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.border,
-          width: AppDimens.borderThin,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Récapitulatif',
-            style: AppTextStyles.titleSmall.copyWith(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 10),
-          _RecapRow('Culture', culture.produitNom ?? '(inconnu)'),
-          _RecapRow(
-            'Parcelle',
-            parcelle?.nom ?? '—',
-          ),
-          _RecapRow('Quantité', '${_PublierAnnoncePageState._formatNombre(qte)} kg'),
-          _RecapRow(
-            'Prix',
-            '${_PublierAnnoncePageState._formatMontant(prix)} F/kg',
-          ),
-          _RecapRow('Qualité', qualite),
-          const Divider(height: 16, color: AppColors.border),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Total estimé',
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              Text(
-                '${_PublierAnnoncePageState._formatMontant(total)} F',
-                style: AppTextStyles.titleMedium.copyWith(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.primary,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RecapRow extends StatelessWidget {
-  const _RecapRow(this.label, this.value);
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: AppTextStyles.bodySmall.copyWith(
-                fontSize: 12,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ),
-          Text(
-            value,
-            style: AppTextStyles.bodyMedium.copyWith(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

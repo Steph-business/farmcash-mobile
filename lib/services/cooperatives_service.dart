@@ -57,13 +57,18 @@ class CooperativesService {
 
   // ─── Profil COOP ─────────────────────────────────────────────────────
 
+  /// Met à jour le profil de la coopérative.
+  ///
+  /// Aligné sur `UpsertCoopProfileDto` (cooperatives.dto.ts) — accepte
+  /// `nom`, `numero_agrement`, `region_id`, `ville_id`, `nb_membres`,
+  /// `commission_rate`, `auto_distribute`. Les champs `logo_url` et
+  /// `description` ne sont pas whitelistés.
   Future<Cooperative> updateProfile({
     String? nom,
     String? numeroAgrement,
     String? regionId,
     String? villeId,
-    String? description,
-    String? logoUrl,
+    int? nbMembres,
     double? commissionRate,
     bool? autoDistribute,
   }) async {
@@ -74,8 +79,7 @@ class CooperativesService {
         if (numeroAgrement != null) 'numero_agrement': numeroAgrement,
         if (regionId != null) 'region_id': regionId,
         if (villeId != null) 'ville_id': villeId,
-        if (description != null) 'description': description,
-        if (logoUrl != null) 'logo_url': logoUrl,
+        if (nbMembres != null) 'nb_membres': nbMembres,
         if (commissionRate != null) 'commission_rate': commissionRate,
         if (autoDistribute != null) 'auto_distribute': autoDistribute,
       },
@@ -104,16 +108,20 @@ class CooperativesService {
     return _asList(raw, CoopJoinRequest.fromJson);
   }
 
+  /// Accepte ou rejette une demande d'adhésion FARMER → COOP.
+  ///
+  /// Aligné sur `HandleJoinRequestDto` — attend
+  /// `{decision: 'ACCEPTED'|'REJECTED', rejection_reason?}`.
   Future<CoopJoinRequest> handleJoinRequest({
     required String id,
     required bool accept,
-    String? motif,
+    String? rejectionReason,
   }) async {
     final json = await _api.put<Map<String, dynamic>>(
       ApiEndpoints.coopJoinRequestHandle(id),
       body: {
-        'action': accept ? 'ACCEPT' : 'REJECT',
-        if (motif != null) 'motif': motif,
+        'decision': accept ? 'ACCEPTED' : 'REJECTED',
+        if (rejectionReason != null) 'rejection_reason': rejectionReason,
       },
     );
     return CoopJoinRequest.fromJson(json);
@@ -121,14 +129,18 @@ class CooperativesService {
 
   // ─── Adhésion — COOP initie (invitations) ────────────────────────────
 
+  /// Invite un FARMER par téléphone à rejoindre la coopérative.
+  ///
+  /// Aligné sur `CreateInvitationDto` — attend `invited_phone`, pas
+  /// `phone`.
   Future<CoopInvitation> invite({
-    required String phone,
+    required String invitedPhone,
     String? message,
   }) async {
     final json = await _api.post<Map<String, dynamic>>(
       ApiEndpoints.coopInvitations,
       body: {
-        'phone': phone,
+        'invited_phone': invitedPhone,
         if (message != null) 'message': message,
       },
     );
@@ -140,13 +152,17 @@ class CooperativesService {
     return _asList(raw, CoopInvitation.fromJson);
   }
 
+  /// Accepte ou rejette une invitation côté FARMER.
+  ///
+  /// Aligné sur `HandleInvitationDto` — attend `decision: 'ACCEPTED' |
+  /// 'REJECTED'`.
   Future<CoopInvitation> handleInvitation({
     required String id,
     required bool accept,
   }) async {
     final json = await _api.put<Map<String, dynamic>>(
       ApiEndpoints.coopInvitationHandle(id),
-      body: {'action': accept ? 'ACCEPT' : 'REJECT'},
+      body: {'decision': accept ? 'ACCEPTED' : 'REJECTED'},
     );
     return CoopInvitation.fromJson(json);
   }
@@ -173,13 +189,60 @@ class CooperativesService {
     await _api.delete<dynamic>(ApiEndpoints.coopMemberById(memberUserId));
   }
 
+  /// Enregistre un farmer **géré** par la coopérative (sans téléphone).
+  ///
+  /// Cas d'usage : la coop saisit en présentiel les producteurs sans
+  /// smartphone. Aucun OTP envoyé. La coop publiera ensuite les annonces
+  /// au nom du farmer via `act_as_farmer_id`.
+  ///
+  /// Aligné sur le DTO backend `POST /coop/members/managed` :
+  /// `{ full_name, village?, default_product_id?, photo_url? }`.
+  Future<MembreCoop> createManagedMember({
+    required String fullName,
+    String? village,
+    String? defaultProductId,
+    String? photoUrl,
+  }) async {
+    final json = await _api.post<Map<String, dynamic>>(
+      ApiEndpoints.coopMembersManaged,
+      body: {
+        'full_name': fullName,
+        if (village != null && village.isNotEmpty) 'village': village,
+        if (defaultProductId != null) 'default_product_id': defaultProductId,
+        if (photoUrl != null && photoUrl.isNotEmpty) 'photo_url': photoUrl,
+      },
+    );
+    return MembreCoop.fromJson(json);
+  }
+
+  /// Promeut un farmer géré en farmer autonome dès qu'il obtient un
+  /// téléphone. Le backend déclenche un OTP de vérification et bascule
+  /// `managed_by_coop_id` → `null`.
+  ///
+  /// Aligné sur `POST /coop/members/:id/promote` — attend `{ phone }`
+  /// au format E.164 (`+225XXXXXXXXXX`).
+  Future<MembreCoop> promoteManagedMember({
+    required String memberUserId,
+    required String phone,
+  }) async {
+    final json = await _api.post<Map<String, dynamic>>(
+      ApiEndpoints.coopMemberPromote(memberUserId),
+      body: {'phone': phone},
+    );
+    return MembreCoop.fromJson(json);
+  }
+
+  /// Change le rôle d'un membre dans la coopérative.
+  ///
+  /// Aligné sur `UpdateMemberRoleDto` — attend `role_in_coop`, pas
+  /// `role`.
   Future<MembreCoop> updateMemberRole({
     required String memberUserId,
     required CoopMemberRole role,
   }) async {
     final json = await _api.put<Map<String, dynamic>>(
       ApiEndpoints.coopMemberRole(memberUserId),
-      body: {'role': role.apiValue},
+      body: {'role_in_coop': role.apiValue},
     );
     return MembreCoop.fromJson(json);
   }
@@ -198,33 +261,39 @@ class CooperativesService {
     return _asList(raw, AnnonceVente.fromJson);
   }
 
+  /// Valide une annonce de vente assignée (la coop pèse / contrôle).
+  ///
+  /// Aligné sur `ValidateAnnonceDto` — exige `quantite_kg_reelle` ;
+  /// `qualite_reelle` et `notes_pesee` optionnels. Le DTO refuse
+  /// `prix_valide_kg`.
   Future<AnnonceVente> validateAnnonceVente({
     required String id,
-    double? quantiteValideeKg,
-    double? prixValideKg,
-    ProductQuality? qualiteValidee,
-    String? notes,
+    required double quantiteKgReelle,
+    ProductQuality? qualiteReelle,
+    String? notesPesee,
   }) async {
     final json = await _api.put<Map<String, dynamic>>(
       ApiEndpoints.coopAnnonceVenteValidate(id),
       body: {
-        if (quantiteValideeKg != null)
-          'quantite_validee_kg': quantiteValideeKg,
-        if (prixValideKg != null) 'prix_valide_kg': prixValideKg,
-        if (qualiteValidee != null) 'qualite_validee': qualiteValidee.apiValue,
-        if (notes != null) 'notes': notes,
+        'quantite_kg_reelle': quantiteKgReelle,
+        if (qualiteReelle != null) 'qualite_reelle': qualiteReelle.apiValue,
+        if (notesPesee != null) 'notes_pesee': notesPesee,
       },
     );
     return AnnonceVente.fromJson(json);
   }
 
+  /// Rejette une annonce de vente assignée.
+  ///
+  /// Aligné sur `RejectAnnonceDto` — exige `rejection_reason` (5..1000
+  /// chars).
   Future<AnnonceVente> rejectAnnonceVente({
     required String id,
-    required String motif,
+    required String rejectionReason,
   }) async {
     final json = await _api.put<Map<String, dynamic>>(
       ApiEndpoints.coopAnnonceVenteReject(id),
-      body: {'motif': motif},
+      body: {'rejection_reason': rejectionReason},
     );
     return AnnonceVente.fromJson(json);
   }
@@ -248,45 +317,65 @@ class CooperativesService {
     return _asList(raw, Prevision.fromJson);
   }
 
+  /// Valide une prévision assignée (inspection coop).
+  ///
+  /// Aligné sur `ValidatePrevisionDto` — exige `quantite_kg_validee` ;
+  /// `notes_inspection` optionnel.
   Future<Prevision> validatePrevision({
     required String id,
-    String? notes,
+    required double quantiteKgValidee,
+    String? notesInspection,
   }) async {
     final json = await _api.put<Map<String, dynamic>>(
       ApiEndpoints.coopPrevisionValidate(id),
-      body: {if (notes != null) 'notes': notes},
+      body: {
+        'quantite_kg_validee': quantiteKgValidee,
+        if (notesInspection != null) 'notes_inspection': notesInspection,
+      },
     );
     return Prevision.fromJson(json);
   }
 
+  /// Rejette une prévision assignée.
+  ///
+  /// Aligné sur `RejectAnnonceDto` (réutilisé) — attend
+  /// `rejection_reason`.
   Future<Prevision> rejectPrevision({
     required String id,
-    required String motif,
+    required String rejectionReason,
   }) async {
     final json = await _api.put<Map<String, dynamic>>(
       ApiEndpoints.coopPrevisionReject(id),
-      body: {'motif': motif},
+      body: {'rejection_reason': rejectionReason},
     );
     return Prevision.fromJson(json);
   }
 
   // ─── Agrégation publications ─────────────────────────────────────────
 
+  /// Agrège plusieurs annonces validées en une publication coop.
+  ///
+  /// Aligné sur `AggregatePublicationDto` — exige `annonce_ids`,
+  /// `prix_par_kg`, `qualite`. `region_id`, `ville_id`, `adresse_detail`
+  /// optionnels. Les champs `titre`, `description`, `photos` ne sont
+  /// pas whitelistés.
   Future<PublicationCoop> aggregatePublication({
-    required List<String> annonceVenteIds,
-    required String titre,
-    String? description,
-    List<String>? photos,
-    double? prixParKg,
+    required List<String> annonceIds,
+    required double prixParKg,
+    required ProductQuality qualite,
+    String? regionId,
+    String? villeId,
+    String? adresseDetail,
   }) async {
     final json = await _api.post<Map<String, dynamic>>(
       ApiEndpoints.coopPublicationsAggregate,
       body: {
-        'annonce_vente_ids': annonceVenteIds,
-        'titre': titre,
-        if (description != null) 'description': description,
-        if (photos != null) 'photos': photos,
-        if (prixParKg != null) 'prix_par_kg': prixParKg,
+        'annonce_ids': annonceIds,
+        'prix_par_kg': prixParKg,
+        'qualite': qualite.apiValue,
+        if (regionId != null) 'region_id': regionId,
+        if (villeId != null) 'ville_id': villeId,
+        if (adresseDetail != null) 'adresse_detail': adresseDetail,
       },
     );
     return PublicationCoop.fromJson(json);
@@ -325,6 +414,10 @@ class CooperativesService {
 
   // ─── Avances ─────────────────────────────────────────────────────────
 
+  /// Verse une avance à un membre de la coopérative.
+  ///
+  /// Aligné sur `PayAdvanceDto` — attend `notes`, pas `motif`. Le
+  /// paramètre Dart conserve `motif` pour rester cohérent avec l'UI.
   Future<AvanceCoop> payAdvance({
     required String farmerId,
     required double amount,
@@ -337,7 +430,7 @@ class CooperativesService {
         'farmer_id': farmerId,
         'amount': amount,
         if (annonceVenteId != null) 'annonce_vente_id': annonceVenteId,
-        if (motif != null) 'motif': motif,
+        if (motif != null) 'notes': motif,
       },
     );
     return AvanceCoop.fromJson(json);
@@ -362,46 +455,56 @@ class CooperativesService {
 
   // ─── Publications COOP (CRUD direct) ─────────────────────────────────
 
+  /// Crée une publication coop directement (sans agréger d'annonces).
+  ///
+  /// Aligné sur `CreatePublicationCoopDto` — exige `produit_id`,
+  /// `quantite_kg`, `region_id`, `ville_id`, `coordinates {lat, lng}`.
+  /// `prix_par_kg`, `qualite` optionnels. Les champs `titre`,
+  /// `description`, `photos` ne sont pas whitelistés.
   Future<PublicationCoop> createPublication({
     required String produitId,
-    required String titre,
     required double quantiteKg,
-    required double prixParKg,
-    String? description,
-    List<String>? photos,
+    required String regionId,
+    required String villeId,
+    required double lat,
+    required double lng,
+    double? prixParKg,
     ProductQuality? qualite,
   }) async {
     final json = await _api.post<Map<String, dynamic>>(
       ApiEndpoints.coopPublications,
       body: {
         'produit_id': produitId,
-        'titre': titre,
         'quantite_kg': quantiteKg,
-        'prix_par_kg': prixParKg,
-        if (description != null) 'description': description,
-        if (photos != null) 'photos': photos,
+        'region_id': regionId,
+        'ville_id': villeId,
+        'coordinates': {'lat': lat, 'lng': lng},
+        if (prixParKg != null) 'prix_par_kg': prixParKg,
         if (qualite != null) 'qualite': qualite.apiValue,
       },
     );
     return PublicationCoop.fromJson(json);
   }
 
+  /// Met à jour une publication coop.
+  ///
+  /// Aligné sur `UpdatePublicationCoopDto` — accepte `quantite_kg`,
+  /// `prix_par_kg`, `qualite`, `is_active`. Les champs `titre`,
+  /// `description`, `status` ne sont pas whitelistés.
   Future<PublicationCoop> updatePublication(
     String id, {
-    String? titre,
     double? quantiteKg,
     double? prixParKg,
-    String? description,
-    ProductStatus? status,
+    ProductQuality? qualite,
+    bool? isActive,
   }) async {
     final json = await _api.put<Map<String, dynamic>>(
       ApiEndpoints.coopPublicationById(id),
       body: {
-        if (titre != null) 'titre': titre,
         if (quantiteKg != null) 'quantite_kg': quantiteKg,
         if (prixParKg != null) 'prix_par_kg': prixParKg,
-        if (description != null) 'description': description,
-        if (status != null) 'status': status.apiValue,
+        if (qualite != null) 'qualite': qualite.apiValue,
+        if (isActive != null) 'is_active': isActive,
       },
     );
     return PublicationCoop.fromJson(json);

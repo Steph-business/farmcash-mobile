@@ -11,8 +11,11 @@ import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
 import '../../../theme/app_text_styles.dart';
+import '../../widgets/authentification/bloc_renvoi_otp.dart';
+import '../../widgets/authentification/logo_otp.dart';
 import '../../widgets/authentification/saisie_otp.dart';
 import '../../widgets/authentification/selecteur_langue.dart';
+import '../../widgets/authentification/sous_titre_otp.dart';
 import '../../widgets/communs/bouton_principal.dart';
 import '../../widgets/communs/bouton_secondaire.dart';
 import '../../widgets/communs/snackbars.dart';
@@ -188,28 +191,6 @@ class _OtpPageState extends ConsumerState<OtpPage> {
     }
   }
 
-  String _formatPhoneDisplay(String e164) {
-    // E.164 → "+225 07 12 34 56 78" (groupes de 2 après l'indicatif).
-    final match = RegExp(r'^(\+\d{1,4})(\d+)$').firstMatch(e164);
-    if (match == null) return e164;
-    final dial = match.group(1)!;
-    final rest = match.group(2)!;
-    final buf = StringBuffer(dial);
-    for (int i = 0; i < rest.length; i += 2) {
-      final end = (i + 2).clamp(0, rest.length);
-      buf
-        ..write(' ')
-        ..write(rest.substring(i, end));
-    }
-    return buf.toString();
-  }
-
-  String _formatCountdown(int seconds) {
-    final m = (seconds ~/ 60).toString();
-    final s = (seconds % 60).toString().padLeft(2, '0');
-    return '$m:$s';
-  }
-
   @override
   Widget build(BuildContext context) {
     final canSubmit = _otp.length == 6 && !_loading;
@@ -237,17 +218,11 @@ class _OtpPageState extends ConsumerState<OtpPage> {
                 child: SelecteurLangue(),
               ),
               AppDimens.vGap16,
-              const _Logo(),
+              const LogoOtp(),
               AppDimens.vGap32,
               Text('Vérification', style: AppTextStyles.displaySmall),
               AppDimens.vGap8,
-              Text(
-                'Entre le code à 6 chiffres envoyé au '
-                '${_formatPhoneDisplay(widget.phone)}.',
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
+              SousTitreOtp(phone: widget.phone),
               AppDimens.vGap32,
               SaisieOtp(
                 key: _otpKey,
@@ -258,20 +233,10 @@ class _OtpPageState extends ConsumerState<OtpPage> {
                 },
               ),
               AppDimens.vGap16,
-              Center(
-                child: _secondsLeft > 0
-                    ? Text(
-                        'Renvoyer le code dans ${_formatCountdown(_secondsLeft)}',
-                        style: AppTextStyles.bodyMedium.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                      )
-                    : BoutonSecondaire(
-                        label: _resending
-                            ? 'Envoi en cours…'
-                            : 'Renvoyer le code',
-                        onPressed: _resending ? null : _renvoyer,
-                      ),
+              BlocRenvoiOtp(
+                secondsLeft: _secondsLeft,
+                resending: _resending,
+                onRenvoyer: _renvoyer,
               ),
               if (_error != null) ...[
                 AppDimens.vGap16,
@@ -296,29 +261,6 @@ class _OtpPageState extends ConsumerState<OtpPage> {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _Logo extends StatelessWidget {
-  const _Logo();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Icon(Icons.eco_outlined, size: 28, color: AppColors.primary),
-        const SizedBox(width: 10),
-        Text(
-          'FarmCash',
-          style: AppTextStyles.titleLarge.copyWith(
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.3,
-            fontSize: 20,
-          ),
-        ),
-      ],
     );
   }
 }

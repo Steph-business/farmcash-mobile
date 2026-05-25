@@ -3,8 +3,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 // ─── Pages partagées (Messages & Notifications mutualisées par rôle) ────
+import '../features/pages/_shared/aide_page.dart' as shared_aide;
+import '../features/pages/_shared/conditions_page.dart' as shared_conditions;
+import '../features/pages/_shared/conversation_detail_page.dart';
 import '../features/pages/_shared/messages_page.dart';
 import '../features/pages/_shared/notifications_page.dart';
+import '../features/pages/_shared/parametres/langue_page.dart'
+    as shared_langue;
+import '../features/pages/_shared/parametres/moyens_paiement_page.dart'
+    as shared_moyens_paiement;
+import '../features/pages/_shared/parametres/notifications_preferences_page.dart'
+    as shared_notifs_prefs;
+import '../features/pages/_shared/parametres/securite_page.dart'
+    as shared_securite;
 
 // ─── Pages auth ─────────────────────────────────────────────────────────
 import '../features/pages/authentification/bienvenue_page.dart';
@@ -50,6 +61,7 @@ import '../features/pages/producteur/publications/annonce_detail_page.dart';
 import '../features/pages/producteur/publications/mes_publications_page.dart';
 import '../features/pages/producteur/publications/prevision_detail_page.dart';
 import '../features/pages/producteur/publications/publication_coop_detail_page.dart';
+import '../features/pages/producteur/publier/creer_prevision_page.dart';
 import '../features/pages/producteur/publier/parcelle_creer_page.dart';
 import '../features/pages/producteur/publier/publier_annonce_page.dart';
 import '../features/pages/producteur/sollicitations/sollicitation_repondre_page.dart';
@@ -61,12 +73,14 @@ import '../features/pages/producteur/wallet/wallet_retirer_page.dart';
 // ─── Pages acheteur ─────────────────────────────────────────────────────
 import '../features/pages/acheteur/accueil_page.dart' as ach_accueil;
 import '../features/pages/acheteur/adresses_livraison_page.dart';
+import '../features/pages/acheteur/entreprise/mon_entreprise_page.dart';
 import '../features/pages/acheteur/commande/choisir_transporteur_page.dart';
 import '../features/pages/acheteur/commande/commande_detail_page.dart'
     as ach_cmd_detail;
 import '../features/pages/acheteur/commande/commande_succes_page.dart';
 import '../features/pages/acheteur/commande/evaluation_page.dart';
 import '../features/pages/acheteur/commande/livraison_qr_page.dart';
+import '../features/pages/acheteur/commande/livraison_tracking_page.dart';
 import '../features/pages/acheteur/commande/paiement_commande_page.dart';
 import '../features/pages/acheteur/commandes_page.dart';
 import '../features/pages/acheteur/demandes/mes_demandes_page.dart';
@@ -94,17 +108,21 @@ import '../features/pages/acheteur/wallet/wallet_retirer_page.dart'
 import '../features/pages/cooperative/accueil_page.dart' as coop_accueil;
 import '../features/pages/cooperative/adhesions_page.dart';
 import '../features/pages/cooperative/collecte_page.dart';
+import '../features/pages/cooperative/commission/commission_page.dart';
+import '../features/pages/cooperative/documents_officiels/documents_officiels_page.dart';
 import '../features/pages/cooperative/finance/distribution_confirmation_page.dart';
 import '../features/pages/cooperative/finance/distribution_detail_page.dart';
 import '../features/pages/cooperative/finance/payouts_page.dart';
 import '../features/pages/cooperative/finance/wallet_page.dart'
     as coop_finance_wallet;
+import '../features/pages/cooperative/identite/identite_coop_page.dart';
 import '../features/pages/cooperative/inviter_farmer_page.dart';
 import '../features/pages/cooperative/logistique/collecte_creer_page.dart';
 import '../features/pages/cooperative/logistique/logistique_page.dart';
 import '../features/pages/cooperative/logistique/transport_demande_page.dart';
 import '../features/pages/cooperative/logistique/vehicule_ajouter_page.dart';
 import '../features/pages/cooperative/marche_page.dart';
+import '../features/pages/cooperative/membres/enregistrer_managed_page.dart';
 import '../features/pages/cooperative/membres/membre_detail_page.dart';
 import '../features/pages/cooperative/membres/verser_avance_page.dart';
 import '../features/pages/cooperative/membres_page.dart';
@@ -139,6 +157,7 @@ import '../features/pages/transporteur/profil_page.dart' as trans_profil;
 import '../features/pages/transporteur/profil_settings_page.dart'
     as trans_profil_settings;
 import '../features/pages/transporteur/scanner_page.dart';
+import '../features/pages/transporteur/tarification/tarification_page.dart';
 import '../features/pages/transporteur/vehicule_ajouter_page.dart';
 import '../features/pages/transporteur/vehicule_creer_page.dart';
 import '../features/pages/transporteur/wallet/wallet_page.dart'
@@ -152,6 +171,7 @@ import '../features/state/auth_state.dart';
 import '../features/widgets/communs/barre_navigation.dart';
 import '../features/widgets/communs/bouton_ajout_central.dart';
 import '../features/widgets/communs/shell_layout.dart';
+import '../models/enums.dart';
 import 'route_guards.dart';
 import 'route_names.dart';
 
@@ -179,6 +199,105 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: RouteNames.splashPath,
         name: RouteNames.splash,
         builder: (_, _) => const SplashPage(),
+      ),
+      // ─── Chat conversation détail (partagée par les 4 rôles) ───────
+      // On utilise `pageBuilder` au lieu de `builder` pour fournir une
+      // `MaterialPage` avec une `ValueKey` unique par conversationId.
+      // Sinon Flutter Navigator détecte un duplicate-key (NavigatorState
+      // assertion `!keyReservation.contains(key)`) quand la même route
+      // est repush rapidement (cas du tap rapide depuis Messages →
+      // commande détail → re-tap). `parentNavigatorKey` a été retiré
+      // car il causait justement le conflit avec le rootNavigatorKey
+      // partagé du GoRouter principal.
+      GoRoute(
+        path: RouteNames.chatDetailPath,
+        name: RouteNames.chatDetail,
+        pageBuilder: (context, state) {
+          final id = state.pathParameters['id'] ?? '';
+          return MaterialPage<void>(
+            key: ValueKey('chat-$id'),
+            child: ConversationDetailPage(conversationId: id),
+          );
+        },
+      ),
+      // ─── Pages partagées paramètres / aide / conditions ────────────
+      // Routes top-level non préfixées par rôle (le contenu détecte le
+      // rôle via `currentUserProvider` quand nécessaire). Le fallback du
+      // bouton retour pointe sur la racine du rôle courant — calculé à
+      // la volée depuis `authStateProvider`.
+      GoRoute(
+        path: RouteNames.languePath,
+        name: RouteNames.langue,
+        builder: (context, _) => shared_langue.LanguePage(
+          fallbackPath: _homePathPourRoleCourant(context),
+        ),
+      ),
+      GoRoute(
+        path: RouteNames.securitePath,
+        name: RouteNames.securite,
+        builder: (context, _) => shared_securite.SecuritePage(
+          fallbackPath: _homePathPourRoleCourant(context),
+        ),
+      ),
+      GoRoute(
+        path: RouteNames.notificationsPreferencesPath,
+        name: RouteNames.notificationsPreferences,
+        builder: (context, _) =>
+            shared_notifs_prefs.NotificationsPreferencesPage(
+          fallbackPath: _homePathPourRoleCourant(context),
+        ),
+      ),
+      GoRoute(
+        path: RouteNames.aidePath,
+        name: RouteNames.aide,
+        builder: (context, _) => shared_aide.AidePartageePage(
+          fallbackPath: _homePathPourRoleCourant(context),
+        ),
+      ),
+      GoRoute(
+        path: RouteNames.conditionsPath,
+        name: RouteNames.conditions,
+        builder: (context, _) => shared_conditions.ConditionsPage(
+          fallbackPath: _homePathPourRoleCourant(context),
+        ),
+      ),
+      GoRoute(
+        path: RouteNames.moyensPaiementPath,
+        name: RouteNames.moyensPaiement,
+        builder: (context, _) => shared_moyens_paiement.MoyensPaiementPage(
+          fallbackPath: _homePathPourRoleCourant(context),
+        ),
+      ),
+
+      // ─── Pages métier acheteur (push hors shell, ajoutées récemment) ──
+      GoRoute(
+        path: RouteNames.acheteurMonEntreprisePath,
+        name: RouteNames.acheteurMonEntreprise,
+        builder: (_, _) => const MonEntrepriseAcheteurPage(),
+      ),
+
+      // ─── Pages métier coopérative (push hors shell, ajoutées récemment) ─
+      GoRoute(
+        path: RouteNames.cooperativeIdentitePath,
+        name: RouteNames.cooperativeIdentite,
+        builder: (_, _) => const IdentiteCoopPage(),
+      ),
+      GoRoute(
+        path: RouteNames.cooperativeCommissionPath,
+        name: RouteNames.cooperativeCommission,
+        builder: (_, _) => const CommissionCoopPage(),
+      ),
+      GoRoute(
+        path: RouteNames.cooperativeDocumentsOfficielsPath,
+        name: RouteNames.cooperativeDocumentsOfficiels,
+        builder: (_, _) => const DocumentsOfficielsCoopPage(),
+      ),
+
+      // ─── Pages métier transporteur (push hors shell, ajoutées récemment) ─
+      GoRoute(
+        path: RouteNames.transporteurTarificationPath,
+        name: RouteNames.transporteurTarification,
+        builder: (_, _) => const TarificationTransporteurPage(),
       ),
       GoRoute(
         path: RouteNames.bienvenuePath,
@@ -428,6 +547,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
+        path: RouteNames.acheteurLivraisonTrackingPath,
+        name: RouteNames.acheteurLivraisonTracking,
+        builder: (_, state) => LivraisonTrackingPage(
+          commandeId: state.pathParameters['id'] ?? '',
+        ),
+      ),
+      GoRoute(
         path: RouteNames.acheteurCommandeEvaluationPath,
         name: RouteNames.acheteurCommandeEvaluation,
         builder: (_, state) => EvaluationTransportPage(
@@ -549,6 +675,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const InviterFarmerPage(),
       ),
 
+      // ─── Coopérative — Enregistrer un farmer géré (sans téléphone) ─
+      GoRoute(
+        path: RouteNames.cooperativeMembreEnregistrerPath,
+        name: RouteNames.cooperativeMembreEnregistrer,
+        builder: (_, _) => const EnregistrerManagedPage(),
+      ),
+
       // ─── Coopérative — Finance (wallet, payouts, avances) ──────────
       GoRoute(
         path: RouteNames.cooperativeWalletPath,
@@ -656,6 +789,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: RouteNames.producteurCreerParcellePath,
         name: RouteNames.producteurCreerParcelle,
         builder: (_, _) => const ParcelleCreerPage(),
+      ),
+      GoRoute(
+        // Créer une prévision de récolte. Le retour `pop(true)` signale
+        // un succès à la page liste qui doit refresh son provider.
+        path: RouteNames.producteurCreerPrevisionPath,
+        name: RouteNames.producteurCreerPrevision,
+        builder: (_, _) => const CreerPrevisionPage(),
       ),
       GoRoute(
         path: RouteNames.producteurMesParcellesPath,
@@ -1101,7 +1241,9 @@ void _menuProducteur(BuildContext context) {
         icon: Icons.calendar_today_outlined,
         label: 'Prévision de récolte',
         subtitle: 'Annoncer une récolte à venir',
-        onTap: () => _stubAction(context, 'Prévision'),
+        // Push vers la vraie page CreerPrevisionPage (route ajoutée dans
+        // une PR précédente). Le toast "à venir" trompait les producteurs.
+        onTap: () => context.push(RouteNames.producteurCreerPrevisionPath),
       ),
     ],
   );
@@ -1135,6 +1277,27 @@ void _stubAction(BuildContext context, String label) {
       duration: const Duration(seconds: 2),
     ),
   );
+}
+
+/// Retourne le chemin d'accueil du rôle de l'utilisateur courant. Utilisé
+/// comme fallback du bouton retour des pages partagées (paramètres, aide,
+/// conditions) quand la pile de navigation est vide (deep link direct).
+/// Fallback ultime : la page bienvenue.
+String _homePathPourRoleCourant(BuildContext context) {
+  final container = ProviderScope.containerOf(context, listen: false);
+  final role = container.read(authStateProvider).user?.role;
+  switch (role) {
+    case UserRole.farmer:
+      return RouteNames.accueilProducteurPath;
+    case UserRole.buyer:
+      return RouteNames.accueilAcheteurPath;
+    case UserRole.cooperative:
+      return RouteNames.accueilCooperativePath;
+    case UserRole.transporter:
+      return RouteNames.accueilTransporteurPath;
+    default:
+      return RouteNames.bienvenuePath;
+  }
 }
 
 /// Listenable interne qui déclenche un re-redirect quand l'auth change.

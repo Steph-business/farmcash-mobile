@@ -29,6 +29,16 @@ mixin _$MembreCoop {
   CoopMemberRole get role => throw _privateConstructorUsedError;
   DateTime? get joinedAt => throw _privateConstructorUsedError;
 
+  /// Téléphone du membre (plat) — null pour les farmers gérés.
+  /// Si présent, on privilégie `user?.phone` ; sinon on fallback ici.
+  @JsonKey(name: 'phone')
+  String? get phoneFlat => throw _privateConstructorUsedError;
+
+  /// Id de la coopérative qui gère ce farmer s'il n'a pas de téléphone.
+  /// Null = farmer autonome.
+  @JsonKey(name: 'managed_by_coop_id')
+  String? get managedByCoopId => throw _privateConstructorUsedError;
+
   /// Serializes this MembreCoop to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
@@ -53,6 +63,8 @@ abstract class $MembreCoopCopyWith<$Res> {
     Utilisateur? user,
     @JsonKey(unknownEnumValue: CoopMemberRole.unknown) CoopMemberRole role,
     DateTime? joinedAt,
+    @JsonKey(name: 'phone') String? phoneFlat,
+    @JsonKey(name: 'managed_by_coop_id') String? managedByCoopId,
   });
 
   $UtilisateurCopyWith<$Res>? get user;
@@ -79,6 +91,8 @@ class _$MembreCoopCopyWithImpl<$Res, $Val extends MembreCoop>
     Object? user = freezed,
     Object? role = null,
     Object? joinedAt = freezed,
+    Object? phoneFlat = freezed,
+    Object? managedByCoopId = freezed,
   }) {
     return _then(
       _value.copyWith(
@@ -106,6 +120,14 @@ class _$MembreCoopCopyWithImpl<$Res, $Val extends MembreCoop>
                 ? _value.joinedAt
                 : joinedAt // ignore: cast_nullable_to_non_nullable
                       as DateTime?,
+            phoneFlat: freezed == phoneFlat
+                ? _value.phoneFlat
+                : phoneFlat // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            managedByCoopId: freezed == managedByCoopId
+                ? _value.managedByCoopId
+                : managedByCoopId // ignore: cast_nullable_to_non_nullable
+                      as String?,
           )
           as $Val,
     );
@@ -142,6 +164,8 @@ abstract class _$$MembreCoopImplCopyWith<$Res>
     Utilisateur? user,
     @JsonKey(unknownEnumValue: CoopMemberRole.unknown) CoopMemberRole role,
     DateTime? joinedAt,
+    @JsonKey(name: 'phone') String? phoneFlat,
+    @JsonKey(name: 'managed_by_coop_id') String? managedByCoopId,
   });
 
   @override
@@ -168,6 +192,8 @@ class __$$MembreCoopImplCopyWithImpl<$Res>
     Object? user = freezed,
     Object? role = null,
     Object? joinedAt = freezed,
+    Object? phoneFlat = freezed,
+    Object? managedByCoopId = freezed,
   }) {
     return _then(
       _$MembreCoopImpl(
@@ -195,6 +221,14 @@ class __$$MembreCoopImplCopyWithImpl<$Res>
             ? _value.joinedAt
             : joinedAt // ignore: cast_nullable_to_non_nullable
                   as DateTime?,
+        phoneFlat: freezed == phoneFlat
+            ? _value.phoneFlat
+            : phoneFlat // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        managedByCoopId: freezed == managedByCoopId
+            ? _value.managedByCoopId
+            : managedByCoopId // ignore: cast_nullable_to_non_nullable
+                  as String?,
       ),
     );
   }
@@ -211,6 +245,8 @@ class _$MembreCoopImpl extends _MembreCoop {
     @JsonKey(unknownEnumValue: CoopMemberRole.unknown)
     this.role = CoopMemberRole.membre,
     this.joinedAt,
+    @JsonKey(name: 'phone') this.phoneFlat,
+    @JsonKey(name: 'managed_by_coop_id') this.managedByCoopId,
   }) : super._();
 
   factory _$MembreCoopImpl.fromJson(Map<String, dynamic> json) =>
@@ -230,9 +266,21 @@ class _$MembreCoopImpl extends _MembreCoop {
   @override
   final DateTime? joinedAt;
 
+  /// Téléphone du membre (plat) — null pour les farmers gérés.
+  /// Si présent, on privilégie `user?.phone` ; sinon on fallback ici.
+  @override
+  @JsonKey(name: 'phone')
+  final String? phoneFlat;
+
+  /// Id de la coopérative qui gère ce farmer s'il n'a pas de téléphone.
+  /// Null = farmer autonome.
+  @override
+  @JsonKey(name: 'managed_by_coop_id')
+  final String? managedByCoopId;
+
   @override
   String toString() {
-    return 'MembreCoop(id: $id, cooperativeId: $cooperativeId, userId: $userId, user: $user, role: $role, joinedAt: $joinedAt)';
+    return 'MembreCoop(id: $id, cooperativeId: $cooperativeId, userId: $userId, user: $user, role: $role, joinedAt: $joinedAt, phoneFlat: $phoneFlat, managedByCoopId: $managedByCoopId)';
   }
 
   @override
@@ -247,13 +295,26 @@ class _$MembreCoopImpl extends _MembreCoop {
             (identical(other.user, user) || other.user == user) &&
             (identical(other.role, role) || other.role == role) &&
             (identical(other.joinedAt, joinedAt) ||
-                other.joinedAt == joinedAt));
+                other.joinedAt == joinedAt) &&
+            (identical(other.phoneFlat, phoneFlat) ||
+                other.phoneFlat == phoneFlat) &&
+            (identical(other.managedByCoopId, managedByCoopId) ||
+                other.managedByCoopId == managedByCoopId));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, id, cooperativeId, userId, user, role, joinedAt);
+  int get hashCode => Object.hash(
+    runtimeType,
+    id,
+    cooperativeId,
+    userId,
+    user,
+    role,
+    joinedAt,
+    phoneFlat,
+    managedByCoopId,
+  );
 
   /// Create a copy of MembreCoop
   /// with the given fields replaced by the non-null parameter values.
@@ -278,6 +339,8 @@ abstract class _MembreCoop extends MembreCoop {
     @JsonKey(unknownEnumValue: CoopMemberRole.unknown)
     final CoopMemberRole role,
     final DateTime? joinedAt,
+    @JsonKey(name: 'phone') final String? phoneFlat,
+    @JsonKey(name: 'managed_by_coop_id') final String? managedByCoopId,
   }) = _$MembreCoopImpl;
   const _MembreCoop._() : super._();
 
@@ -297,6 +360,18 @@ abstract class _MembreCoop extends MembreCoop {
   CoopMemberRole get role;
   @override
   DateTime? get joinedAt;
+
+  /// Téléphone du membre (plat) — null pour les farmers gérés.
+  /// Si présent, on privilégie `user?.phone` ; sinon on fallback ici.
+  @override
+  @JsonKey(name: 'phone')
+  String? get phoneFlat;
+
+  /// Id de la coopérative qui gère ce farmer s'il n'a pas de téléphone.
+  /// Null = farmer autonome.
+  @override
+  @JsonKey(name: 'managed_by_coop_id')
+  String? get managedByCoopId;
 
   /// Create a copy of MembreCoop
   /// with the given fields replaced by the non-null parameter values.

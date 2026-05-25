@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -14,8 +13,14 @@ import '../../storage/secure_storage.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
 import '../../../theme/app_text_styles.dart';
+import '../../widgets/authentification/cgu_checkbox.dart';
 import '../../widgets/authentification/champ_telephone.dart';
-import '../../widgets/authentification/selecteur_coop.dart';
+import '../../widgets/authentification/champs_inscription_buyer.dart';
+import '../../widgets/authentification/champs_inscription_cooperative.dart';
+import '../../widgets/authentification/champs_inscription_farmer.dart';
+import '../../widgets/authentification/champs_inscription_transporter.dart';
+import '../../widgets/authentification/label_champ_inscription.dart';
+import '../../widgets/authentification/logo_farmcash.dart';
 import '../../widgets/authentification/selecteur_langue.dart';
 import '../../widgets/communs/bouton_principal.dart';
 import '../../widgets/communs/bouton_secondaire.dart';
@@ -85,26 +90,6 @@ class _InscriptionPageState extends ConsumerState<InscriptionPage> {
   /// fois le PIN défini (et donc un JWT valide disponible).
   static const _kPendingProfileKey = 'fc_pending_role_profile';
 
-  static const _regions = <String>[
-    'Centre',
-    'Nord',
-    'Sud',
-    'Est',
-    'Ouest',
-    'Lagunes',
-    'Vallée du Bandama',
-    'Montagnes',
-    'Lacs',
-    'Zanzan',
-    'Bas-Sassandra',
-    'Comoé',
-    'Sassandra-Marahoué',
-    'Savanes',
-    'Woroba',
-    'Yamoussoukro',
-    'Abidjan',
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -157,17 +142,6 @@ class _InscriptionPageState extends ConsumerState<InscriptionPage> {
     _transporterEntrepriseCtrl.dispose();
     super.dispose();
   }
-
-  /// Types de véhicule du DTO backend `ProfilTransporteurDto.TypeVehicule`.
-  static const _typesVehicule = <_TypeVehiculeOption>[
-    _TypeVehiculeOption(apiValue: 'MOTO', label: 'Moto'),
-    _TypeVehiculeOption(apiValue: 'TRICYCLE', label: 'Tricycle'),
-    _TypeVehiculeOption(apiValue: 'PICKUP', label: 'Pickup'),
-    _TypeVehiculeOption(apiValue: 'FOURGON', label: 'Fourgon'),
-    _TypeVehiculeOption(apiValue: 'CAMION', label: 'Camion'),
-    _TypeVehiculeOption(apiValue: 'CAMION_FRIGO', label: 'Camion frigorifique'),
-    _TypeVehiculeOption(apiValue: 'REMORQUE', label: 'Remorque'),
-  ];
 
   void _onAnyChange() {
     if (!mounted) return;
@@ -432,7 +406,7 @@ class _InscriptionPageState extends ConsumerState<InscriptionPage> {
             child: SelecteurLangue(),
           ),
           AppDimens.vGap24,
-          const _Logo(),
+          const LogoFarmcash(),
           AppDimens.vGap32,
           Text('Créer un compte', style: AppTextStyles.displaySmall),
           AppDimens.vGap8,
@@ -472,7 +446,7 @@ class _InscriptionPageState extends ConsumerState<InscriptionPage> {
             child: SelecteurLangue(),
           ),
           AppDimens.vGap16,
-          const _Logo(),
+          const LogoFarmcash(),
           AppDimens.vGap32,
           Text('Créer un compte', style: AppTextStyles.displaySmall),
           AppDimens.vGap8,
@@ -485,7 +459,7 @@ class _InscriptionPageState extends ConsumerState<InscriptionPage> {
           AppDimens.vGap24,
 
           // ── Champs communs ───────────────────────────────────────────
-          _LabelChamp(
+          LabelChampInscription(
             label: 'Nom complet',
             child: TextField(
               controller: _fullNameCtrl,
@@ -496,7 +470,7 @@ class _InscriptionPageState extends ConsumerState<InscriptionPage> {
             ),
           ),
           AppDimens.vGap16,
-          _LabelChamp(
+          LabelChampInscription(
             label: 'Email (optionnel)',
             child: TextField(
               controller: _emailCtrl,
@@ -528,11 +502,11 @@ class _InscriptionPageState extends ConsumerState<InscriptionPage> {
             color: AppColors.border,
           ),
           AppDimens.vGap16,
-          ..._champsParRole(role),
+          _champsParRole(role),
 
           // ── CGU ──────────────────────────────────────────────────────
           AppDimens.vGap24,
-          _CguCheckbox(
+          CguCheckbox(
             value: _accepteCgu,
             enabled: !_loading,
             onChanged: (v) => setState(() => _accepteCgu = v),
@@ -565,387 +539,58 @@ class _InscriptionPageState extends ConsumerState<InscriptionPage> {
     );
   }
 
-  List<Widget> _champsParRole(UserRole role) {
+  Widget _champsParRole(UserRole role) {
     switch (role) {
       case UserRole.farmer:
-        return [
-          _LabelChamp(
-            label: 'Région',
-            child: _dropdownRegions(
-              value: _farmerRegion,
-              onChanged: (v) => setState(() => _farmerRegion = v),
-            ),
-          ),
-          AppDimens.vGap16,
-          _LabelChamp(
-            label: 'Superficie cultivée (hectares)',
-            child: TextField(
-              controller: _farmerSuperficieCtrl,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              inputFormatters: _decimalFormatters,
-              enabled: !_loading,
-              decoration: const InputDecoration(hintText: 'Ex : 5'),
-            ),
-          ),
-          AppDimens.vGap16,
-          _LabelChamp(
-            label: 'Années d\'expérience (optionnel)',
-            child: TextField(
-              controller: _farmerExpCtrl,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              enabled: !_loading,
-              decoration: const InputDecoration(hintText: 'Ex : 10'),
-            ),
-          ),
-          AppDimens.vGap16,
-          _LabelChamp(
-            label: 'Cultures principales (optionnel)',
-            child: TextField(
-              controller: _farmerCulturesCtrl,
-              enabled: !_loading,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                hintText: 'Ex : Maïs, manioc, riz',
-              ),
-            ),
-          ),
-          AppDimens.vGap16,
-          SelecteurCoop(
-            selectedCoopId: _farmerCoop?.id,
-            enabled: !_loading,
-            onSelected: (coop) => setState(() => _farmerCoop = coop),
-          ),
-        ];
+        return ChampsInscriptionFarmer(
+          regionValue: _farmerRegion,
+          onRegionChanged: (v) => setState(() => _farmerRegion = v),
+          superficieCtrl: _farmerSuperficieCtrl,
+          expCtrl: _farmerExpCtrl,
+          culturesCtrl: _farmerCulturesCtrl,
+          selectedCoop: _farmerCoop,
+          onCoopSelected: (coop) => setState(() => _farmerCoop = coop),
+          loading: _loading,
+        );
       case UserRole.buyer:
-        return [
-          _LabelChamp(
-            label: 'Nom de l\'entreprise (optionnel)',
-            child: TextField(
-              controller: _buyerCompanyCtrl,
-              textCapitalization: TextCapitalization.words,
-              enabled: !_loading,
-              decoration: const InputDecoration(hintText: 'Ex : Agro SARL'),
-            ),
-          ),
-          AppDimens.vGap16,
-          _LabelChamp(
-            label: 'Numéro RCCM (optionnel)',
-            child: TextField(
-              controller: _buyerRccmCtrl,
-              enabled: !_loading,
-              decoration:
-                  const InputDecoration(hintText: 'Ex : CI-ABJ-2024-B-1234'),
-            ),
-          ),
-          AppDimens.vGap16,
-          _LabelChamp(
-            label: 'Capacité d\'achat (kg/mois) (optionnel)',
-            child: TextField(
-              controller: _buyerCapaciteCtrl,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              inputFormatters: _decimalFormatters,
-              enabled: !_loading,
-              decoration: const InputDecoration(hintText: 'Ex : 2000'),
-            ),
-          ),
-          AppDimens.vGap16,
-          _LabelChamp(
-            label: 'Zones d\'achat (optionnel)',
-            child: TextField(
-              controller: _buyerZonesCtrl,
-              enabled: !_loading,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                hintText: 'Ex : Abidjan, Bouaké',
-              ),
-            ),
-          ),
-        ];
+        return ChampsInscriptionBuyer(
+          companyCtrl: _buyerCompanyCtrl,
+          rccmCtrl: _buyerRccmCtrl,
+          capaciteCtrl: _buyerCapaciteCtrl,
+          zonesCtrl: _buyerZonesCtrl,
+          loading: _loading,
+        );
       case UserRole.cooperative:
-        return [
-          _LabelChamp(
-            label: 'Nom de la coopérative',
-            child: TextField(
-              controller: _coopNomCtrl,
-              textCapitalization: TextCapitalization.words,
-              enabled: !_loading,
-              decoration:
-                  const InputDecoration(hintText: 'Ex : Coop Yamoussoukro'),
-            ),
-          ),
-          AppDimens.vGap16,
-          _LabelChamp(
-            label: 'Numéro d\'agrément',
-            child: TextField(
-              controller: _coopAgrementCtrl,
-              enabled: !_loading,
-              decoration:
-                  const InputDecoration(hintText: 'Ex : MINADER-2023-001'),
-            ),
-          ),
-          AppDimens.vGap16,
-          _LabelChamp(
-            label: 'Région',
-            child: _dropdownRegions(
-              value: _coopRegion,
-              onChanged: (v) => setState(() => _coopRegion = v),
-            ),
-          ),
-          AppDimens.vGap16,
-          _LabelChamp(
-            label: 'Ville',
-            child: TextField(
-              controller: _coopVilleCtrl,
-              textCapitalization: TextCapitalization.words,
-              enabled: !_loading,
-              decoration:
-                  const InputDecoration(hintText: 'Ex : Yamoussoukro'),
-            ),
-          ),
-          AppDimens.vGap16,
-          _LabelChamp(
-            label: 'Nombre de membres (optionnel)',
-            child: TextField(
-              controller: _coopMembresCtrl,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              enabled: !_loading,
-              decoration: const InputDecoration(hintText: 'Ex : 150'),
-            ),
-          ),
-        ];
+        return ChampsInscriptionCooperative(
+          nomCtrl: _coopNomCtrl,
+          agrementCtrl: _coopAgrementCtrl,
+          regionValue: _coopRegion,
+          onRegionChanged: (v) => setState(() => _coopRegion = v),
+          villeCtrl: _coopVilleCtrl,
+          membresCtrl: _coopMembresCtrl,
+          loading: _loading,
+        );
       case UserRole.transporter:
-        return [
-          _LabelChamp(
-            label: 'Numéro de permis',
-            child: TextField(
-              controller: _transporterPermisCtrl,
-              enabled: !_loading,
-              decoration: const InputDecoration(
-                hintText: 'Ex : CI-PERM-2020-456789',
-              ),
-            ),
-          ),
-          AppDimens.vGap16,
-          _LabelChamp(
-            label: 'Immatriculation',
-            child: TextField(
-              controller: _transporterImmatCtrl,
-              enabled: !_loading,
-              textCapitalization: TextCapitalization.characters,
-              decoration: const InputDecoration(hintText: 'Ex : 4567 AB 01'),
-            ),
-          ),
-          AppDimens.vGap16,
-          _LabelChamp(
-            label: 'Type de véhicule',
-            child: DropdownButtonFormField<String>(
-              initialValue: _transporterTypeVehicule,
-              isExpanded: true,
-              icon: const Icon(
-                Icons.keyboard_arrow_down,
-                color: AppColors.textSecondary,
-              ),
-              hint: Text(
-                'Sélectionner un type',
-                style: AppTextStyles.hint,
-              ),
-              items: _typesVehicule
-                  .map(
-                    (t) => DropdownMenuItem<String>(
-                      value: t.apiValue,
-                      child: Text(t.label, style: AppTextStyles.bodyMedium),
-                    ),
-                  )
-                  .toList(),
-              onChanged: _loading
-                  ? null
-                  : (v) => setState(() => _transporterTypeVehicule = v),
-            ),
-          ),
-          AppDimens.vGap16,
-          _LabelChamp(
-            label: 'Capacité maximale (kg)',
-            child: TextField(
-              controller: _transporterCapaciteCtrl,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              inputFormatters: _decimalFormatters,
-              enabled: !_loading,
-              decoration: const InputDecoration(hintText: 'Ex : 3000'),
-            ),
-          ),
-          AppDimens.vGap16,
-          _LabelChamp(
-            label: 'Marque et modèle (optionnel)',
-            child: TextField(
-              controller: _transporterMarqueCtrl,
-              enabled: !_loading,
-              textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(
-                hintText: 'Ex : Isuzu N-Series 2020',
-              ),
-            ),
-          ),
-          AppDimens.vGap16,
-          _LabelChamp(
-            label: 'Nom d\'entreprise (optionnel)',
-            child: TextField(
-              controller: _transporterEntrepriseCtrl,
-              enabled: !_loading,
-              textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(
-                hintText: 'Ex : Transport Yao Express',
-              ),
-            ),
-          ),
-        ];
+        return ChampsInscriptionTransporter(
+          permisCtrl: _transporterPermisCtrl,
+          immatCtrl: _transporterImmatCtrl,
+          typeVehiculeValue: _transporterTypeVehicule,
+          onTypeVehiculeChanged: (v) =>
+              setState(() => _transporterTypeVehicule = v),
+          capaciteCtrl: _transporterCapaciteCtrl,
+          marqueCtrl: _transporterMarqueCtrl,
+          entrepriseCtrl: _transporterEntrepriseCtrl,
+          loading: _loading,
+        );
       case UserRole.exporter:
       case UserRole.admin:
       case UserRole.unknown:
-        return [
-          Text(
-            'Ce rôle n\'est pas disponible à l\'inscription.',
-            style: AppTextStyles.bodyMedium.copyWith(
-              color: AppColors.textSecondary,
-            ),
+        return Text(
+          'Ce rôle n\'est pas disponible à l\'inscription.',
+          style: AppTextStyles.bodyMedium.copyWith(
+            color: AppColors.textSecondary,
           ),
-        ];
+        );
     }
-  }
-
-  Widget _dropdownRegions({
-    required String? value,
-    required ValueChanged<String?> onChanged,
-  }) {
-    return DropdownButtonFormField<String>(
-      initialValue: value,
-      isExpanded: true,
-      icon: const Icon(
-        Icons.keyboard_arrow_down,
-        color: AppColors.textSecondary,
-      ),
-      hint: Text(
-        'Sélectionner une région',
-        style: AppTextStyles.hint,
-      ),
-      items: _regions
-          .map(
-            (r) => DropdownMenuItem<String>(
-              value: r,
-              child: Text(r, style: AppTextStyles.bodyMedium),
-            ),
-          )
-          .toList(),
-      onChanged: _loading ? null : onChanged,
-    );
-  }
-
-  static final List<TextInputFormatter> _decimalFormatters = [
-    FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-  ];
-}
-
-/// Option de la liste déroulante des types de véhicule.
-/// `apiValue` est la valeur exacte attendue par l'enum backend
-/// `ProfilTransporteurDto.TypeVehicule`.
-class _TypeVehiculeOption {
-  const _TypeVehiculeOption({required this.apiValue, required this.label});
-
-  final String apiValue;
-  final String label;
-}
-
-/// Wrapper "label au-dessus + champ" — uniformise la composition des inputs.
-class _LabelChamp extends StatelessWidget {
-  const _LabelChamp({required this.label, required this.child});
-
-  final String label;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: AppTextStyles.labelMedium),
-        AppDimens.vGap8,
-        child,
-      ],
-    );
-  }
-}
-
-class _CguCheckbox extends StatelessWidget {
-  const _CguCheckbox({
-    required this.value,
-    required this.onChanged,
-    this.enabled = true,
-  });
-
-  final bool value;
-  final bool enabled;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: enabled ? () => onChanged(!value) : null,
-      borderRadius: BorderRadius.circular(AppDimens.radiusS),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            SizedBox(
-              width: 22,
-              height: 22,
-              child: Checkbox(
-                value: value,
-                onChanged: enabled ? (v) => onChanged(v ?? false) : null,
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                visualDensity: VisualDensity.compact,
-              ),
-            ),
-            AppDimens.hGap12,
-            Expanded(
-              child: Text(
-                'J\'accepte les Conditions d\'utilisation.',
-                style: AppTextStyles.bodyMedium,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Logo extends StatelessWidget {
-  const _Logo();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Icon(Icons.eco_outlined, size: 28, color: AppColors.primary),
-        const SizedBox(width: 10),
-        Text(
-          'FarmCash',
-          style: AppTextStyles.titleLarge.copyWith(
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.3,
-            fontSize: 20,
-          ),
-        ),
-      ],
-    );
   }
 }

@@ -45,7 +45,19 @@ mixin _$Commande {
   String? get livraisonAdresse => throw _privateConstructorUsedError;
   DateTime? get livraisonDate => throw _privateConstructorUsedError;
   DateTime? get createdAt => throw _privateConstructorUsedError;
-  DateTime? get updatedAt => throw _privateConstructorUsedError;
+  DateTime? get updatedAt =>
+      throw _privateConstructorUsedError; // ─── Champs joints (depuis getOrderById backend) ──────────────────
+  // Le backend renvoie le buyer/seller via `include:` Prisma. On les
+  // aplatit ici en fields plats lisibles directement par l'UI. `null`
+  // si la jointure n'a pas été demandée (ex. ancien endpoint list).
+  @JsonKey(readValue: _readBuyerName)
+  String? get buyerName => throw _privateConstructorUsedError;
+  @JsonKey(readValue: _readBuyerPhoto)
+  String? get buyerPhotoUrl => throw _privateConstructorUsedError;
+  @JsonKey(readValue: _readSellerName)
+  String? get sellerName => throw _privateConstructorUsedError;
+  @JsonKey(readValue: _readSellerPhoto)
+  String? get sellerPhotoUrl => throw _privateConstructorUsedError;
 
   /// Serializes this Commande to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -80,6 +92,10 @@ abstract class $CommandeCopyWith<$Res> {
     DateTime? livraisonDate,
     DateTime? createdAt,
     DateTime? updatedAt,
+    @JsonKey(readValue: _readBuyerName) String? buyerName,
+    @JsonKey(readValue: _readBuyerPhoto) String? buyerPhotoUrl,
+    @JsonKey(readValue: _readSellerName) String? sellerName,
+    @JsonKey(readValue: _readSellerPhoto) String? sellerPhotoUrl,
   });
 }
 
@@ -114,6 +130,10 @@ class _$CommandeCopyWithImpl<$Res, $Val extends Commande>
     Object? livraisonDate = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
+    Object? buyerName = freezed,
+    Object? buyerPhotoUrl = freezed,
+    Object? sellerName = freezed,
+    Object? sellerPhotoUrl = freezed,
   }) {
     return _then(
       _value.copyWith(
@@ -181,6 +201,22 @@ class _$CommandeCopyWithImpl<$Res, $Val extends Commande>
                 ? _value.updatedAt
                 : updatedAt // ignore: cast_nullable_to_non_nullable
                       as DateTime?,
+            buyerName: freezed == buyerName
+                ? _value.buyerName
+                : buyerName // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            buyerPhotoUrl: freezed == buyerPhotoUrl
+                ? _value.buyerPhotoUrl
+                : buyerPhotoUrl // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            sellerName: freezed == sellerName
+                ? _value.sellerName
+                : sellerName // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            sellerPhotoUrl: freezed == sellerPhotoUrl
+                ? _value.sellerPhotoUrl
+                : sellerPhotoUrl // ignore: cast_nullable_to_non_nullable
+                      as String?,
           )
           as $Val,
     );
@@ -214,6 +250,10 @@ abstract class _$$CommandeImplCopyWith<$Res>
     DateTime? livraisonDate,
     DateTime? createdAt,
     DateTime? updatedAt,
+    @JsonKey(readValue: _readBuyerName) String? buyerName,
+    @JsonKey(readValue: _readBuyerPhoto) String? buyerPhotoUrl,
+    @JsonKey(readValue: _readSellerName) String? sellerName,
+    @JsonKey(readValue: _readSellerPhoto) String? sellerPhotoUrl,
   });
 }
 
@@ -247,6 +287,10 @@ class __$$CommandeImplCopyWithImpl<$Res>
     Object? livraisonDate = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
+    Object? buyerName = freezed,
+    Object? buyerPhotoUrl = freezed,
+    Object? sellerName = freezed,
+    Object? sellerPhotoUrl = freezed,
   }) {
     return _then(
       _$CommandeImpl(
@@ -314,6 +358,22 @@ class __$$CommandeImplCopyWithImpl<$Res>
             ? _value.updatedAt
             : updatedAt // ignore: cast_nullable_to_non_nullable
                   as DateTime?,
+        buyerName: freezed == buyerName
+            ? _value.buyerName
+            : buyerName // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        buyerPhotoUrl: freezed == buyerPhotoUrl
+            ? _value.buyerPhotoUrl
+            : buyerPhotoUrl // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        sellerName: freezed == sellerName
+            ? _value.sellerName
+            : sellerName // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        sellerPhotoUrl: freezed == sellerPhotoUrl
+            ? _value.sellerPhotoUrl
+            : sellerPhotoUrl // ignore: cast_nullable_to_non_nullable
+                  as String?,
       ),
     );
   }
@@ -340,6 +400,10 @@ class _$CommandeImpl implements _Commande {
     this.livraisonDate,
     this.createdAt,
     this.updatedAt,
+    @JsonKey(readValue: _readBuyerName) this.buyerName,
+    @JsonKey(readValue: _readBuyerPhoto) this.buyerPhotoUrl,
+    @JsonKey(readValue: _readSellerName) this.sellerName,
+    @JsonKey(readValue: _readSellerPhoto) this.sellerPhotoUrl,
   });
 
   factory _$CommandeImpl.fromJson(Map<String, dynamic> json) =>
@@ -388,10 +452,26 @@ class _$CommandeImpl implements _Commande {
   final DateTime? createdAt;
   @override
   final DateTime? updatedAt;
+  // ─── Champs joints (depuis getOrderById backend) ──────────────────
+  // Le backend renvoie le buyer/seller via `include:` Prisma. On les
+  // aplatit ici en fields plats lisibles directement par l'UI. `null`
+  // si la jointure n'a pas été demandée (ex. ancien endpoint list).
+  @override
+  @JsonKey(readValue: _readBuyerName)
+  final String? buyerName;
+  @override
+  @JsonKey(readValue: _readBuyerPhoto)
+  final String? buyerPhotoUrl;
+  @override
+  @JsonKey(readValue: _readSellerName)
+  final String? sellerName;
+  @override
+  @JsonKey(readValue: _readSellerPhoto)
+  final String? sellerPhotoUrl;
 
   @override
   String toString() {
-    return 'Commande(id: $id, reference: $reference, buyerId: $buyerId, sellerId: $sellerId, annonceId: $annonceId, lotId: $lotId, quantiteKg: $quantiteKg, prixUnitaireKg: $prixUnitaireKg, montantTotal: $montantTotal, status: $status, paymentProvider: $paymentProvider, escrowReleased: $escrowReleased, livraisonAdresse: $livraisonAdresse, livraisonDate: $livraisonDate, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'Commande(id: $id, reference: $reference, buyerId: $buyerId, sellerId: $sellerId, annonceId: $annonceId, lotId: $lotId, quantiteKg: $quantiteKg, prixUnitaireKg: $prixUnitaireKg, montantTotal: $montantTotal, status: $status, paymentProvider: $paymentProvider, escrowReleased: $escrowReleased, livraisonAdresse: $livraisonAdresse, livraisonDate: $livraisonDate, createdAt: $createdAt, updatedAt: $updatedAt, buyerName: $buyerName, buyerPhotoUrl: $buyerPhotoUrl, sellerName: $sellerName, sellerPhotoUrl: $sellerPhotoUrl)';
   }
 
   @override
@@ -426,12 +506,20 @@ class _$CommandeImpl implements _Commande {
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
-                other.updatedAt == updatedAt));
+                other.updatedAt == updatedAt) &&
+            (identical(other.buyerName, buyerName) ||
+                other.buyerName == buyerName) &&
+            (identical(other.buyerPhotoUrl, buyerPhotoUrl) ||
+                other.buyerPhotoUrl == buyerPhotoUrl) &&
+            (identical(other.sellerName, sellerName) ||
+                other.sellerName == sellerName) &&
+            (identical(other.sellerPhotoUrl, sellerPhotoUrl) ||
+                other.sellerPhotoUrl == sellerPhotoUrl));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     runtimeType,
     id,
     reference,
@@ -449,7 +537,11 @@ class _$CommandeImpl implements _Commande {
     livraisonDate,
     createdAt,
     updatedAt,
-  );
+    buyerName,
+    buyerPhotoUrl,
+    sellerName,
+    sellerPhotoUrl,
+  ]);
 
   /// Create a copy of Commande
   /// with the given fields replaced by the non-null parameter values.
@@ -484,6 +576,10 @@ abstract class _Commande implements Commande {
     final DateTime? livraisonDate,
     final DateTime? createdAt,
     final DateTime? updatedAt,
+    @JsonKey(readValue: _readBuyerName) final String? buyerName,
+    @JsonKey(readValue: _readBuyerPhoto) final String? buyerPhotoUrl,
+    @JsonKey(readValue: _readSellerName) final String? sellerName,
+    @JsonKey(readValue: _readSellerPhoto) final String? sellerPhotoUrl,
   }) = _$CommandeImpl;
 
   factory _Commande.fromJson(Map<String, dynamic> json) =
@@ -529,7 +625,22 @@ abstract class _Commande implements Commande {
   @override
   DateTime? get createdAt;
   @override
-  DateTime? get updatedAt;
+  DateTime? get updatedAt; // ─── Champs joints (depuis getOrderById backend) ──────────────────
+  // Le backend renvoie le buyer/seller via `include:` Prisma. On les
+  // aplatit ici en fields plats lisibles directement par l'UI. `null`
+  // si la jointure n'a pas été demandée (ex. ancien endpoint list).
+  @override
+  @JsonKey(readValue: _readBuyerName)
+  String? get buyerName;
+  @override
+  @JsonKey(readValue: _readBuyerPhoto)
+  String? get buyerPhotoUrl;
+  @override
+  @JsonKey(readValue: _readSellerName)
+  String? get sellerName;
+  @override
+  @JsonKey(readValue: _readSellerPhoto)
+  String? get sellerPhotoUrl;
 
   /// Create a copy of Commande
   /// with the given fields replaced by the non-null parameter values.

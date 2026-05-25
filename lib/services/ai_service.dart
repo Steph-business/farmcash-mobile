@@ -1,36 +1,70 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 
 import '../api_client/api_client.dart';
 import '../api_client/api_endpoints.dart';
 import '../models/models.dart';
+import 'marketplace_service.dart';
 
 /// IA — analyses de plantes, traitements, traçabilité, assistant chat, news,
 /// insights personnalisés.
 class AiService {
   final ApiClient _api;
-  AiService(this._api);
+  final MarketplaceService _marketplace;
+  AiService(this._api, this._marketplace);
 
   // ─── Analyses de plantes ─────────────────────────────────────────────
 
   /// Envoie une photo de plante pour analyse.
   ///
-  /// [imagePath] : chemin local de l'image (camera ou galerie).
-  /// Renvoie l'analyse créée + ses recommandations.
+  /// Flow en 2 étapes (le backend `/ai/plant-analyses` attend du JSON,
+  /// pas du multipart — voir `AnalyzePlantDto`) :
+  ///   1. Upload de l'image via `MarketplaceService.uploadAnnonceMedia`
+  ///      (target_type = PARCELLE si `parcelleId` fourni, sinon on
+  ///      retombe sur ANNONCE_VENTE en attendant un type
+  ///      PLANT_ANALYSIS côté backend).
+  ///   2. POST JSON `{image_url, parcelle_id?, produit_id?,
+  ///      location?: {lat, lng}}` à `/ai/plant-analyses`.
+  ///
+  /// `notes` reste à la signature pour compat UI mais n'est pas
+  /// supporté par le DTO backend ; on l'ignore silencieusement.
+  /// TODO(ai): ajouter `target_type=PLANT_ANALYSIS` côté backend pour
+  /// pouvoir uploader sans parcelle existante.
   Future<AnalysePlante> analyzePlant({
     required String imagePath,
     String? parcelleId,
     String? produitId,
+    double? lat,
+    double? lng,
     String? notes,
   }) async {
-    final formData = FormData.fromMap({
-      'image': await MultipartFile.fromFile(imagePath, filename: 'plant.jpg'),
-      if (parcelleId != null) 'parcelle_id': parcelleId,
-      if (produitId != null) 'produit_id': produitId,
-      if (notes != null) 'notes': notes,
-    });
-    final json = await _api.upload<Map<String, dynamic>>(
+    // L'endpoint d'upload exige un `target_id` UUID valide associé à un
+    // `target_type` qui appartient au user. Tant que le backend n'a pas
+    // de `target_type=PLANT_ANALYSIS`, on impose une `parcelleId`.
+    final pid = parcelleId;
+    if (pid == null) {
+      throw StateError(
+        'analyzePlant requiert une parcelleId tant que le backend '
+        "n'expose pas target_type=PLANT_ANALYSIS pour l'upload.",
+      );
+    }
+    // Étape 1 : upload binaire → URL CDN.
+    final uploaded = await _marketplace.uploadAnnonceMedia(
+      file: File(imagePath),
+      annonceId: pid,
+      targetType: MediaTargetType.parcelle,
+    );
+
+    // Étape 2 : appel JSON à l'endpoint d'analyse.
+    final json = await _api.post<Map<String, dynamic>>(
       ApiEndpoints.plantAnalyses,
-      formData: formData,
+      body: {
+        'image_url': uploaded.url,
+        'parcelle_id': pid,
+        if (produitId != null) 'produit_id': produitId,
+        if (lat != null && lng != null) 'location': {'lat': lat, 'lng': lng},
+      },
     );
     return AnalysePlante.fromJson(json);
   }
@@ -134,15 +168,20 @@ class AiService {
 
   // ─── Assistant conversationnel ───────────────────────────────────────
 
+  /// Envoie un message à l'assistant IA.
+  ///
+  /// Aligné sur `ChatMessageDto` (assistant.dto.ts) — attend
+  /// `{message, conversation_id?}`. Le paramètre Dart conserve le nom
+  /// `content` pour rétro-compatibilité d'UI, mais mappe vers `message`.
   Future<AiChatMessage> sendAssistantMessage({
     required String content,
-    Map<String, dynamic>? context,
+    String? conversationId,
   }) async {
     final json = await _api.post<Map<String, dynamic>>(
       ApiEndpoints.assistantChat,
       body: {
-        'content': content,
-        if (context != null) 'context': context,
+        'message': content,
+        if (conversationId != null) 'conversation_id': conversationId,
       },
     );
     return AiChatMessage.fromJson(json);

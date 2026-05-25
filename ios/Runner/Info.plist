@@ -45,5 +45,22 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- ─── Permissions natives ──────────────────────────────────────── -->
+	<!-- geolocator : GPS pour parcelles, retrait acheteur, suivi mission
+	     transporteur. Foreground uniquement (When In Use) — le tracking
+	     bg n'est pas activé pour l'instant. -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>FarmCash utilise votre position pour localiser vos parcelles, vos points de retrait et suivre les missions de livraison.</string>
+	<!-- image_picker + camera : prise de photos pour annonces, analyse de
+	     plante (IA), bordereaux d'enlèvement, KYC. -->
+	<key>NSCameraUsageDescription</key>
+	<string>FarmCash utilise l'appareil photo pour ajouter des photos d'annonces, analyser vos plantes et scanner les bordereaux.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>FarmCash accède à votre galerie pour ajouter des photos d'annonces, de parcelles ou de documents.</string>
+	<!-- camera (vidéo des analyses) — pas de capture audio prévue côté
+	     produit, on laisse en option ; iOS exige cette clé dès qu'on
+	     instancie un AVCaptureSession (le plugin camera la touche). -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>FarmCash peut accéder au microphone si vous enregistrez une vidéo (par ex. lors d'une analyse de plante).</string>
 </dict>
 </plist>

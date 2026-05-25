@@ -42,6 +42,9 @@ _$PrevisionImpl _$$PrevisionImplFromJson(Map<String, dynamic> json) =>
             'assigned_to_cooperative_id',
             (v) => v as String?,
           ),
+          coopStatus: $checkedConvert('coop_status', (v) => v as String?),
+          saison: $checkedConvert('saison', (v) => v as String?),
+          notes: $checkedConvert('notes', (v) => v as String?),
           createdAt: $checkedConvert(
             'created_at',
             (v) => v == null ? null : DateTime.parse(v as String),
@@ -61,6 +64,7 @@ _$PrevisionImpl _$$PrevisionImplFromJson(Map<String, dynamic> json) =>
         'dateRecoltePrev': 'date_recolte_prev',
         'prixCibleKg': 'prix_cible_kg',
         'assignedToCooperativeId': 'assigned_to_cooperative_id',
+        'coopStatus': 'coop_status',
         'createdAt': 'created_at',
         'updatedAt': 'updated_at',
       },
@@ -81,6 +85,9 @@ Map<String, dynamic> _$$PrevisionImplToJson(_$PrevisionImpl instance) =>
       'status': _$PrevisionStatusEnumMap[instance.status]!,
       if (instance.assignedToCooperativeId case final value?)
         'assigned_to_cooperative_id': value,
+      if (instance.coopStatus case final value?) 'coop_status': value,
+      if (instance.saison case final value?) 'saison': value,
+      if (instance.notes case final value?) 'notes': value,
       if (instance.createdAt?.toIso8601String() case final value?)
         'created_at': value,
       if (instance.updatedAt?.toIso8601String() case final value?)

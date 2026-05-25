@@ -153,6 +153,10 @@ class NegotiationService {
 
   // ─── Contre-offres COOP (BUYER sur publication coop) ─────────────────
 
+  /// Crée une contre-offre sur une publication coop.
+  ///
+  /// Aligné sur `CreateContreOffreCoopDto` — attend `publication_id`,
+  /// pas `publication_coop_id`.
   Future<ContreOffreCoop> createContreOffreCoop({
     required String publicationCoopId,
     required double quantiteKg,
@@ -162,7 +166,7 @@ class NegotiationService {
     final json = await _api.post<Map<String, dynamic>>(
       ApiEndpoints.contreOffresCoop,
       body: {
-        'publication_coop_id': publicationCoopId,
+        'publication_id': publicationCoopId,
         'quantite_kg': quantiteKg,
         'prix_propose_kg': prixProposeKg,
         if (message != null) 'message': message,
@@ -225,6 +229,10 @@ class NegotiationService {
 
   // ─── Helpers ─────────────────────────────────────────────────────────
 
+  /// Construit le body uniforme pour les endpoints `traiter*`.
+  ///
+  /// Aligné sur `TraiterOffreDto` (candidatures.dto.ts) — attend
+  /// `action`, `prix_contre_offre`, `quantite_kg`, `note`.
   Map<String, dynamic> _traiterBody(
     NegotiationAction action,
     double? prixContreOffreKg,
@@ -233,10 +241,10 @@ class NegotiationService {
   ) {
     return {
       'action': action.apiValue,
-      if (prixContreOffreKg != null) 'prix_contre_offre_kg': prixContreOffreKg,
+      if (prixContreOffreKg != null) 'prix_contre_offre': prixContreOffreKg,
       if (quantiteContreOffreKg != null)
-        'quantite_contre_offre_kg': quantiteContreOffreKg,
-      if (message != null) 'message': message,
+        'quantite_kg': quantiteContreOffreKg,
+      if (message != null) 'note': message,
     };
   }
 
@@ -257,6 +265,11 @@ class NegotiationService {
   }
 }
 
+/// Actions sur une négociation (candidature, proposition, contre-offre).
+///
+/// Aligné sur l'enum backend `NegotiationAction` (candidatures.dto.ts).
+/// Les valeurs API sont `ACCEPTED|REJECTED|COUNTER_OFFER|CANCELLED` —
+/// PAS les formes courtes `ACCEPT|REJECT|COUNTER|CANCEL`.
 enum NegotiationAction {
   accept,
   reject,
@@ -266,13 +279,13 @@ enum NegotiationAction {
   String get apiValue {
     switch (this) {
       case NegotiationAction.accept:
-        return 'ACCEPT';
+        return 'ACCEPTED';
       case NegotiationAction.reject:
-        return 'REJECT';
+        return 'REJECTED';
       case NegotiationAction.counter:
-        return 'COUNTER';
+        return 'COUNTER_OFFER';
       case NegotiationAction.cancel:
-        return 'CANCEL';
+        return 'CANCELLED';
     }
   }
 }

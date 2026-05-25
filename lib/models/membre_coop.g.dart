@@ -35,6 +35,11 @@ _$MembreCoopImpl _$$MembreCoopImplFromJson(Map<String, dynamic> json) =>
             'joined_at',
             (v) => v == null ? null : DateTime.parse(v as String),
           ),
+          phoneFlat: $checkedConvert('phone', (v) => v as String?),
+          managedByCoopId: $checkedConvert(
+            'managed_by_coop_id',
+            (v) => v as String?,
+          ),
         );
         return val;
       },
@@ -42,19 +47,24 @@ _$MembreCoopImpl _$$MembreCoopImplFromJson(Map<String, dynamic> json) =>
         'cooperativeId': 'cooperative_id',
         'userId': 'user_id',
         'joinedAt': 'joined_at',
+        'phoneFlat': 'phone',
+        'managedByCoopId': 'managed_by_coop_id',
       },
     );
 
-Map<String, dynamic> _$$MembreCoopImplToJson(_$MembreCoopImpl instance) =>
-    <String, dynamic>{
-      'id': instance.id,
-      'cooperative_id': instance.cooperativeId,
-      'user_id': instance.userId,
-      if (instance.user case final value?) 'user': value,
-      'role': _$CoopMemberRoleEnumMap[instance.role]!,
-      if (instance.joinedAt?.toIso8601String() case final value?)
-        'joined_at': value,
-    };
+Map<String, dynamic> _$$MembreCoopImplToJson(
+  _$MembreCoopImpl instance,
+) => <String, dynamic>{
+  'id': instance.id,
+  'cooperative_id': instance.cooperativeId,
+  'user_id': instance.userId,
+  if (instance.user case final value?) 'user': value,
+  'role': _$CoopMemberRoleEnumMap[instance.role]!,
+  if (instance.joinedAt?.toIso8601String() case final value?)
+    'joined_at': value,
+  if (instance.phoneFlat case final value?) 'phone': value,
+  if (instance.managedByCoopId case final value?) 'managed_by_coop_id': value,
+};
 
 const _$CoopMemberRoleEnumMap = {
   CoopMemberRole.membre: 'MEMBRE',

@@ -1,19 +1,18 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../../../models/ai_content.dart';
-import '../../../../routing/route_names.dart';
 import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
 import '../../../widgets/communs/chargement.dart';
 import '../../../widgets/communs/vue_erreur.dart';
-
-const Color _kPrimarySoft = Color(0xFFE8F5E9);
+import '../../../widgets/producteur/ai/actualites_constants.dart';
+import '../../../widgets/producteur/ai/categorie_chip_actualite.dart';
+import '../../../widgets/producteur/ai/empty_actualites.dart';
+import '../../../widgets/producteur/ai/news_card_actualite.dart';
 
 /// 20 actualités les plus récentes. V1 : pas de pagination infinie.
 final _newsListProvider =
@@ -59,7 +58,7 @@ class ActualitesPage extends ConsumerWidget {
           ),
         ),
         data: (items) {
-          if (items.isEmpty) return const _EmptyState();
+          if (items.isEmpty) return const EmptyActualites();
           return RefreshIndicator(
             color: AppColors.primary,
             onRefresh: () async => ref.invalidate(_newsListProvider),
@@ -72,163 +71,10 @@ class ActualitesPage extends ConsumerWidget {
               ),
               itemCount: items.length,
               separatorBuilder: (_, _) => AppDimens.vGap16,
-              itemBuilder: (_, i) => _NewsCard(news: items[i]),
+              itemBuilder: (_, i) => NewsCardActualite(news: items[i]),
             ),
           );
         },
-      ),
-    );
-  }
-}
-
-class _NewsCard extends StatelessWidget {
-  const _NewsCard({required this.news});
-
-  final NewsItem news;
-
-  @override
-  Widget build(BuildContext context) {
-    final image = news.imageUrl;
-    final resume = news.resume?.trim() ?? '';
-    final categorie = news.targetRoles.isNotEmpty
-        ? _libelleRole(news.targetRoles.first)
-        : null;
-    return Material(
-      color: AppColors.surface,
-      borderRadius: AppDimens.brCard,
-      child: InkWell(
-        onTap: () => context.push(
-          RouteNames.producteurAiActualiteDetailPathFor(news.id),
-        ),
-        borderRadius: AppDimens.brCard,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: AppDimens.brCard,
-            border: Border.all(
-              color: AppColors.border,
-              width: AppDimens.borderThin,
-            ),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (image != null && image.isNotEmpty)
-                AspectRatio(
-                  aspectRatio: 16 / 9,
-                  child: CachedNetworkImage(
-                    imageUrl: image,
-                    fit: BoxFit.cover,
-                    placeholder: (_, _) =>
-                        const ColoredBox(color: AppColors.surfaceSoft),
-                    errorWidget: (_, _, _) => Container(
-                      color: AppColors.surfaceSoft,
-                      alignment: Alignment.center,
-                      child: const Icon(
-                        Icons.image_outlined,
-                        color: AppColors.textSubtle,
-                      ),
-                    ),
-                  ),
-                ),
-              Padding(
-                padding: const EdgeInsets.all(AppDimens.space16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (categorie != null) ...[
-                      _CategorieChip(label: categorie),
-                      AppDimens.vGap8,
-                    ],
-                    Text(
-                      news.titre,
-                      style: AppTextStyles.titleSmall.copyWith(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (resume.isNotEmpty) ...[
-                      AppDimens.vGap4,
-                      Text(
-                        resume,
-                        style: AppTextStyles.bodySmall.copyWith(fontSize: 13),
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                    AppDimens.vGap8,
-                    Text(
-                      _formatDate(news.publishedAt ?? news.createdAt),
-                      style: AppTextStyles.labelSmall.copyWith(fontSize: 11),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CategorieChip extends StatelessWidget {
-  const _CategorieChip({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: _kPrimarySoft,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        label,
-        style: AppTextStyles.labelSmall.copyWith(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: AppColors.primary,
-        ),
-      ),
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  const _EmptyState();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppDimens.space24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.newspaper_outlined,
-              size: 40,
-              color: AppColors.textSubtle.withValues(alpha: 0.9),
-            ),
-            const SizedBox(height: AppDimens.space12),
-            Text(
-              "Aucune actualité pour l'instant",
-              style: AppTextStyles.titleSmall,
-            ),
-            AppDimens.vGap4,
-            Text(
-              'Les nouvelles seront publiées ici dès que disponibles.',
-              style: AppTextStyles.bodySmall,
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -280,7 +126,7 @@ class ActualiteDetailPage extends ConsumerWidget {
         data: (news) {
           final image = news.imageUrl;
           final categorie = news.targetRoles.isNotEmpty
-              ? _libelleRole(news.targetRoles.first)
+              ? libelleRoleActualite(news.targetRoles.first)
               : null;
           final body = news.body?.trim() ?? '';
           return ListView(
@@ -315,7 +161,7 @@ class ActualiteDetailPage extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (categorie != null) ...[
-                      _CategorieChip(label: categorie),
+                      CategorieChipActualite(label: categorie),
                       AppDimens.vGap12,
                     ],
                     Text(
@@ -327,7 +173,7 @@ class ActualiteDetailPage extends ConsumerWidget {
                     ),
                     AppDimens.vGap8,
                     Text(
-                      _formatDate(news.publishedAt ?? news.createdAt),
+                      formatDateActualite(news.publishedAt ?? news.createdAt),
                       style: AppTextStyles.bodySmall.copyWith(fontSize: 12),
                     ),
                     AppDimens.vGap16,
@@ -358,28 +204,4 @@ class ActualiteDetailPage extends ConsumerWidget {
       ),
     );
   }
-}
-
-// ─── Helpers ────────────────────────────────────────────────────────────
-
-String _libelleRole(String role) {
-  switch (role.toUpperCase()) {
-    case 'FARMER':
-      return 'Producteur';
-    case 'BUYER':
-      return 'Acheteur';
-    case 'COOPERATIVE':
-      return 'Coopérative';
-    case 'TRANSPORTER':
-      return 'Transporteur';
-    case 'ADMIN':
-      return 'Admin';
-    default:
-      return role;
-  }
-}
-
-String _formatDate(DateTime? d) {
-  if (d == null) return '';
-  return DateFormat('d MMMM yyyy', 'fr_FR').format(d);
 }

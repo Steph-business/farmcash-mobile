@@ -296,15 +296,19 @@ class AuthService {
     await _api.delete<dynamic>(ApiEndpoints.authKycById(id));
   }
 
+  /// Enregistre le token FCM courant.
+  ///
+  /// Aligné sur `DeviceTokenDto` — attend `fcm_token` (pas `token`) et
+  /// `platform` REQUIRED (`android`|`ios`).
   Future<void> registerDeviceToken({
-    required String token,
-    String? platform,
+    required String fcmToken,
+    required String platform,
   }) async {
     await _api.post<dynamic>(
       ApiEndpoints.authDeviceToken,
       body: {
-        'token': token,
-        if (platform != null) 'platform': platform,
+        'fcm_token': fcmToken,
+        'platform': platform,
       },
     );
   }

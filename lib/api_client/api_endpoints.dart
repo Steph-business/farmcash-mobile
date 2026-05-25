@@ -115,6 +115,7 @@ class ApiEndpoints {
 
   // ─── PRÉVISIONS ──────────────────────────────────────────────────────
   static const String previsions = '/marketplace/previsions';
+  static String previsionById(String id) => '/marketplace/previsions/$id';
   static const String previsionsReserver = '/marketplace/previsions/reserver';
   static String previsionConvert(String id) =>
       '/marketplace/previsions/$id/convert';
@@ -222,6 +223,10 @@ class ApiEndpoints {
       '/coop/members/$memberUserId';
   static String coopMemberRole(String memberUserId) =>
       '/coop/members/$memberUserId/role';
+  // ─── COOP — Farmer géré (sans téléphone, créé directement par la coop) ──
+  static const String coopMembersManaged = '/coop/members/managed';
+  static String coopMemberPromote(String memberUserId) =>
+      '/coop/members/$memberUserId/promote';
   static const String coopAnnoncesVenteAssigned =
       '/coop/annonces-vente/assigned';
   static String coopAnnonceVenteValidate(String id) =>

@@ -23,7 +23,7 @@ Message _$MessageFromJson(Map<String, dynamic> json) {
 mixin _$Message {
   String get id => throw _privateConstructorUsedError;
   String get conversationId => throw _privateConstructorUsedError;
-  String get senderId => throw _privateConstructorUsedError;
+  String? get senderId => throw _privateConstructorUsedError;
   String? get content => throw _privateConstructorUsedError;
   String? get mediaUrl => throw _privateConstructorUsedError;
   String? get mediaType => throw _privateConstructorUsedError;
@@ -47,7 +47,7 @@ abstract class $MessageCopyWith<$Res> {
   $Res call({
     String id,
     String conversationId,
-    String senderId,
+    String? senderId,
     String? content,
     String? mediaUrl,
     String? mediaType,
@@ -73,7 +73,7 @@ class _$MessageCopyWithImpl<$Res, $Val extends Message>
   $Res call({
     Object? id = null,
     Object? conversationId = null,
-    Object? senderId = null,
+    Object? senderId = freezed,
     Object? content = freezed,
     Object? mediaUrl = freezed,
     Object? mediaType = freezed,
@@ -90,10 +90,10 @@ class _$MessageCopyWithImpl<$Res, $Val extends Message>
                 ? _value.conversationId
                 : conversationId // ignore: cast_nullable_to_non_nullable
                       as String,
-            senderId: null == senderId
+            senderId: freezed == senderId
                 ? _value.senderId
                 : senderId // ignore: cast_nullable_to_non_nullable
-                      as String,
+                      as String?,
             content: freezed == content
                 ? _value.content
                 : content // ignore: cast_nullable_to_non_nullable
@@ -131,7 +131,7 @@ abstract class _$$MessageImplCopyWith<$Res> implements $MessageCopyWith<$Res> {
   $Res call({
     String id,
     String conversationId,
-    String senderId,
+    String? senderId,
     String? content,
     String? mediaUrl,
     String? mediaType,
@@ -156,7 +156,7 @@ class __$$MessageImplCopyWithImpl<$Res>
   $Res call({
     Object? id = null,
     Object? conversationId = null,
-    Object? senderId = null,
+    Object? senderId = freezed,
     Object? content = freezed,
     Object? mediaUrl = freezed,
     Object? mediaType = freezed,
@@ -173,10 +173,10 @@ class __$$MessageImplCopyWithImpl<$Res>
             ? _value.conversationId
             : conversationId // ignore: cast_nullable_to_non_nullable
                   as String,
-        senderId: null == senderId
+        senderId: freezed == senderId
             ? _value.senderId
             : senderId // ignore: cast_nullable_to_non_nullable
-                  as String,
+                  as String?,
         content: freezed == content
             ? _value.content
             : content // ignore: cast_nullable_to_non_nullable
@@ -208,7 +208,7 @@ class _$MessageImpl implements _Message {
   const _$MessageImpl({
     required this.id,
     required this.conversationId,
-    required this.senderId,
+    this.senderId,
     this.content,
     this.mediaUrl,
     this.mediaType,
@@ -224,7 +224,7 @@ class _$MessageImpl implements _Message {
   @override
   final String conversationId;
   @override
-  final String senderId;
+  final String? senderId;
   @override
   final String? content;
   @override
@@ -294,7 +294,7 @@ abstract class _Message implements Message {
   const factory _Message({
     required final String id,
     required final String conversationId,
-    required final String senderId,
+    final String? senderId,
     final String? content,
     final String? mediaUrl,
     final String? mediaType,
@@ -309,7 +309,7 @@ abstract class _Message implements Message {
   @override
   String get conversationId;
   @override
-  String get senderId;
+  String? get senderId;
   @override
   String? get content;
   @override

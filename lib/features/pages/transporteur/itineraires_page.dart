@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../../api_client/api_exception.dart';
 import '../../../models/livraison.dart';
@@ -9,12 +8,12 @@ import '../../../routing/route_names.dart';
 import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
-import '../../../theme/app_text_styles.dart';
 import '../../widgets/communs/chargement.dart';
 import '../../widgets/communs/snackbars.dart';
 import '../../widgets/communs/vue_erreur.dart';
-
-const Color _kPrimarySoft = Color(0xFFE8F5E9);
+import '../../widgets/transporteur/itineraires/carte_itineraire.dart';
+import '../../widgets/transporteur/itineraires/entete_itineraires.dart';
+import '../../widgets/transporteur/itineraires/etat_vide_itineraires.dart';
 
 final _itinerairesProvider =
     FutureProvider.autoDispose<List<TransporterRoute>>((ref) async {
@@ -101,7 +100,7 @@ class _ItinerairesTransporteurPageState
         bottom: false,
         child: Column(
           children: [
-            _Header(
+            EnteteItineraires(
               onBack: () => context.canPop()
                   ? context.pop()
                   : context.go(RouteNames.transporteurMissionsPath),
@@ -128,7 +127,7 @@ class _ItinerairesTransporteurPageState
                   color: AppColors.primary,
                   onRefresh: _refresh,
                   child: routes.isEmpty
-                      ? const _EmptyState()
+                      ? const EtatVideItineraires()
                       : ListView.builder(
                           padding: const EdgeInsets.fromLTRB(
                             AppDimens.pagePaddingH,
@@ -139,7 +138,7 @@ class _ItinerairesTransporteurPageState
                           itemCount: routes.length,
                           itemBuilder: (_, i) {
                             final r = routes[i];
-                            return _RouteCard(
+                            return CarteItineraire(
                               route: r,
                               busy: _busyId == r.id,
                               onToggle: () => _toggleActif(r),
@@ -156,258 +155,3 @@ class _ItinerairesTransporteurPageState
     );
   }
 }
-
-// ─── Header ─────────────────────────────────────────────────────────
-
-class _Header extends StatelessWidget {
-  const _Header({required this.onBack, required this.onAdd});
-  final VoidCallback onBack;
-  final VoidCallback onAdd;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(8, 8, 16, 12),
-      decoration: const BoxDecoration(
-        color: AppColors.background,
-        border: Border(
-          bottom: BorderSide(
-            color: AppColors.border,
-            width: AppDimens.borderThin,
-          ),
-        ),
-      ),
-      child: Row(
-        children: [
-          InkWell(
-            onTap: onBack,
-            borderRadius: BorderRadius.circular(20),
-            child: const SizedBox(
-              width: 40,
-              height: 40,
-              child: Icon(
-                Icons.arrow_back_ios_new,
-                size: 20,
-                color: AppColors.text,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              'Mes itinéraires',
-              style: AppTextStyles.titleSmall.copyWith(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          InkWell(
-            onTap: onAdd,
-            borderRadius: BorderRadius.circular(8),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              child: Text(
-                'Ajouter',
-                style: AppTextStyles.labelMedium.copyWith(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.primary,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Card route ──────────────────────────────────────────────────────
-
-class _RouteCard extends StatelessWidget {
-  const _RouteCard({
-    required this.route,
-    required this.busy,
-    required this.onToggle,
-    required this.onDelete,
-  });
-  final TransporterRoute route;
-  final bool busy;
-  final VoidCallback onToggle;
-  final VoidCallback onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    final capacite = '${_nf.format(route.capaciteMaxKg.round())} kg max';
-    final tarif = '${_nf.format(route.tarifKg.round())} F/kg';
-    final minimum = route.tarifMinimum > 0
-        ? 'min ${_nf.format(route.tarifMinimum.round())} F'
-        : null;
-    final delai = route.delaiTypique;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.background,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: AppColors.border,
-            width: AppDimens.borderThin,
-          ),
-        ),
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: _kPrimarySoft,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  alignment: Alignment.center,
-                  child: const Icon(
-                    Icons.alt_route,
-                    size: 18,
-                    color: AppColors.primary,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    '${route.origineZone} → ${route.destinationZone}',
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                if (busy)
-                  const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: AppColors.primary,
-                    ),
-                  )
-                else
-                  Switch(
-                    value: route.isActive,
-                    activeThumbColor: AppColors.primary,
-                    onChanged: (_) => onToggle(),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              children: [
-                _MetaChip(label: capacite),
-                _MetaChip(label: tarif),
-                if (minimum != null) _MetaChip(label: minimum),
-                if (delai != null) _MetaChip(label: delai),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: busy ? null : onDelete,
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.error,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Text(
-                  'Supprimer',
-                  style: AppTextStyles.labelMedium.copyWith(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.error,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MetaChip extends StatelessWidget {
-  const _MetaChip({required this.label});
-  final String label;
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceSoft,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        label,
-        style: AppTextStyles.labelSmall.copyWith(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textSecondary,
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Empty state ────────────────────────────────────────────────
-
-class _EmptyState extends StatelessWidget {
-  const _EmptyState();
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      children: [
-        const SizedBox(height: 80),
-        Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.alt_route_outlined,
-                size: 40,
-                color: AppColors.textSubtle.withValues(alpha: 0.9),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Aucun itinéraire déclaré',
-                style: AppTextStyles.titleSmall,
-              ),
-              const SizedBox(height: 8),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 40),
-                child: Text(
-                  'Déclare au moins une route (origine → destination) pour recevoir des missions.',
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textSecondary,
-                    height: 1.4,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-final _nf = NumberFormat('#,##0', 'fr_FR');

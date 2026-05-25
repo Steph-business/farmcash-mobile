@@ -53,6 +53,11 @@ mixin _$AnnonceVente {
   @JsonKey(name: 'medias', fromJson: mediasToPhotos, toJson: photosToMedias)
   List<String> get photos => throw _privateConstructorUsedError;
   DateTime? get disponibleJusqu => throw _privateConstructorUsedError;
+
+  /// Date à laquelle le produit a été récolté — info de fraîcheur affichée
+  /// aux acheteurs. Distincte de `disponibleJusqu` (durée de validité de
+  /// l'offre côté producteur). Optionnelle.
+  DateTime? get dateRecolte => throw _privateConstructorUsedError;
   DateTime? get createdAt => throw _privateConstructorUsedError;
   DateTime? get updatedAt =>
       throw _privateConstructorUsedError; // ─── Champs joints (relations Prisma) ──────────────────────────────
@@ -120,6 +125,7 @@ abstract class $AnnonceVenteCopyWith<$Res> {
     @JsonKey(name: 'medias', fromJson: mediasToPhotos, toJson: photosToMedias)
     List<String> photos,
     DateTime? disponibleJusqu,
+    DateTime? dateRecolte,
     DateTime? createdAt,
     DateTime? updatedAt,
     @JsonKey(
@@ -181,6 +187,7 @@ class _$AnnonceVenteCopyWithImpl<$Res, $Val extends AnnonceVente>
     Object? coopStatus = freezed,
     Object? photos = null,
     Object? disponibleJusqu = freezed,
+    Object? dateRecolte = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
     Object? produitNom = freezed,
@@ -267,6 +274,10 @@ class _$AnnonceVenteCopyWithImpl<$Res, $Val extends AnnonceVente>
                 ? _value.disponibleJusqu
                 : disponibleJusqu // ignore: cast_nullable_to_non_nullable
                       as DateTime?,
+            dateRecolte: freezed == dateRecolte
+                ? _value.dateRecolte
+                : dateRecolte // ignore: cast_nullable_to_non_nullable
+                      as DateTime?,
             createdAt: freezed == createdAt
                 ? _value.createdAt
                 : createdAt // ignore: cast_nullable_to_non_nullable
@@ -332,6 +343,7 @@ abstract class _$$AnnonceVenteImplCopyWith<$Res>
     @JsonKey(name: 'medias', fromJson: mediasToPhotos, toJson: photosToMedias)
     List<String> photos,
     DateTime? disponibleJusqu,
+    DateTime? dateRecolte,
     DateTime? createdAt,
     DateTime? updatedAt,
     @JsonKey(
@@ -392,6 +404,7 @@ class __$$AnnonceVenteImplCopyWithImpl<$Res>
     Object? coopStatus = freezed,
     Object? photos = null,
     Object? disponibleJusqu = freezed,
+    Object? dateRecolte = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
     Object? produitNom = freezed,
@@ -478,6 +491,10 @@ class __$$AnnonceVenteImplCopyWithImpl<$Res>
             ? _value.disponibleJusqu
             : disponibleJusqu // ignore: cast_nullable_to_non_nullable
                   as DateTime?,
+        dateRecolte: freezed == dateRecolte
+            ? _value.dateRecolte
+            : dateRecolte // ignore: cast_nullable_to_non_nullable
+                  as DateTime?,
         createdAt: freezed == createdAt
             ? _value.createdAt
             : createdAt // ignore: cast_nullable_to_non_nullable
@@ -537,6 +554,7 @@ class _$AnnonceVenteImpl extends _AnnonceVente {
     @JsonKey(name: 'medias', fromJson: mediasToPhotos, toJson: photosToMedias)
     final List<String> photos = const <String>[],
     this.disponibleJusqu,
+    this.dateRecolte,
     this.createdAt,
     this.updatedAt,
     @JsonKey(
@@ -639,6 +657,12 @@ class _$AnnonceVenteImpl extends _AnnonceVente {
 
   @override
   final DateTime? disponibleJusqu;
+
+  /// Date à laquelle le produit a été récolté — info de fraîcheur affichée
+  /// aux acheteurs. Distincte de `disponibleJusqu` (durée de validité de
+  /// l'offre côté producteur). Optionnelle.
+  @override
+  final DateTime? dateRecolte;
   @override
   final DateTime? createdAt;
   @override
@@ -687,7 +711,7 @@ class _$AnnonceVenteImpl extends _AnnonceVente {
 
   @override
   String toString() {
-    return 'AnnonceVente(id: $id, farmerId: $farmerId, produitId: $produitId, titre: $titre, quantiteKg: $quantiteKg, prixParKg: $prixParKg, quantiteMinKg: $quantiteMinKg, qualite: $qualite, description: $description, certifications: $certifications, regionId: $regionId, villeId: $villeId, adresseDetail: $adresseDetail, status: $status, viewsCount: $viewsCount, assignedToCooperativeId: $assignedToCooperativeId, coopStatus: $coopStatus, photos: $photos, disponibleJusqu: $disponibleJusqu, createdAt: $createdAt, updatedAt: $updatedAt, produitNom: $produitNom, vendeur: $vendeur, regionNom: $regionNom, villeNom: $villeNom, traitements: $traitements)';
+    return 'AnnonceVente(id: $id, farmerId: $farmerId, produitId: $produitId, titre: $titre, quantiteKg: $quantiteKg, prixParKg: $prixParKg, quantiteMinKg: $quantiteMinKg, qualite: $qualite, description: $description, certifications: $certifications, regionId: $regionId, villeId: $villeId, adresseDetail: $adresseDetail, status: $status, viewsCount: $viewsCount, assignedToCooperativeId: $assignedToCooperativeId, coopStatus: $coopStatus, photos: $photos, disponibleJusqu: $disponibleJusqu, dateRecolte: $dateRecolte, createdAt: $createdAt, updatedAt: $updatedAt, produitNom: $produitNom, vendeur: $vendeur, regionNom: $regionNom, villeNom: $villeNom, traitements: $traitements)';
   }
 
   @override
@@ -732,6 +756,8 @@ class _$AnnonceVenteImpl extends _AnnonceVente {
             const DeepCollectionEquality().equals(other._photos, _photos) &&
             (identical(other.disponibleJusqu, disponibleJusqu) ||
                 other.disponibleJusqu == disponibleJusqu) &&
+            (identical(other.dateRecolte, dateRecolte) ||
+                other.dateRecolte == dateRecolte) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
@@ -772,6 +798,7 @@ class _$AnnonceVenteImpl extends _AnnonceVente {
     coopStatus,
     const DeepCollectionEquality().hash(_photos),
     disponibleJusqu,
+    dateRecolte,
     createdAt,
     updatedAt,
     produitNom,
@@ -820,6 +847,7 @@ abstract class _AnnonceVente extends AnnonceVente {
     @JsonKey(name: 'medias', fromJson: mediasToPhotos, toJson: photosToMedias)
     final List<String> photos,
     final DateTime? disponibleJusqu,
+    final DateTime? dateRecolte,
     final DateTime? createdAt,
     final DateTime? updatedAt,
     @JsonKey(
@@ -901,6 +929,12 @@ abstract class _AnnonceVente extends AnnonceVente {
   List<String> get photos;
   @override
   DateTime? get disponibleJusqu;
+
+  /// Date à laquelle le produit a été récolté — info de fraîcheur affichée
+  /// aux acheteurs. Distincte de `disponibleJusqu` (durée de validité de
+  /// l'offre côté producteur). Optionnelle.
+  @override
+  DateTime? get dateRecolte;
   @override
   DateTime? get createdAt;
   @override

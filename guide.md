@@ -43,145 +43,160 @@ lib/
 │
 ├── pages/                               🇫🇷 métier
 │   │
+│   ├── _shared/                         ← SHARED pages (chat, etc.)
+│   │   ├── messages_page.dart           ← Liste conversations, identique tous rôles
+│   │   ├── conversation_detail_page.dart
+│   │   └── notifications_page.dart      ← Centre notifs, identique tous rôles
+│   │
 │   ├── authentification/                ← AUTH (inscription + connexion)
-│   │   ├── splash_page.dart             ← Démarrage logo
-│   │   ├── bienvenue_page.dart          ← "Commencer" / "J'ai un compte"
-│   │   ├── choix_role_page.dart         ← Producteur/Acheteur/Coop/Transporteur
-│   │   ├── inscription_page.dart        ← Tel + nom (+ coop si producteur)
-│   │   ├── otp_page.dart                ← Code SMS 6 chiffres
-│   │   ├── definir_pin_page.dart        ← Création PIN
-│   │   ├── connexion_page.dart          ← Login PIN (tel mémorisé)
-│   │   └── pin_oublie_page.dart         ← Reset PIN via OTP
+│   │   ├── splash_page.dart
+│   │   ├── bienvenue_page.dart
+│   │   ├── choix_role_page.dart
+│   │   ├── inscription_page.dart
+│   │   ├── otp_page.dart
+│   │   ├── definir_pin_page.dart
+│   │   ├── connexion_page.dart
+│   │   └── pin_oublie_page.dart
 │   │
 │   ├── producteur/                      ← FARMER
 │   │   ├── accueil_page.dart
 │   │   ├── annonces_page.dart
-│   │   ├── messages_page.dart
-│   │   ├── transactions_page.dart
-│   │   └── profil_page.dart
+│   │   ├── transactions_page.dart       (wallet producteur)
+│   │   ├── profil_page.dart
+│   │   ├── parcelles/
+│   │   ├── publier/
+│   │   ├── publications/
+│   │   ├── commandes/
+│   │   ├── sollicitations/
+│   │   ├── offres/
+│   │   ├── demandes/
+│   │   ├── cooperative/
+│   │   ├── ai/
+│   │   └── wallet/
 │   │
 │   ├── acheteur/                        ← BUYER
 │   │   ├── accueil_page.dart
 │   │   ├── recherche_page.dart
 │   │   ├── commandes_page.dart
-│   │   ├── messages_page.dart
-│   │   ├── transactions_page.dart
-│   │   └── profil_page.dart
+│   │   ├── transactions_page.dart       (wallet acheteur)
+│   │   ├── profil_page.dart
+│   │   ├── marche/
+│   │   ├── commande/
+│   │   ├── demandes/
+│   │   └── wallet/
 │   │
 │   ├── cooperative/                     ← COOP
 │   │   ├── accueil_page.dart
-│   │   ├── membres_page.dart
-│   │   ├── annonces_page.dart
-│   │   ├── publications_page.dart
-│   │   ├── avances_page.dart
-│   │   ├── messages_page.dart
-│   │   ├── transactions_page.dart
-│   │   └── profil_page.dart
+│   │   ├── transactions_page.dart       (wallet coop)
+│   │   ├── profil_page.dart
+│   │   ├── membres/
+│   │   ├── annonces/
+│   │   ├── publications/
+│   │   ├── sollicitations/
+│   │   ├── finance/
+│   │   ├── logistique/
+│   │   └── stock/
 │   │
 │   └── transporteur/                    ← TRANSPORTER
 │       ├── accueil_page.dart
-│       ├── missions_page.dart
 │       ├── itineraires_page.dart
-│       ├── messages_page.dart
-│       ├── transactions_page.dart
-│       └── profil_page.dart
+│       ├── transactions_page.dart       (wallet transporteur)
+│       ├── profil_page.dart
+│       ├── missions/
+│       ├── confirmations/
+│       └── wallet/
 │
 ├── widgets/                             🇫🇷 métier
 │   │
-│   ├── authentification/                ← Widgets dédiés à l'auth
-│   │   ├── carte_role.dart              ← Carte cliquable choix rôle
-│   │   ├── champ_telephone.dart         ← Input +225 préfixé
-│   │   ├── saisie_otp.dart              ← 6 cases auto-fill SMS
-│   │   ├── pave_pin.dart                ← Pavé numérique custom
-│   │   ├── selecteur_coop.dart          ← Autocomplete coop
-│   │   └── selecteur_langue.dart        ← Fr/En
+│   │  ╔═══════════════════════════════════════════════════════════════╗
+│   │  ║  RÈGLE STRICTE — Toute page doit être COMPOSITION ONLY.       ║
+│   │  ║  AUCUN `_PrivateWidget` substantiel inline dans une page.     ║
+│   │  ║  Tous les widgets de détail VIVENT DANS widgets/...           ║
+│   │  ║                                                                ║
+│   │  ║  Les features COMMUNES (messages, notifications, auth)        ║
+│   │  ║  sont des DOSSIERS SHARED top-level — JAMAIS dupliquées       ║
+│   │  ║  par acteur.                                                   ║
+│   │  ╚═══════════════════════════════════════════════════════════════╝
 │   │
-│   ├── communs/
+│   ├── communs/                         ← Widgets utilitaires shared
 │   │   ├── bouton_principal.dart
 │   │   ├── bouton_secondaire.dart
 │   │   ├── chargement.dart
-│   │   ├── etat_vide.dart
 │   │   ├── vue_erreur.dart
-│   │   ├── champ_recherche.dart
-│   │   ├── puce_statut.dart
-│   │   └── snackbars.dart
+│   │   ├── snackbars.dart
+│   │   ├── section_titre.dart
+│   │   ├── carte_argent_commande.dart
+│   │   ├── suivi_commande.dart
+│   │   ├── header_utilisateur.dart
+│   │   ├── shell_layout.dart
+│   │   ├── barre_navigation.dart
+│   │   ├── bouton_ajout_central.dart
+│   │   ├── badge_notification.dart
+│   │   ├── tile_raccourci.dart
+│   │   └── moyen_paiement_ajout_sheet.dart
 │   │
-│   ├── producteur/
+│   ├── authentification/                ← SHARED (un seul dossier pour tous)
+│   │   ├── carte_role.dart
+│   │   ├── champ_telephone.dart
+│   │   ├── saisie_otp.dart
+│   │   ├── pave_pin.dart
+│   │   ├── selecteur_coop.dart
+│   │   └── selecteur_langue.dart
+│   │
+│   ├── messages/                        ← SHARED (chat — un seul dossier)
+│   │   ├── tuile_conversation.dart      (item liste conversations)
+│   │   ├── bulle_message.dart           (bubble du chat)
+│   │   ├── entete_chat.dart             (header conversation)
+│   │   ├── champ_saisie_message.dart
+│   │   └── avatar_bot.dart              (distinguer IA vs humain)
+│   │
+│   ├── notifications/                   ← SHARED (centre notifs — un seul)
+│   │   ├── tuile_notification.dart
+│   │   ├── grouper_par_jour.dart
+│   │   └── etat_vide_notif.dart
+│   │
+│   ├── producteur/                      ← Spécifique role farmer
 │   │   ├── accueil/
-│   │   │   ├── carte_kpi.dart
-│   │   │   ├── graphique_revenus.dart
-│   │   │   ├── banniere_alertes.dart
-│   │   │   ├── liste_actions_attente.dart
-│   │   │   └── action_rapide.dart
 │   │   ├── annonces/
-│   │   │   ├── carte_annonce.dart
-│   │   │   ├── formulaire_annonce.dart
-│   │   │   ├── selecteur_produit.dart
-│   │   │   ├── selecteur_traitements.dart
-│   │   │   ├── bascule_coop.dart
-│   │   │   └── selecteur_coordonnees.dart
-│   │   ├── messages/
-│   │   │   ├── tuile_conversation.dart
-│   │   │   └── bulle_message.dart
-│   │   ├── transactions/
-│   │   │   ├── carte_solde.dart
-│   │   │   ├── tuile_transaction.dart
-│   │   │   └── formulaire_retrait.dart
-│   │   └── profil/
-│   │       ├── selecteur_avatar.dart
-│   │       └── parametres_producteur.dart
-│   │
-│   ├── acheteur/
-│   │   ├── accueil/
-│   │   │   ├── carte_annonce.dart
-│   │   │   ├── barre_filtres.dart
-│   │   │   └── puces_categories.dart
-│   │   ├── recherche/
-│   │   │   ├── filtres_recherche.dart
-│   │   │   └── recherches_recentes.dart
 │   │   ├── commandes/
-│   │   │   ├── carte_commande.dart
-│   │   │   ├── chronologie_statut.dart
-│   │   │   └── suivi_livraison.dart
-│   │   ├── messages/
-│   │   ├── transactions/
-│   │   └── profil/
-│   │
-│   ├── cooperative/
-│   │   ├── accueil/
-│   │   │   ├── kpi_coop.dart
-│   │   │   ├── actions_attente.dart
-│   │   │   └── top_contributeurs.dart
-│   │   ├── membres/
-│   │   │   ├── tuile_membre.dart
-│   │   │   ├── carte_demande_adhesion.dart
-│   │   │   └── formulaire_invitation.dart
-│   │   ├── annonces/
-│   │   │   ├── annonce_a_valider.dart
-│   │   │   ├── feuille_validation.dart
-│   │   │   └── formulaire_agregation.dart
+│   │   ├── parcelles/
+│   │   ├── publier/
 │   │   ├── publications/
-│   │   │   ├── carte_publication.dart
-│   │   │   └── liste_contributeurs.dart
-│   │   ├── avances/
-│   │   │   ├── formulaire_avance.dart
-│   │   │   └── tuile_avance.dart
-│   │   ├── messages/
+│   │   ├── sollicitations/
+│   │   ├── ai/
+│   │   ├── wallet/
 │   │   ├── transactions/
 │   │   └── profil/
 │   │
-│   └── transporteur/
+│   ├── acheteur/                        ← Spécifique role buyer
+│   │   ├── accueil/
+│   │   ├── marche/
+│   │   ├── commandes/
+│   │   ├── recherche/
+│   │   ├── demandes/
+│   │   ├── wallet/
+│   │   ├── transactions/
+│   │   └── profil/
+│   │
+│   ├── cooperative/                     ← Spécifique role coop
+│   │   ├── accueil/
+│   │   ├── membres/
+│   │   ├── annonces/
+│   │   ├── publications/
+│   │   ├── sollicitations/
+│   │   ├── finance/
+│   │   ├── logistique/
+│   │   ├── stock/
+│   │   ├── avances/
+│   │   ├── transactions/
+│   │   └── profil/
+│   │
+│   └── transporteur/                    ← Spécifique role transporter
 │       ├── accueil/
-│       │   ├── carte_mission.dart
-│       │   └── graphique_gains.dart
 │       ├── missions/
-│       │   ├── carte_suivi.dart
-│       │   ├── bouton_statut.dart
-│       │   └── camera_preuve_livraison.dart
 │       ├── itineraires/
-│       │   ├── carte_itineraire.dart
-│       │   └── formulaire_itineraire.dart
-│       ├── messages/
+│       ├── confirmations/
+│       ├── wallet/
 │       ├── transactions/
 │       └── profil/
 │
@@ -212,3 +227,70 @@ lib/
 └── l10n/                                🇬🇧 standard (Flutter)
     ├── app_fr.arb
     └── app_en.arb
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# RÈGLES STRICTES
+# ═══════════════════════════════════════════════════════════════════════
+
+## 1. Pages = composition only
+
+Toute page (`pages/.../*_page.dart`) doit assembler des widgets importés
+depuis `widgets/...`. AUCUNE classe `_PrivateWidget` substantielle ne
+doit vivre inline dans une page.
+
+Acceptable inline dans une page :
+- micro-helpers de moins de ~20 lignes (1 petit conteneur, 1 row simple)
+- providers Riverpod scoped à la page
+
+Inacceptable inline dans une page :
+- sections complètes (header, hero, sticky buttons, sections de contenu)
+- timelines, listes, cards composées
+- dialogs ouverts depuis la page (extraire en fonction libre)
+- toute classe `_Widget` qui dépasse ~30 lignes
+
+## 2. Features communes = dossier SHARED top-level
+
+Les features ci-dessous sont **identiques pour tous les rôles** et
+DOIVENT vivre dans un dossier partagé top-level — JAMAIS dupliquées
+par acteur :
+
+- `widgets/messages/` (chat / conversations)
+- `widgets/notifications/` (centre notifs)
+- `widgets/authentification/` (login / signup / OTP / PIN)
+- `widgets/communs/` (utilitaires : bouton, snackbar, chargement, etc.)
+
+Idem côté pages : `pages/_shared/messages_page.dart` est partagée par
+tous les rôles. Le routing utilise simplement la même page derrière
+des routes différentes (`/acheteur/messages`, `/producteur/messages`,
+etc.) — c'est juste un chemin, pas un dupliqué.
+
+## 3. Features par acteur
+
+Tout ce qui est métier-spécifique au rôle vit dans `widgets/<acteur>/<feature>/` :
+- `accueil/` (KPI différents par rôle)
+- `marche/` (acheteur uniquement)
+- `parcelles/` (producteur uniquement)
+- `missions/` (transporteur uniquement)
+- `membres/` (coopérative uniquement)
+- `profil/` (champs différents par rôle — KYC farmer ≠ adresse buyer)
+
+## 4. Convention de nommage
+
+- Fichiers : `snake_case.dart`, en français quand naturel
+  (`carte_argent_commande.dart`, `section_acheteur.dart`).
+- Classes publiques exportées : `PascalCase` français
+  (`CarteArgentCommande`, `SectionAcheteur`, `ActionsCommandeProducteur`).
+- Classes internes au fichier (privées) : `_PascalCase` avec underscore
+  (`_BadgePartage`, `_BoutonConfirmer`).
+- Doc-comment `///` au-dessus de CHAQUE classe publique exportée,
+  expliquant le rôle du widget et où il est utilisé.
+
+## 5. Process avant chaque modif de page
+
+1. Si tu touches une page existante avec des `_PrivateWidget` inline
+   substantiels → corrige la dette technique AVANT d'ajouter ton code.
+2. Si tu crées un widget : décide s'il est partagé (messages/notifs/auth
+   → shared top-level) ou métier-spécifique (`widgets/<acteur>/<feat>/`).
+3. Une page neuve qui dépasse 200 lignes a probablement violé la règle —
+   relire et extraire.

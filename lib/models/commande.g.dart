@@ -68,6 +68,26 @@ _$CommandeImpl _$$CommandeImplFromJson(Map<String, dynamic> json) =>
             'updated_at',
             (v) => v == null ? null : DateTime.parse(v as String),
           ),
+          buyerName: $checkedConvert(
+            'buyer_name',
+            (v) => v as String?,
+            readValue: _readBuyerName,
+          ),
+          buyerPhotoUrl: $checkedConvert(
+            'buyer_photo_url',
+            (v) => v as String?,
+            readValue: _readBuyerPhoto,
+          ),
+          sellerName: $checkedConvert(
+            'seller_name',
+            (v) => v as String?,
+            readValue: _readSellerName,
+          ),
+          sellerPhotoUrl: $checkedConvert(
+            'seller_photo_url',
+            (v) => v as String?,
+            readValue: _readSellerPhoto,
+          ),
         );
         return val;
       },
@@ -85,6 +105,10 @@ _$CommandeImpl _$$CommandeImplFromJson(Map<String, dynamic> json) =>
         'livraisonDate': 'livraison_date',
         'createdAt': 'created_at',
         'updatedAt': 'updated_at',
+        'buyerName': 'buyer_name',
+        'buyerPhotoUrl': 'buyer_photo_url',
+        'sellerName': 'seller_name',
+        'sellerPhotoUrl': 'seller_photo_url',
       },
     );
 
@@ -114,6 +138,10 @@ Map<String, dynamic> _$$CommandeImplToJson(
     'created_at': value,
   if (instance.updatedAt?.toIso8601String() case final value?)
     'updated_at': value,
+  if (instance.buyerName case final value?) 'buyer_name': value,
+  if (instance.buyerPhotoUrl case final value?) 'buyer_photo_url': value,
+  if (instance.sellerName case final value?) 'seller_name': value,
+  if (instance.sellerPhotoUrl case final value?) 'seller_photo_url': value,
 };
 
 const _$OrderStatusEnumMap = {

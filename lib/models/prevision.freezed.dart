@@ -33,6 +33,14 @@ mixin _$Prevision {
   @JsonKey(unknownEnumValue: PrevisionStatus.unknown)
   PrevisionStatus get status => throw _privateConstructorUsedError;
   String? get assignedToCooperativeId => throw _privateConstructorUsedError;
+
+  /// Workflow coop : `PENDING`/`VALIDATED`/`INCLUDED`/`REJECTED` ou
+  /// `null` (pas attribuée à une coop). Le FARMER perd la main sur la
+  /// modification dès que c'est VALIDATED ou INCLUDED. Côté UI on
+  /// désactive les boutons "Modifier" / "Supprimer" en conséquence.
+  String? get coopStatus => throw _privateConstructorUsedError;
+  String? get saison => throw _privateConstructorUsedError;
+  String? get notes => throw _privateConstructorUsedError;
   DateTime? get createdAt => throw _privateConstructorUsedError;
   DateTime? get updatedAt => throw _privateConstructorUsedError;
 
@@ -61,6 +69,9 @@ abstract class $PrevisionCopyWith<$Res> {
     @FlexDoubleN() double? prixCibleKg,
     @JsonKey(unknownEnumValue: PrevisionStatus.unknown) PrevisionStatus status,
     String? assignedToCooperativeId,
+    String? coopStatus,
+    String? saison,
+    String? notes,
     DateTime? createdAt,
     DateTime? updatedAt,
   });
@@ -90,6 +101,9 @@ class _$PrevisionCopyWithImpl<$Res, $Val extends Prevision>
     Object? prixCibleKg = freezed,
     Object? status = null,
     Object? assignedToCooperativeId = freezed,
+    Object? coopStatus = freezed,
+    Object? saison = freezed,
+    Object? notes = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
   }) {
@@ -131,6 +145,18 @@ class _$PrevisionCopyWithImpl<$Res, $Val extends Prevision>
                 ? _value.assignedToCooperativeId
                 : assignedToCooperativeId // ignore: cast_nullable_to_non_nullable
                       as String?,
+            coopStatus: freezed == coopStatus
+                ? _value.coopStatus
+                : coopStatus // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            saison: freezed == saison
+                ? _value.saison
+                : saison // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            notes: freezed == notes
+                ? _value.notes
+                : notes // ignore: cast_nullable_to_non_nullable
+                      as String?,
             createdAt: freezed == createdAt
                 ? _value.createdAt
                 : createdAt // ignore: cast_nullable_to_non_nullable
@@ -164,6 +190,9 @@ abstract class _$$PrevisionImplCopyWith<$Res>
     @FlexDoubleN() double? prixCibleKg,
     @JsonKey(unknownEnumValue: PrevisionStatus.unknown) PrevisionStatus status,
     String? assignedToCooperativeId,
+    String? coopStatus,
+    String? saison,
+    String? notes,
     DateTime? createdAt,
     DateTime? updatedAt,
   });
@@ -192,6 +221,9 @@ class __$$PrevisionImplCopyWithImpl<$Res>
     Object? prixCibleKg = freezed,
     Object? status = null,
     Object? assignedToCooperativeId = freezed,
+    Object? coopStatus = freezed,
+    Object? saison = freezed,
+    Object? notes = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
   }) {
@@ -233,6 +265,18 @@ class __$$PrevisionImplCopyWithImpl<$Res>
             ? _value.assignedToCooperativeId
             : assignedToCooperativeId // ignore: cast_nullable_to_non_nullable
                   as String?,
+        coopStatus: freezed == coopStatus
+            ? _value.coopStatus
+            : coopStatus // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        saison: freezed == saison
+            ? _value.saison
+            : saison // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        notes: freezed == notes
+            ? _value.notes
+            : notes // ignore: cast_nullable_to_non_nullable
+                  as String?,
         createdAt: freezed == createdAt
             ? _value.createdAt
             : createdAt // ignore: cast_nullable_to_non_nullable
@@ -248,7 +292,7 @@ class __$$PrevisionImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$PrevisionImpl implements _Prevision {
+class _$PrevisionImpl extends _Prevision {
   const _$PrevisionImpl({
     required this.id,
     required this.farmerId,
@@ -260,9 +304,12 @@ class _$PrevisionImpl implements _Prevision {
     @JsonKey(unknownEnumValue: PrevisionStatus.unknown)
     this.status = PrevisionStatus.unknown,
     this.assignedToCooperativeId,
+    this.coopStatus,
+    this.saison,
+    this.notes,
     this.createdAt,
     this.updatedAt,
-  });
+  }) : super._();
 
   factory _$PrevisionImpl.fromJson(Map<String, dynamic> json) =>
       _$$PrevisionImplFromJson(json);
@@ -288,6 +335,17 @@ class _$PrevisionImpl implements _Prevision {
   final PrevisionStatus status;
   @override
   final String? assignedToCooperativeId;
+
+  /// Workflow coop : `PENDING`/`VALIDATED`/`INCLUDED`/`REJECTED` ou
+  /// `null` (pas attribuée à une coop). Le FARMER perd la main sur la
+  /// modification dès que c'est VALIDATED ou INCLUDED. Côté UI on
+  /// désactive les boutons "Modifier" / "Supprimer" en conséquence.
+  @override
+  final String? coopStatus;
+  @override
+  final String? saison;
+  @override
+  final String? notes;
   @override
   final DateTime? createdAt;
   @override
@@ -295,7 +353,7 @@ class _$PrevisionImpl implements _Prevision {
 
   @override
   String toString() {
-    return 'Prevision(id: $id, farmerId: $farmerId, produitId: $produitId, quantitePrevKg: $quantitePrevKg, parcelleId: $parcelleId, dateRecoltePrev: $dateRecoltePrev, prixCibleKg: $prixCibleKg, status: $status, assignedToCooperativeId: $assignedToCooperativeId, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'Prevision(id: $id, farmerId: $farmerId, produitId: $produitId, quantitePrevKg: $quantitePrevKg, parcelleId: $parcelleId, dateRecoltePrev: $dateRecoltePrev, prixCibleKg: $prixCibleKg, status: $status, assignedToCooperativeId: $assignedToCooperativeId, coopStatus: $coopStatus, saison: $saison, notes: $notes, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -322,6 +380,10 @@ class _$PrevisionImpl implements _Prevision {
                   assignedToCooperativeId,
                 ) ||
                 other.assignedToCooperativeId == assignedToCooperativeId) &&
+            (identical(other.coopStatus, coopStatus) ||
+                other.coopStatus == coopStatus) &&
+            (identical(other.saison, saison) || other.saison == saison) &&
+            (identical(other.notes, notes) || other.notes == notes) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
@@ -341,6 +403,9 @@ class _$PrevisionImpl implements _Prevision {
     prixCibleKg,
     status,
     assignedToCooperativeId,
+    coopStatus,
+    saison,
+    notes,
     createdAt,
     updatedAt,
   );
@@ -359,7 +424,7 @@ class _$PrevisionImpl implements _Prevision {
   }
 }
 
-abstract class _Prevision implements Prevision {
+abstract class _Prevision extends Prevision {
   const factory _Prevision({
     required final String id,
     required final String farmerId,
@@ -371,9 +436,13 @@ abstract class _Prevision implements Prevision {
     @JsonKey(unknownEnumValue: PrevisionStatus.unknown)
     final PrevisionStatus status,
     final String? assignedToCooperativeId,
+    final String? coopStatus,
+    final String? saison,
+    final String? notes,
     final DateTime? createdAt,
     final DateTime? updatedAt,
   }) = _$PrevisionImpl;
+  const _Prevision._() : super._();
 
   factory _Prevision.fromJson(Map<String, dynamic> json) =
       _$PrevisionImpl.fromJson;
@@ -399,6 +468,17 @@ abstract class _Prevision implements Prevision {
   PrevisionStatus get status;
   @override
   String? get assignedToCooperativeId;
+
+  /// Workflow coop : `PENDING`/`VALIDATED`/`INCLUDED`/`REJECTED` ou
+  /// `null` (pas attribuée à une coop). Le FARMER perd la main sur la
+  /// modification dès que c'est VALIDATED ou INCLUDED. Côté UI on
+  /// désactive les boutons "Modifier" / "Supprimer" en conséquence.
+  @override
+  String? get coopStatus;
+  @override
+  String? get saison;
+  @override
+  String? get notes;
   @override
   DateTime? get createdAt;
   @override

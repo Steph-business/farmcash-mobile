@@ -1,16 +1,24 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../api_client/api_exception.dart';
 import '../../../../models/enums.dart';
 import '../../../../models/produit.dart';
+import '../../../../models/ville.dart';
 import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
-import '../../../../theme/app_text_styles.dart';
 import '../../../widgets/communs/snackbars.dart';
+import '../../../widgets/cooperative/publications/bouton_sticky_publication.dart';
+import '../../../widgets/cooperative/publications/champ_grand_publication.dart';
+import '../../../widgets/cooperative/publications/champ_multiligne_publication.dart';
+import '../../../widgets/cooperative/publications/champ_titre_publication.dart';
+import '../../../widgets/cooperative/publications/chip_qualite_publication.dart';
+import '../../../widgets/cooperative/publications/entete_publication_creer.dart';
+import '../../../widgets/cooperative/publications/feuille_choix_produit.dart';
+import '../../../widgets/cooperative/publications/libelle_section_publication.dart';
+import '../../../widgets/cooperative/publications/selecteur_produit_publication.dart';
 
 /// Bundle de chargement : catalogue produits (pour le dropdown).
 final _publicationBundleProvider =
@@ -20,6 +28,12 @@ final _publicationBundleProvider =
   } catch (_) {
     return const <Produit>[];
   }
+});
+
+/// Liste des villes — utilisée pour dériver `region_id` + `ville_id`
+/// requis par `CreatePublicationCoopDto`.
+final _villesProvider = FutureProvider.autoDispose<List<Ville>>((ref) {
+  return ref.read(marketplaceServiceProvider).listVilles();
 });
 
 /// Création d'une publication coopérative — formulaire complet branché sur
@@ -69,7 +83,10 @@ class _PublicationCreerPageState extends ConsumerState<PublicationCreerPage> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (ctx) => _ProduitSheet(produits: produits, selectedId: _produit?.id),
+      builder: (ctx) => FeuilleChoixProduit(
+        produits: produits,
+        selectedId: _produit?.id,
+      ),
     );
     if (selected != null && mounted) {
       setState(() {
@@ -87,9 +104,6 @@ class _PublicationCreerPageState extends ConsumerState<PublicationCreerPage> {
       Snackbars.showErreur(context, 'Choisis un produit.');
       return;
     }
-    final titre = _titreCtrl.text.trim().isEmpty
-        ? _produit!.nom
-        : _titreCtrl.text.trim();
     final qte = double.tryParse(_quantiteCtrl.text.replaceAll(',', '.'));
     final prix = double.tryParse(_prixCtrl.text.replaceAll(',', '.'));
     if (qte == null || qte <= 0) {
@@ -100,17 +114,27 @@ class _PublicationCreerPageState extends ConsumerState<PublicationCreerPage> {
       Snackbars.showErreur(context, 'Prix au kg invalide.');
       return;
     }
+    // Région/ville requises par le backend. On prend la première ville
+    // du référentiel comme fallback documenté — l'écran prévu pourra
+    // ajouter un picker de ville pour la coop.
+    // TODO(geoloc): brancher un picker ville + Geolocator pour les coords.
+    final villes = ref.read(_villesProvider).value;
+    if (villes == null || villes.isEmpty) {
+      Snackbars.showErreur(context, 'Référentiel villes indisponible.');
+      return;
+    }
+    final ville = villes.first;
     setState(() => _busy = true);
     try {
       await ref.read(cooperativesServiceProvider).createPublication(
             produitId: _produit!.id,
-            titre: titre,
             quantiteKg: qte,
             prixParKg: prix,
             qualite: _qualite,
-            description: _descriptionCtrl.text.trim().isEmpty
-                ? null
-                : _descriptionCtrl.text.trim(),
+            regionId: ville.regionId,
+            villeId: ville.id,
+            lat: 5.345317,
+            lng: -4.024429,
           );
       if (!mounted) return;
       Snackbars.showSucces(context, 'Publication créée et visible sur le marché.');
@@ -129,6 +153,9 @@ class _PublicationCreerPageState extends ConsumerState<PublicationCreerPage> {
   @override
   Widget build(BuildContext context) {
     final asyncProduits = ref.watch(_publicationBundleProvider);
+    // Pré-charge la liste des villes pour pouvoir dériver region_id +
+    // ville_id à la soumission (requis par le backend).
+    ref.watch(_villesProvider);
     final produits = asyncProduits.value ?? const <Produit>[];
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -136,7 +163,7 @@ class _PublicationCreerPageState extends ConsumerState<PublicationCreerPage> {
         bottom: false,
         child: Column(
           children: [
-            const _Header(),
+            const EntetePublicationCreer(),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(
@@ -146,43 +173,43 @@ class _PublicationCreerPageState extends ConsumerState<PublicationCreerPage> {
                   AppDimens.space16,
                 ),
                 children: [
-                  const _SectionLabel(label: 'Produit à publier'),
+                  const LibelleSectionPublication(label: 'Produit à publier'),
                   AppDimens.vGap8,
-                  _ProduitSelector(
+                  SelecteurProduitPublication(
                     produit: _produit,
                     onTap: () => _choisirProduit(produits),
                   ),
                   AppDimens.vGap24,
-                  const _SectionLabel(label: 'Titre de l\'annonce'),
+                  const LibelleSectionPublication(label: 'Titre de l\'annonce'),
                   AppDimens.vGap8,
-                  _TitreInput(controller: _titreCtrl, enabled: !_busy),
+                  ChampTitrePublication(controller: _titreCtrl, enabled: !_busy),
                   AppDimens.vGap24,
-                  const _SectionLabel(label: 'Quantité à publier'),
+                  const LibelleSectionPublication(label: 'Quantité à publier'),
                   AppDimens.vGap8,
-                  _InputBig(
+                  ChampGrandPublication(
                     controller: _quantiteCtrl,
                     suffix: 'kg',
                     hint: 'Ex : 500',
                     enabled: !_busy,
                   ),
                   AppDimens.vGap24,
-                  const _SectionLabel(label: 'Prix par kg'),
+                  const LibelleSectionPublication(label: 'Prix par kg'),
                   AppDimens.vGap8,
-                  _InputBig(
+                  ChampGrandPublication(
                     controller: _prixCtrl,
                     suffix: 'F CFA / kg',
                     hint: 'Ex : 350',
                     enabled: !_busy,
                   ),
                   AppDimens.vGap24,
-                  const _SectionLabel(label: 'Qualité'),
+                  const LibelleSectionPublication(label: 'Qualité'),
                   AppDimens.vGap8,
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
                     children: List.generate(_qualites.length, (i) {
                       final q = _qualites[i];
-                      return _ChipQualite(
+                      return ChipQualitePublication(
                         label: _qualiteLabel(q),
                         selected: _qualite == q,
                         onTap: () => setState(() => _qualite = q),
@@ -190,9 +217,11 @@ class _PublicationCreerPageState extends ConsumerState<PublicationCreerPage> {
                     }),
                   ),
                   AppDimens.vGap24,
-                  const _SectionLabel(label: 'Description (optionnelle)'),
+                  const LibelleSectionPublication(
+                    label: 'Description (optionnelle)',
+                  ),
                   AppDimens.vGap8,
-                  _MultilineInput(
+                  ChampMultilignePublication(
                     controller: _descriptionCtrl,
                     enabled: !_busy,
                     placeholder:
@@ -201,7 +230,7 @@ class _PublicationCreerPageState extends ConsumerState<PublicationCreerPage> {
                 ],
               ),
             ),
-            _Sticky(busy: _busy, onTap: _publier),
+            BoutonStickyPublication(busy: _busy, onTap: _publier),
           ],
         ),
       ),
@@ -221,431 +250,5 @@ String _qualiteLabel(ProductQuality q) {
       return 'Équitable';
     case ProductQuality.unknown:
       return 'Standard';
-  }
-}
-
-// ─── Header ────────────────────────────────────────────────────────
-
-class _Header extends StatelessWidget {
-  const _Header();
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppDimens.space16,
-        AppDimens.space8,
-        AppDimens.space16,
-        AppDimens.space12,
-      ),
-      child: Row(
-        children: [
-          InkWell(
-            onTap: () => Navigator.of(context).pop(),
-            borderRadius: BorderRadius.circular(20),
-            child: const SizedBox(
-              width: 40,
-              height: 40,
-              child: Icon(
-                Icons.arrow_back_ios_new,
-                size: 20,
-                color: AppColors.text,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              'Publier sur le marché',
-              style: AppTextStyles.titleSmall.copyWith(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel({required this.label});
-  final String label;
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      label,
-      style: AppTextStyles.bodyMedium.copyWith(
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
-        color: AppColors.text,
-      ),
-    );
-  }
-}
-
-// ─── Produit selector ───────────────────────────────────────────────
-
-class _ProduitSelector extends StatelessWidget {
-  const _ProduitSelector({required this.produit, required this.onTap});
-  final Produit? produit;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppDimens.radiusCard),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.background,
-          borderRadius: BorderRadius.circular(AppDimens.radiusCard),
-          border: Border.all(
-            color: AppColors.border,
-            width: AppDimens.borderThin,
-          ),
-        ),
-        padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    produit?.nom ?? 'Choisir un produit',
-                    style: AppTextStyles.titleLarge.copyWith(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  if (produit != null) ...[
-                    const SizedBox(height: 3),
-                    Text(
-                      'Catalogue · ${produit!.slug}',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            const Icon(
-              Icons.chevron_right,
-              size: 20,
-              color: AppColors.textSubtle,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ProduitSheet extends StatelessWidget {
-  const _ProduitSheet({required this.produits, required this.selectedId});
-  final List<Produit> produits;
-  final String? selectedId;
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      top: false,
-      child: Container(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.7,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 12),
-            Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.border,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 14),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                'Choisir un produit',
-                style: AppTextStyles.titleSmall.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: ListView.builder(
-                itemCount: produits.length,
-                itemBuilder: (_, i) {
-                  final p = produits[i];
-                  final selected = p.id == selectedId;
-                  return ListTile(
-                    title: Text(
-                      p.nom,
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    trailing: selected
-                        ? const Icon(Icons.check, color: AppColors.primary)
-                        : null,
-                    onTap: () => Navigator.of(context).pop(p),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Inputs ─────────────────────────────────────────────────────────
-
-class _TitreInput extends StatelessWidget {
-  const _TitreInput({required this.controller, required this.enabled});
-  final TextEditingController controller;
-  final bool enabled;
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(AppDimens.radiusCard),
-        border: Border.all(
-          color: AppColors.border,
-          width: AppDimens.borderThin,
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      child: TextField(
-        controller: controller,
-        enabled: enabled,
-        textCapitalization: TextCapitalization.sentences,
-        style: AppTextStyles.bodyMedium.copyWith(fontSize: 14),
-        decoration: InputDecoration(
-          hintText: 'Ex : Maïs grain blanc · lot été',
-          border: InputBorder.none,
-          isDense: true,
-          contentPadding: const EdgeInsets.symmetric(vertical: 14),
-          hintStyle: AppTextStyles.bodyMedium.copyWith(
-            color: AppColors.textSubtle,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _InputBig extends StatelessWidget {
-  const _InputBig({
-    required this.controller,
-    required this.suffix,
-    required this.hint,
-    required this.enabled,
-  });
-  final TextEditingController controller;
-  final String suffix;
-  final String hint;
-  final bool enabled;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 56,
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(AppDimens.radiusCard),
-        border: Border.all(
-          color: AppColors.border,
-          width: AppDimens.borderThin,
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: controller,
-              enabled: enabled,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: false,
-              ),
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              style: AppTextStyles.displayLarge.copyWith(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                color: AppColors.text,
-              ),
-              decoration: InputDecoration(
-                hintText: hint,
-                border: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                isDense: true,
-                hintStyle: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.textSubtle,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            suffix,
-            style: AppTextStyles.bodyMedium.copyWith(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MultilineInput extends StatelessWidget {
-  const _MultilineInput({
-    required this.controller,
-    required this.enabled,
-    required this.placeholder,
-  });
-  final TextEditingController controller;
-  final bool enabled;
-  final String placeholder;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(AppDimens.radiusCard),
-        border: Border.all(
-          color: AppColors.border,
-          width: AppDimens.borderThin,
-        ),
-      ),
-      child: TextField(
-        controller: controller,
-        enabled: enabled,
-        minLines: 3,
-        maxLines: 5,
-        textCapitalization: TextCapitalization.sentences,
-        decoration: InputDecoration(
-          hintText: placeholder,
-          border: InputBorder.none,
-          isDense: true,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 14,
-            vertical: 12,
-          ),
-          hintStyle: AppTextStyles.bodyMedium.copyWith(
-            color: AppColors.textSubtle,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ChipQualite extends StatelessWidget {
-  const _ChipQualite({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.primary : AppColors.background,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: selected ? AppColors.primary : AppColors.borderStrong,
-            width: AppDimens.borderThin,
-          ),
-        ),
-        child: Text(
-          label,
-          style: AppTextStyles.labelMedium.copyWith(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: selected ? AppColors.onPrimary : AppColors.text,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Sticky extends StatelessWidget {
-  const _Sticky({required this.busy, required this.onTap});
-  final bool busy;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.background,
-        border: Border(
-          top: BorderSide(
-            color: AppColors.border,
-            width: AppDimens.borderThin,
-          ),
-        ),
-      ),
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-      child: SizedBox(
-        width: double.infinity,
-        child: InkWell(
-          onTap: busy ? null : onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            decoration: BoxDecoration(
-              color: AppColors.primary,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            alignment: Alignment.center,
-            child: busy
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      color: Colors.white,
-                    ),
-                  )
-                : Text(
-                    'Publier la publication',
-                    style: AppTextStyles.button.copyWith(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.onPrimary,
-                    ),
-                  ),
-          ),
-        ),
-      ),
-    );
   }
 }

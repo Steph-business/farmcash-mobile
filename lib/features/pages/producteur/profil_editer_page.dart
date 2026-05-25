@@ -10,6 +10,10 @@ import '../../../theme/app_dimens.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../state/auth_state.dart';
 import '../../widgets/communs/snackbars.dart';
+import '../../widgets/producteur/profil/header_profil_editer.dart';
+import '../../widgets/producteur/profil/label_profil_editer.dart';
+import '../../widgets/producteur/profil/text_field_profil_editer.dart';
+import '../../widgets/producteur/profil/ville_dropdown_profil_editer.dart';
 
 /// Charge la liste des villes CI une fois — sert pour le dropdown ville.
 final _villesProfilProvider =
@@ -94,7 +98,7 @@ class _ProfilEditerPageState extends ConsumerState<ProfilEditerPage> {
         bottom: false,
         child: Column(
           children: [
-            _Header(busy: _saving, onSave: _onSave),
+            HeaderProfilEditer(busy: _saving, onSave: _onSave),
             Expanded(
               child: Form(
                 key: _formKey,
@@ -106,9 +110,9 @@ class _ProfilEditerPageState extends ConsumerState<ProfilEditerPage> {
                     AppDimens.space24,
                   ),
                   children: [
-                    const _Label('Nom complet'),
+                    const LabelProfilEditer('Nom complet'),
                     AppDimens.vGap8,
-                    _TextField(
+                    TextFieldProfilEditer(
                       controller: _nomCtrl,
                       hint: 'Prénom Nom',
                       enabled: !_saving,
@@ -116,9 +120,9 @@ class _ProfilEditerPageState extends ConsumerState<ProfilEditerPage> {
                           (v == null || v.trim().isEmpty) ? 'Requis' : null,
                     ),
                     AppDimens.vGap16,
-                    const _Label('Téléphone'),
+                    const LabelProfilEditer('Téléphone'),
                     AppDimens.vGap8,
-                    _TextField(
+                    TextFieldProfilEditer(
                       controller: TextEditingController(
                         text: user?.phone ?? '',
                       ),
@@ -129,18 +133,18 @@ class _ProfilEditerPageState extends ConsumerState<ProfilEditerPage> {
                           'Le numéro est rattaché à ton compte et ne peut pas être changé ici.',
                     ),
                     AppDimens.vGap16,
-                    const _Label('Email (optionnel)'),
+                    const LabelProfilEditer('Email (optionnel)'),
                     AppDimens.vGap8,
-                    _TextField(
+                    TextFieldProfilEditer(
                       controller: _emailCtrl,
                       hint: 'nom@exemple.ci',
                       enabled: !_saving,
                       keyboardType: TextInputType.emailAddress,
                     ),
                     AppDimens.vGap16,
-                    const _Label('Ville / Région'),
+                    const LabelProfilEditer('Ville / Région'),
                     AppDimens.vGap8,
-                    _VilleDropdown(
+                    VilleDropdownProfilEditer(
                       villes: villes,
                       loading: asyncVilles.isLoading,
                       enabled: !_saving,
@@ -163,245 +167,6 @@ class _ProfilEditerPageState extends ConsumerState<ProfilEditerPage> {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _Header extends StatelessWidget {
-  const _Header({required this.busy, required this.onSave});
-  final bool busy;
-  final VoidCallback onSave;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppDimens.space16,
-        AppDimens.space8,
-        AppDimens.space16,
-        AppDimens.space12,
-      ),
-      child: Row(
-        children: [
-          InkWell(
-            onTap: () => Navigator.of(context).pop(),
-            borderRadius: BorderRadius.circular(20),
-            child: const SizedBox(
-              width: 40,
-              height: 40,
-              child: Icon(
-                Icons.arrow_back_ios_new,
-                size: 20,
-                color: AppColors.text,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              'Modifier le profil',
-              style: AppTextStyles.titleSmall.copyWith(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          if (busy)
-            const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: AppColors.primary,
-              ),
-            )
-          else
-            TextButton(
-              onPressed: onSave,
-              child: Text(
-                'Enregistrer',
-                style: AppTextStyles.link.copyWith(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Label extends StatelessWidget {
-  const _Label(this.label);
-  final String label;
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      label,
-      style: AppTextStyles.labelMedium.copyWith(
-        fontWeight: FontWeight.w600,
-        color: AppColors.text,
-      ),
-    );
-  }
-}
-
-class _TextField extends StatelessWidget {
-  const _TextField({
-    required this.controller,
-    required this.hint,
-    this.keyboardType,
-    this.validator,
-    this.enabled = true,
-    this.helperText,
-  });
-
-  final TextEditingController controller;
-  final String hint;
-  final TextInputType? keyboardType;
-  final String? Function(String?)? validator;
-  final bool enabled;
-  final String? helperText;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      validator: validator,
-      enabled: enabled,
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: AppTextStyles.bodyMedium.copyWith(
-          color: AppColors.textSubtle,
-        ),
-        helperText: helperText,
-        helperStyle: AppTextStyles.labelSmall.copyWith(
-          fontSize: 11,
-          color: AppColors.textSubtle,
-        ),
-        filled: true,
-        fillColor: enabled ? AppColors.surface : AppColors.surfaceSoft,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 14,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: AppDimens.brInput,
-          borderSide: const BorderSide(
-            color: AppColors.border,
-            width: AppDimens.borderThin,
-          ),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: AppDimens.brInput,
-          borderSide: const BorderSide(
-            color: AppColors.border,
-            width: AppDimens.borderThin,
-          ),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: AppDimens.brInput,
-          borderSide: const BorderSide(
-            color: AppColors.primary,
-            width: AppDimens.borderMedium,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _VilleDropdown extends StatelessWidget {
-  const _VilleDropdown({
-    required this.villes,
-    required this.loading,
-    required this.enabled,
-    required this.selectedId,
-    required this.onChanged,
-  });
-
-  final List<Ville> villes;
-  final bool loading;
-  final bool enabled;
-  final String? selectedId;
-  final ValueChanged<String?> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    if (loading) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: AppDimens.brInput,
-          border: Border.all(
-            color: AppColors.border,
-            width: AppDimens.borderThin,
-          ),
-        ),
-        child: Row(
-          children: [
-            const SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-            const SizedBox(width: 10),
-            Text(
-              'Chargement des villes…',
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: AppColors.textSubtle,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-    return DropdownButtonFormField<String>(
-      initialValue: selectedId,
-      isExpanded: true,
-      onChanged: enabled ? onChanged : null,
-      decoration: InputDecoration(
-        hintText: 'Choisir une ville',
-        hintStyle: AppTextStyles.bodyMedium.copyWith(
-          color: AppColors.textSubtle,
-        ),
-        filled: true,
-        fillColor: AppColors.surface,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 14,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: AppDimens.brInput,
-          borderSide: const BorderSide(
-            color: AppColors.border,
-            width: AppDimens.borderThin,
-          ),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: AppDimens.brInput,
-          borderSide: const BorderSide(
-            color: AppColors.border,
-            width: AppDimens.borderThin,
-          ),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: AppDimens.brInput,
-          borderSide: const BorderSide(
-            color: AppColors.primary,
-            width: AppDimens.borderMedium,
-          ),
-        ),
-      ),
-      items: [
-        for (final v in villes)
-          DropdownMenuItem<String>(
-            value: v.id,
-            child: Text(v.nom),
-          ),
-      ],
     );
   }
 }

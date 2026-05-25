@@ -52,8 +52,19 @@ class RouteNames {
   static const producteurAnnoncesPath = '/producteur/annonces';
   static const producteurTransactionsPath = '/producteur/transactions';
   // Flow "Publier une annonce" — déclenché par le FAB central producteur
+  // Détail d'une conversation (chat 1-1 ou groupe). Partagée par les
+  // 4 rôles → route top-level. `:id` = `conversationId` UUID.
+  static const chatDetail = 'chat-detail';
+  static const chatDetailPath = '/chat/:id';
+  static String chatDetailPathFor(String convId) => '/chat/$convId';
+
   static const producteurPublierAnnonce = 'producteur-publier-annonce';
   static const producteurPublierAnnoncePath = '/producteur/publier-annonce';
+  // Créer une prévision de récolte (≠ annonce de vente). Le producteur
+  // annonce une récolte à venir ; les acheteurs réservent une part avec
+  // acompte. Accessible depuis l'onglet Prévisions de "Mes publications".
+  static const producteurCreerPrevision = 'producteur-creer-prevision';
+  static const producteurCreerPrevisionPath = '/producteur/previsions/creer';
   static const producteurCreerParcelle = 'producteur-creer-parcelle';
   static const producteurCreerParcellePath = '/producteur/parcelles/creer';
   static const producteurMesParcelles = 'producteur-mes-parcelles';
@@ -238,6 +249,12 @@ class RouteNames {
       '/acheteur/commandes/:id/livraison-qr';
   static String acheteurLivraisonQrPathFor(String id) =>
       '/acheteur/commandes/$id/livraison-qr';
+  // Tracking position transporteur en temps réel (push depuis le suivi)
+  static const acheteurLivraisonTracking = 'acheteur-livraison-tracking';
+  static const acheteurLivraisonTrackingPath =
+      '/acheteur/commandes/:id/tracking';
+  static String acheteurLivraisonTrackingPathFor(String id) =>
+      '/acheteur/commandes/$id/tracking';
   // Évaluation du transport après livraison (push depuis le détail commande)
   static const acheteurCommandeEvaluation = 'acheteur-commande-evaluation';
   static const acheteurCommandeEvaluationPath =
@@ -315,6 +332,12 @@ class RouteNames {
   // Inviter un farmer (push depuis l'onglet membres)
   static const cooperativeInviterFarmer = 'cooperative-inviter-farmer';
   static const cooperativeInviterFarmerPath = '/cooperative/inviter-farmer';
+  // Enregistrer un farmer géré (sans téléphone) — saisie en présentiel par
+  // la coop d'un producteur sans smartphone. La coop publiera ensuite les
+  // annonces au nom du farmer via `act_as_farmer_id`.
+  static const cooperativeMembreEnregistrer = 'cooperative-membre-enregistrer';
+  static const cooperativeMembreEnregistrerPath =
+      '/cooperative/membres/enregistrer';
   // Finance coop — wallet (solde + transactions)
   static const cooperativeWallet = 'cooperative-wallet';
   static const cooperativeWalletPath = '/cooperative/wallet';
@@ -465,4 +488,48 @@ class RouteNames {
       '/transporteur/missions/:id/evaluation';
   static String transporteurMissionEvaluationPathFor(String id) =>
       '/transporteur/missions/$id/evaluation';
+
+  // ─── Pages partagées (paramètres, aide, conditions) ──────────────────
+  // Mutualisées entre les 4 rôles — pas de préfixe de rôle dans le path,
+  // le contenu détecte le rôle via `currentUserProvider` si besoin.
+  static const langue = 'langue';
+  static const languePath = '/parametres/langue';
+
+  static const securite = 'securite';
+  static const securitePath = '/parametres/securite';
+
+  static const notificationsPreferences = 'notifications-preferences';
+  static const notificationsPreferencesPath = '/parametres/notifications';
+
+  static const aide = 'aide';
+  static const aidePath = '/aide';
+
+  static const conditions = 'conditions';
+  static const conditionsPath = '/conditions';
+
+  static const moyensPaiement = 'moyens-paiement';
+  static const moyensPaiementPath = '/parametres/moyens-paiement';
+
+  // ─── Pages métier acheteur (push hors shell) ─────────────────────────
+  // Identité business — consolide entreprise/RCCM/zones d'achat en une
+  // seule page éditable.
+  static const acheteurMonEntreprise = 'acheteur-mon-entreprise';
+  static const acheteurMonEntreprisePath = '/acheteur/mon-entreprise';
+
+  // ─── Pages métier coopérative (push hors shell) ──────────────────────
+  static const cooperativeIdentite = 'cooperative-identite';
+  static const cooperativeIdentitePath = '/cooperative/identite';
+
+  static const cooperativeCommission = 'cooperative-commission';
+  static const cooperativeCommissionPath = '/cooperative/commission';
+
+  static const cooperativeDocumentsOfficiels =
+      'cooperative-documents-officiels';
+  static const cooperativeDocumentsOfficielsPath =
+      '/cooperative/documents-officiels';
+
+  // ─── Pages métier transporteur (push hors shell) ─────────────────────
+  static const transporteurTarification = 'transporteur-tarification';
+  static const transporteurTarificationPath =
+      '/transporteur/tarification';
 }

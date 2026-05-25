@@ -83,6 +83,10 @@ _$AnnonceVenteImpl _$$AnnonceVenteImplFromJson(
         'disponible_jusqu',
         (v) => v == null ? null : DateTime.parse(v as String),
       ),
+      dateRecolte: $checkedConvert(
+        'date_recolte',
+        (v) => v == null ? null : DateTime.parse(v as String),
+      ),
       createdAt: $checkedConvert(
         'created_at',
         (v) => v == null ? null : DateTime.parse(v as String),
@@ -117,6 +121,7 @@ _$AnnonceVenteImpl _$$AnnonceVenteImplFromJson(
     'coopStatus': 'coop_status',
     'photos': 'medias',
     'disponibleJusqu': 'disponible_jusqu',
+    'dateRecolte': 'date_recolte',
     'createdAt': 'created_at',
     'updatedAt': 'updated_at',
     'produitNom': 'produits_agricoles',
@@ -156,6 +161,8 @@ Map<String, dynamic> _$$AnnonceVenteImplToJson(
   'medias': photosToMedias(instance.photos),
   if (instance.disponibleJusqu?.toIso8601String() case final value?)
     'disponible_jusqu': value,
+  if (instance.dateRecolte?.toIso8601String() case final value?)
+    'date_recolte': value,
   if (instance.createdAt?.toIso8601String() case final value?)
     'created_at': value,
   if (instance.updatedAt?.toIso8601String() case final value?)

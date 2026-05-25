@@ -51,6 +51,10 @@ class AnnonceVente with _$AnnonceVente {
     @Default(<String>[])
     List<String> photos,
     DateTime? disponibleJusqu,
+    /// Date à laquelle le produit a été récolté — info de fraîcheur affichée
+    /// aux acheteurs. Distincte de `disponibleJusqu` (durée de validité de
+    /// l'offre côté producteur). Optionnelle.
+    DateTime? dateRecolte,
     DateTime? createdAt,
     DateTime? updatedAt,
 
@@ -133,18 +137,24 @@ class VendeurApercu {
     this.fullName,
     this.rating,
     this.photoUrl,
+    this.reliabilityScore,
   });
 
   final String? id;
   final String? fullName;
   final double? rating;
   final String? photoUrl;
+  /// Score de fiabilité 0-100 du farmer (affiché en % sur les cards
+  /// marketplace pour que les acheteurs jaugent la confiance avant
+  /// d'acheter / réserver). `null` si le backend ne l'a pas joint.
+  final int? reliabilityScore;
 }
 
 VendeurApercu? _vendeurInfoFromJson(dynamic raw) {
   if (raw is! Map) return null;
   final m = raw.cast<String, dynamic>();
   final rating = m['rating'];
+  final score = m['reliability_score'];
   return VendeurApercu(
     id: m['id'] as String?,
     fullName: m['full_name'] as String?,
@@ -152,6 +162,9 @@ VendeurApercu? _vendeurInfoFromJson(dynamic raw) {
         ? rating.toDouble()
         : (rating is String ? double.tryParse(rating) : null),
     photoUrl: m['photo_url'] as String?,
+    reliabilityScore: score is num
+        ? score.toInt()
+        : (score is String ? int.tryParse(score) : null),
   );
 }
 
@@ -161,6 +174,7 @@ Map<String, dynamic>? _vendeurInfoToJson(VendeurApercu? v) {
     if (v.id != null) 'id': v.id,
     if (v.fullName != null) 'full_name': v.fullName,
     if (v.rating != null) 'rating': v.rating,
+    if (v.reliabilityScore != null) 'reliability_score': v.reliabilityScore,
     if (v.photoUrl != null) 'photo_url': v.photoUrl,
   };
 }

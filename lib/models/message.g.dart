@@ -17,7 +17,7 @@ _$MessageImpl _$$MessageImplFromJson(Map<String, dynamic> json) =>
             'conversation_id',
             (v) => v as String,
           ),
-          senderId: $checkedConvert('sender_id', (v) => v as String),
+          senderId: $checkedConvert('sender_id', (v) => v as String?),
           content: $checkedConvert('content', (v) => v as String?),
           mediaUrl: $checkedConvert('media_url', (v) => v as String?),
           mediaType: $checkedConvert('media_type', (v) => v as String?),
@@ -43,7 +43,7 @@ Map<String, dynamic> _$$MessageImplToJson(_$MessageImpl instance) =>
     <String, dynamic>{
       'id': instance.id,
       'conversation_id': instance.conversationId,
-      'sender_id': instance.senderId,
+      if (instance.senderId case final value?) 'sender_id': value,
       if (instance.content case final value?) 'content': value,
       if (instance.mediaUrl case final value?) 'media_url': value,
       if (instance.mediaType case final value?) 'media_type': value,

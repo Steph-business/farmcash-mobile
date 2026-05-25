@@ -33,29 +33,33 @@ class FinanceService {
   }
 
   /// ADMIN uniquement — déblocage manuel d'un escrow bloqué.
+  ///
+  /// Aligné sur `ReleaseEscrowDto` — attend `reason`, pas `motif`.
   Future<void> releaseEscrowAdmin({
     required String commandeId,
-    String? motif,
+    String? reason,
   }) async {
     await _api.post<dynamic>(
       ApiEndpoints.releaseEscrow,
       body: {
         'commande_id': commandeId,
-        if (motif != null) 'motif': motif,
+        if (reason != null) 'reason': reason,
       },
     );
   }
 
   /// Retrait du wallet vers un moyen Mobile Money.
+  ///
+  /// Aligné sur `PayoutDto` — attend `amount` et `payment_method_id`.
   Future<Transaction> payout({
-    required double montant,
-    required String moyenPayementId,
+    required double amount,
+    required String paymentMethodId,
   }) async {
     final json = await _api.post<Map<String, dynamic>>(
       ApiEndpoints.payout,
       body: {
-        'montant': montant,
-        'moyen_payement_id': moyenPayementId,
+        'amount': amount,
+        'payment_method_id': paymentMethodId,
       },
     );
     return Transaction.fromJson(json);
@@ -74,16 +78,20 @@ class FinanceService {
     return const [];
   }
 
+  /// Enregistre un moyen de paiement (Mobile Money) pour le user courant.
+  ///
+  /// Aligné sur `CreateMoyenPayementDto` — attend `phone_display`, pas
+  /// `phone`.
   Future<MoyenPayement> addMoyenPayement({
     required MobileProvider provider,
-    required String phone,
+    required String phoneDisplay,
     bool isDefault = false,
   }) async {
     final json = await _api.post<Map<String, dynamic>>(
       ApiEndpoints.moyensPayement,
       body: {
         'provider': provider.apiValue,
-        'phone': phone,
+        'phone_display': phoneDisplay,
         'is_default': isDefault,
       },
     );

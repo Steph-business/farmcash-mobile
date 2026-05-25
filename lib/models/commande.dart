@@ -32,10 +32,40 @@ class Commande with _$Commande {
     DateTime? livraisonDate,
     DateTime? createdAt,
     DateTime? updatedAt,
+    // ─── Champs joints (depuis getOrderById backend) ──────────────────
+    // Le backend renvoie le buyer/seller via `include:` Prisma. On les
+    // aplatit ici en fields plats lisibles directement par l'UI. `null`
+    // si la jointure n'a pas été demandée (ex. ancien endpoint list).
+    @JsonKey(readValue: _readBuyerName) String? buyerName,
+    @JsonKey(readValue: _readBuyerPhoto) String? buyerPhotoUrl,
+    @JsonKey(readValue: _readSellerName) String? sellerName,
+    @JsonKey(readValue: _readSellerPhoto) String? sellerPhotoUrl,
   }) = _Commande;
 
   factory Commande.fromJson(Map<String, dynamic> json) =>
       _$CommandeFromJson(json);
+}
+
+// ─── Helpers extraction joints users ─────────────────────────────────
+
+Object? _readBuyerName(Map<dynamic, dynamic> json, String key) {
+  final u = json['users_commandes_vente_buyer_idTousers'];
+  return u is Map ? u['full_name'] : null;
+}
+
+Object? _readBuyerPhoto(Map<dynamic, dynamic> json, String key) {
+  final u = json['users_commandes_vente_buyer_idTousers'];
+  return u is Map ? u['photo_url'] : null;
+}
+
+Object? _readSellerName(Map<dynamic, dynamic> json, String key) {
+  final u = json['users_commandes_vente_seller_idTousers'];
+  return u is Map ? u['full_name'] : null;
+}
+
+Object? _readSellerPhoto(Map<dynamic, dynamic> json, String key) {
+  final u = json['users_commandes_vente_seller_idTousers'];
+  return u is Map ? u['photo_url'] : null;
 }
 
 /// Litige ouvert sur une commande.

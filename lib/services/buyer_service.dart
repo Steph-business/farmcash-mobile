@@ -19,11 +19,14 @@ class BuyerService {
   /// Crée une adresse. Si [isDefault] est vrai, les autres adresses du
   /// user sont automatiquement débadgées par le backend dans une
   /// transaction (cohérence garantie).
+  ///
+  /// Aligné sur `CreateBuyerAddressDto` — `libelle`, `contact_nom`,
+  /// `contact_phone`, `adresse_complete` sont REQUIRED côté backend.
   Future<BuyerAddress> createAddress({
     required String libelle,
-    String? contactNom,
-    String? contactPhone,
-    String? adresseComplete,
+    required String contactNom,
+    required String contactPhone,
+    required String adresseComplete,
     String? villeId,
     double? lat,
     double? lng,
@@ -33,9 +36,9 @@ class BuyerService {
       ApiEndpoints.buyerAddresses,
       body: {
         'libelle': libelle,
-        if (contactNom != null) 'contact_nom': contactNom,
-        if (contactPhone != null) 'contact_phone': contactPhone,
-        if (adresseComplete != null) 'adresse_complete': adresseComplete,
+        'contact_nom': contactNom,
+        'contact_phone': contactPhone,
+        'adresse_complete': adresseComplete,
         if (villeId != null) 'ville_id': villeId,
         if (lat != null) 'lat': lat,
         if (lng != null) 'lng': lng,
