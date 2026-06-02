@@ -36,9 +36,19 @@ class CarteAnnonceMarche extends StatelessWidget {
     final vendeur = annonce.vendeurNom ?? 'Vendeur';
     final loc = annonce.localisationLabel ?? '—';
     final publie = annonce.createdAt;
-    final publieLigne = publie != null
-        ? 'Publié ${DateFormat('d MMM', 'fr_FR').format(publie)}'
-        : null;
+    final recolte = annonce.dateRecolte;
+    // Pour un produit frais, la date de RÉCOLTE compte plus que la
+    // date de publication (info fraîcheur). On la met en priorité.
+    // Si elle est absente, on retombe sur « Publié le X ».
+    final String? metaLigne;
+    if (recolte != null) {
+      metaLigne =
+          'Récolté le ${DateFormat('d MMM', 'fr_FR').format(recolte)}';
+    } else if (publie != null) {
+      metaLigne = 'Publié ${DateFormat('d MMM', 'fr_FR').format(publie)}';
+    } else {
+      metaLigne = null;
+    }
 
     return InkWell(
       onTap: onTap,
@@ -127,10 +137,10 @@ class CarteAnnonceMarche extends StatelessWidget {
                         color: AppColors.textSecondary,
                       ),
                     ),
-                    if (publieLigne != null) ...[
+                    if (metaLigne != null) ...[
                       const SizedBox(height: 2),
                       Text(
-                        publieLigne,
+                        metaLigne,
                         style: AppTextStyles.labelSmall.copyWith(
                           fontSize: 9,
                           color: AppColors.textSubtle,

@@ -1,18 +1,79 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../models/enums.dart';
 import '../../../../models/negociation.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
 
 const Color _kPrimarySoft = Color(0xFFE8F5E9);
-const Color _kWarn = Color(0xFFB45309);
 
 final NumberFormat _nf = NumberFormat('#,##0', 'fr_FR');
 
+/// Apparence du badge statut sur une proposition (couleur + libellé
+/// humanisés). On évite l'enum brut « ACCEPTED » qui n'est pas naturel
+/// pour un acheteur low-tech.
+class _StatutVisuel {
+  const _StatutVisuel({
+    required this.label,
+    required this.background,
+    required this.foreground,
+  });
+  final String label;
+  final Color background;
+  final Color foreground;
+}
+
+_StatutVisuel _visuelPourStatut(NegotiationStatus s) {
+  switch (s) {
+    case NegotiationStatus.accepted:
+      return const _StatutVisuel(
+        label: 'Acceptée',
+        background: _kPrimarySoft,
+        foreground: AppColors.primary,
+      );
+    case NegotiationStatus.rejected:
+      return const _StatutVisuel(
+        label: 'Refusée',
+        background: Color(0xFFFEE2E2),
+        foreground: AppColors.error,
+      );
+    case NegotiationStatus.cancelled:
+      return const _StatutVisuel(
+        label: 'Annulée',
+        background: Color(0xFFE5E7EB),
+        foreground: Color(0xFF6B7280),
+      );
+    case NegotiationStatus.counterOffered:
+      return const _StatutVisuel(
+        label: 'Contre-offre',
+        background: Color(0xFFDBEAFE),
+        foreground: Color(0xFF1D4ED8),
+      );
+    case NegotiationStatus.pending:
+    case NegotiationStatus.unknown:
+      return const _StatutVisuel(
+        label: 'En attente',
+        background: Color(0xFFFEF3C7),
+        foreground: Color(0xFFB45309),
+      );
+  }
+}
+
+/// Une proposition n'est plus actionnable une fois qu'elle a quitté l'état
+/// PENDING/COUNTER_OFFERED. Dans ces cas-là on retire les boutons
+/// Accepter / Refuser (qui généreraient une « Transition impossible » côté
+/// backend) — on garde juste Discuter, qui reste utile pour échanger sur
+/// la commande déjà créée.
+bool _peutAccepterOuRefuser(NegotiationStatus s) =>
+    s == NegotiationStatus.pending ||
+    s == NegotiationStatus.counterOffered;
+
 /// Carte d'une proposition recue sur une demande d'achat.
-/// Affiche prix, quantite, note du producteur et actions accepter/refuser/discuter.
+/// Affiche photo + nom du produit en en-tête, puis prix, quantité, note
+/// du producteur et actions accepter/refuser/discuter.
 class CartePropositionDemande extends StatelessWidget {
   const CartePropositionDemande({
     super.key,
@@ -22,6 +83,8 @@ class CartePropositionDemande extends StatelessWidget {
     required this.onAccepter,
     required this.onRefuser,
     required this.onDiscuter,
+    this.produitNom,
+    this.produitPhotoUrl,
   });
 
   final Proposition proposition;
@@ -30,6 +93,15 @@ class CartePropositionDemande extends StatelessWidget {
   final VoidCallback onAccepter;
   final VoidCallback onRefuser;
   final VoidCallback onDiscuter;
+
+  /// Nom du produit demandé (issu de la `AnnonceAchat` source). Null si
+  /// l'appelant n'a pas pu le résoudre — on affiche alors "Produit" en
+  /// placeholder.
+  final String? produitNom;
+
+  /// URL de la photo du produit (catalogue ou hint visuel). Null →
+  /// icône eco_outlined verte.
+  final String? produitPhotoUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +122,15 @@ class CartePropositionDemande extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _OfferBox(proposition: proposition),
+              // Carte unique : produit (photo + nom) + quantité + prix
+              // réunis dans une seule boîte pour scannabilité maximale.
+              _OfferBox(
+                proposition: proposition,
+                produitNom: produitNom?.trim().isNotEmpty == true
+                    ? produitNom!.trim()
+                    : 'Produit',
+                produitPhotoUrl: produitPhotoUrl,
+              ),
               if (note != null && note.isNotEmpty) ...[
                 const SizedBox(height: 10),
                 Container(
@@ -80,6 +160,7 @@ class CartePropositionDemande extends StatelessWidget {
               const SizedBox(height: 10),
               _Actions(
                 busy: busy,
+                statut: proposition.status,
                 onRefuser: onRefuser,
                 onDiscuter: onDiscuter,
                 onAccepter: onAccepter,
@@ -117,11 +198,25 @@ class CartePropositionDemande extends StatelessWidget {
   }
 }
 
+/// Carte unique de la proposition : à gauche photo+nom du produit puis
+/// quantité + statut empilés ; à droite le prix mis en avant. Tout est
+/// dans un seul container pastel pour lisibilité maximale low-tech.
 class _OfferBox extends StatelessWidget {
-  const _OfferBox({required this.proposition});
+  const _OfferBox({
+    required this.proposition,
+    required this.produitNom,
+    required this.produitPhotoUrl,
+  });
+
   final Proposition proposition;
+  final String produitNom;
+  final String? produitPhotoUrl;
+
   @override
   Widget build(BuildContext context) {
+    final hasPhoto =
+        produitPhotoUrl != null && produitPhotoUrl!.trim().isNotEmpty;
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surfaceSoft,
@@ -131,48 +226,108 @@ class _OfferBox extends StatelessWidget {
           width: AppDimens.borderThin,
         ),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.all(12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          // ── Photo / icône produit (gauche) ────────────────────────
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: SizedBox(
+              width: 52,
+              height: 52,
+              child: hasPhoto
+                  ? CachedNetworkImage(
+                      imageUrl: produitPhotoUrl!,
+                      fit: BoxFit.cover,
+                      placeholder: (_, _) => Container(
+                        color: _kPrimarySoft,
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.eco_outlined,
+                          size: 22,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      errorWidget: (_, _, _) => Container(
+                        color: _kPrimarySoft,
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.eco_outlined,
+                          size: 22,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    )
+                  : Container(
+                      color: _kPrimarySoft,
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.eco_outlined,
+                        size: 24,
+                        color: AppColors.primary,
+                      ),
+                    ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // ── Bloc central (nom + quantité + statut) ────────────────
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'QUANTITÉ',
-                  style: AppTextStyles.labelSmall.copyWith(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${_nf.format(proposition.quantiteKg.round())} kg dispo',
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+                  produitNom,
+                  style: AppTextStyles.titleMedium.copyWith(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
                     color: AppColors.text,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                if (proposition.status.name.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    proposition.status.name.toUpperCase(),
-                    style: AppTextStyles.labelSmall.copyWith(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: _kWarn,
-                      letterSpacing: 0.3,
-                    ),
+                const SizedBox(height: 4),
+                Text(
+                  '${_nf.format(proposition.quantiteKg.round())} kg dispo',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
                   ),
-                ],
+                ),
+                // Badge statut humanisé (« Acceptée » plutôt que « ACCEPTED »).
+                // Pastille colorée pour qu'un coup d'œil suffise.
+                () {
+                  final v = _visuelPourStatut(proposition.status);
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: v.background,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        v.label,
+                        style: AppTextStyles.labelSmall.copyWith(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          color: v.foreground,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ),
+                  );
+                }(),
               ],
             ),
           ),
+          const SizedBox(width: 8),
+          // ── Prix (droite) ─────────────────────────────────────────
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             mainAxisSize: MainAxisSize.min,
@@ -206,16 +361,38 @@ class _OfferBox extends StatelessWidget {
 class _Actions extends StatelessWidget {
   const _Actions({
     required this.busy,
+    required this.statut,
     required this.onRefuser,
     required this.onDiscuter,
     required this.onAccepter,
   });
   final bool busy;
+  final NegotiationStatus statut;
   final VoidCallback onRefuser;
   final VoidCallback onDiscuter;
   final VoidCallback onAccepter;
+
   @override
   Widget build(BuildContext context) {
+    // Quand la proposition n'est plus dans un état actionnable
+    // (acceptée / refusée / annulée), on ne montre QUE « Discuter ».
+    // Inutile (et trompeur) d'afficher Accepter/Refuser : le backend
+    // refuse les transitions sortantes de ces états.
+    if (!_peutAccepterOuRefuser(statut)) {
+      return Row(
+        children: [
+          Expanded(
+            child: _ActionBtn(
+              label: 'Discuter',
+              onTap: busy ? null : onDiscuter,
+              color: AppColors.primary,
+              background: AppColors.background,
+              borderColor: AppColors.primary,
+            ),
+          ),
+        ],
+      );
+    }
     return Row(
       children: [
         Expanded(

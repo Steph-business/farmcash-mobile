@@ -1,45 +1,24 @@
 import 'package:flutter/material.dart';
 
-import '../../../../theme/app_colors.dart';
-import '../../../../theme/app_dimens.dart';
-import '../../../../theme/app_text_styles.dart';
+import '../../communs/barre_recherche_commune.dart';
 
-/// Champ de recherche visuel (read-only) affiché dans le header du
-/// marché acheteur. C'est un placeholder cliquable — pour l'instant
-/// inactif, l'écran de recherche dédié n'étant pas encore relié.
+/// Barre de recherche du header marché — réutilise le widget commun pour
+/// garder un style strictement identique aux autres barres de l'app.
+/// Tap → navigue vers la page recherche dédiée (à brancher).
 class BarreRechercheMarche extends StatelessWidget {
-  const BarreRechercheMarche({super.key});
+  const BarreRechercheMarche({super.key, this.onTap});
+
+  /// Callback au tap. `null` → la barre devient un visuel statique
+  /// (utile en attendant le câblage de la page recherche).
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 44,
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceSoft,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.borderStrong,
-          width: AppDimens.borderThin,
-        ),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.search, size: 18, color: AppColors.textSubtle),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Rechercher un produit, un vendeur…',
-              style: AppTextStyles.bodySmall.copyWith(
-                fontSize: 13,
-                color: AppColors.textSubtle,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
+    return BarreRechercheCommune(
+      placeholder: 'Rechercher un produit, un vendeur…',
+      // Si pas de onTap, on en met un vide pour rester tappable visuel
+      // (sinon l'assert du widget commun lèverait).
+      onTap: onTap ?? () {},
     );
   }
 }

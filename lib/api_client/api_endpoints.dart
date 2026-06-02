@@ -19,6 +19,7 @@ class ApiEndpoints {
   static const String authChangePin = '/auth/change-pin';
   static const String authMe = '/auth/me';
   static const String authUpdateProfile = '/auth/profile/update';
+  static const String authUploadAvatar = '/auth/profile/avatar';
   static const String authProfileProducteur = '/auth/profile/producteur';
   static const String authProfileAcheteur = '/auth/profile/acheteur';
   static const String authProfileCooperative = '/auth/profile/cooperative';
@@ -168,6 +169,14 @@ class ApiEndpoints {
       '/logistics/shipments/$id/qr-token';
   static String shipmentScanPickup(String id) =>
       '/logistics/shipments/$id/scan-pickup';
+  // Delivery QR (symétrique au pickup) : BUYER génère, TRANSPORTER scanne
+  // à la livraison — déclenche DELIVERED + libère escrow TRANSPORT.
+  static String shipmentDeliveryQrToken(String id) =>
+      '/logistics/shipments/$id/delivery-qr-token';
+  static String shipmentScanDelivery(String id) =>
+      '/logistics/shipments/$id/scan-delivery';
+  static String shipmentByCommande(String commandeId) =>
+      '/logistics/shipments/by-commande/$commandeId';
 
   // ─── MESSAGING ───────────────────────────────────────────────────────
   static const String conversations = '/messaging/conversations';

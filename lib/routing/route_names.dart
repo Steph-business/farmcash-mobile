@@ -60,6 +60,8 @@ class RouteNames {
 
   static const producteurPublierAnnonce = 'producteur-publier-annonce';
   static const producteurPublierAnnoncePath = '/producteur/publier-annonce';
+  static const producteurAnnonceExpress = 'producteur-annonce-express';
+  static const producteurAnnonceExpressPath = '/producteur/publier-annonce/express';
   // Créer une prévision de récolte (≠ annonce de vente). Le producteur
   // annonce une récolte à venir ; les acheteurs réservent une part avec
   // acompte. Accessible depuis l'onglet Prévisions de "Mes publications".
@@ -216,6 +218,12 @@ class RouteNames {
       '/acheteur/previsions/$id/reserver';
   static const acheteurMesReservations = 'acheteur-mes-reservations';
   static const acheteurMesReservationsPath = '/acheteur/reservations';
+  // Page autonome « Négociations » accessible depuis la tuile sur
+  // l'accueil. Reprend le contenu de l'ancien onglet « Négociations »
+  // dans Mes commandes (sorti pour clarification conceptuelle :
+  // une négociation n'est pas encore une commande).
+  static const acheteurNegociations = 'acheteur-negociations';
+  static const acheteurNegociationsPath = '/acheteur/negociations';
   // Flow Demandes acheteur (publier + lister + propositions reçues)
   static const acheteurDemandes = 'acheteur-demandes';
   static const acheteurDemandesPath = '/acheteur/demandes';
@@ -510,6 +518,13 @@ class RouteNames {
   static const moyensPaiement = 'moyens-paiement';
   static const moyensPaiementPath = '/parametres/moyens-paiement';
 
+  // Signaler un problème (ouvre un litige) — partagé acheteur / vendeur,
+  // le contenu de la page détecte le rôle pour adapter les motifs.
+  static const signalerProbleme = 'signaler-probleme';
+  static const signalerProblemePath = '/litige/:id';
+  static String signalerProblemePathFor(String commandeId) =>
+      '/litige/$commandeId';
+
   // ─── Pages métier acheteur (push hors shell) ─────────────────────────
   // Identité business — consolide entreprise/RCCM/zones d'achat en une
   // seule page éditable.
@@ -517,6 +532,11 @@ class RouteNames {
   static const acheteurMonEntreprisePath = '/acheteur/mon-entreprise';
 
   // ─── Pages métier coopérative (push hors shell) ──────────────────────
+  // Mes commandes coop — suivi des ventes directes (coop est vendeuse
+  // sur ses propres publications).
+  static const cooperativeCommandes = 'cooperative-commandes';
+  static const cooperativeCommandesPath = '/cooperative/commandes';
+
   static const cooperativeIdentite = 'cooperative-identite';
   static const cooperativeIdentitePath = '/cooperative/identite';
 

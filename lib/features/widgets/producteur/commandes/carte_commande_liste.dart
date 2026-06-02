@@ -10,23 +10,21 @@ import '../../../../theme/app_text_styles.dart';
 
 final _nf = NumberFormat('#,##0', 'fr_FR');
 
-/// Carte commande côté producteur — design type « marketplace card »
-/// scannable d'un coup d'œil. Calquée sur la carte acheteur pour
-/// cohérence cross-rôle.
+/// Carte commande côté producteur — design simplifié, scannable d'un
+/// coup d'œil. Calque le même pattern que la carte acheteur pour une
+/// cohérence cross-rôle. Affiche le **net** (après frais 3 %) côté
+/// montant — c'est ce que le producteur va réellement toucher.
 ///
 /// ```
 /// ┌──────────────────────────────────────────────┐
-/// │ [V]   Stephy K.                  Détails ›   │
-/// │       Tomates · 850 kg                       │
+/// │ [B]  Banane plantain · 545 kg     Détails ›  │
+/// │      Buyer Test                              │
 /// ├──────────────────────────────────────────────┤
-/// │ FCFA 1.700 /kg                Wallet FC │    │
-/// │ Montant à recevoir   ·     288 575 FCFA      │
-/// │ Statut transaction   ·     En cours          │
+/// │ 290 758 FCFA                  ● Acceptée     │
+/// ├ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┤
+/// │ → À préparer pour le transporteur            │
 /// └──────────────────────────────────────────────┘
 /// ```
-///
-/// Affiche le **net** (après frais 3 %) côté « Montant à recevoir ».
-/// C'est ce que le producteur va réellement toucher — pas le brut.
 class CarteCommandeListe extends StatelessWidget {
   const CarteCommandeListe({
     super.key,
@@ -44,14 +42,13 @@ class CarteCommandeListe extends StatelessWidget {
         ? item.buyerName!.trim()
         : 'Acheteur';
     final qte = '${_nf.format(c.quantiteKg.round())} kg';
-    final prixUnit = _nf.format(c.prixUnitaireKg.round());
     final brut = c.montantTotal;
     // Net producteur = brut × (1 - 3 %). Aligné sur le calcul du détail.
-    final net = (brut * 0.97).round();
-    final netLabel = _nf.format(net);
+    final netLabel = _nf.format((brut * 0.97).round());
     final produit = (item.produitNom ?? '').trim().isNotEmpty
         ? item.produitNom!
         : 'Produit';
+    final action = _actionRequise(c.status);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -73,10 +70,12 @@ class CarteCommandeListe extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Header : avatar acheteur + produit·qté (titre) + acheteur
+                // (sous-ligne) + lien « Détails ».
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
                   child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       _AvatarAcheteur(
                         nom: clientNom,
@@ -88,8 +87,9 @@ class CarteCommandeListe extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            // Ligne 1 : QUOI a été vendu (produit + qté)
                             Text(
-                              clientNom,
+                              '$produit · $qte',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: AppTextStyles.bodyMedium.copyWith(
@@ -99,8 +99,9 @@ class CarteCommandeListe extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 2),
+                            // Ligne 2 : À QUI (acheteur)
                             Text(
-                              '$produit · $qte',
+                              clientNom,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: AppTextStyles.bodySmall.copyWith(
@@ -121,70 +122,71 @@ class CarteCommandeListe extends StatelessWidget {
                   thickness: AppDimens.borderThin,
                   color: AppColors.border,
                 ),
+                // Ligne unique : montant net à recevoir + chip statut.
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Expanded(
-                            child: RichText(
-                              text: TextSpan(
-                                children: [
-                                  TextSpan(
-                                    text: 'FCFA ',
-                                    style: AppTextStyles.bodyMedium.copyWith(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.text,
-                                    ),
-                                  ),
-                                  TextSpan(
-                                    text: prixUnit,
-                                    style: AppTextStyles.headlineSmall
-                                        .copyWith(
-                                      fontFamily: 'Poppins',
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppColors.text,
-                                      letterSpacing: -0.5,
-                                      height: 1.0,
-                                    ),
-                                  ),
-                                  TextSpan(
-                                    text: ' /kg',
-                                    style: AppTextStyles.bodyMedium.copyWith(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                ],
+                      Expanded(
+                        child: RichText(
+                          text: TextSpan(
+                            children: [
+                              TextSpan(
+                                text: netLabel,
+                                style: AppTextStyles.headlineSmall.copyWith(
+                                  fontFamily: 'Poppins',
+                                  fontSize: 19,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.text,
+                                  letterSpacing: -0.3,
+                                  height: 1.0,
+                                ),
                               ),
-                            ),
+                              TextSpan(
+                                text: ' FCFA',
+                                style: AppTextStyles.bodyMedium.copyWith(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
                           ),
-                          const _ChipPaiement(label: 'Wallet FarmCash'),
-                        ],
+                        ),
                       ),
-                      const SizedBox(height: 10),
-                      _Ligne(
-                        label: 'Montant à recevoir',
-                        valeur: '$netLabel FCFA',
-                        valeurEnVert: true,
+                      const SizedBox(width: 8),
+                      _ChipStatut(
+                        status: c.status,
+                        escrow: c.escrowReleased,
                       ),
-                      const SizedBox(height: 6),
-                      _StatutLigne(status: c.status, escrow: c.escrowReleased),
                     ],
                   ),
                 ),
+                if (action != null) _BandeauAction(message: action),
               ],
             ),
           ),
         ),
       ),
     );
+  }
+
+  /// Action contextuelle attendue côté producteur. Affichée en bandeau
+  /// ambré en pied de carte.
+  String? _actionRequise(OrderStatus s) {
+    switch (s) {
+      case OrderStatus.sent:
+        return 'À accepter ou rejeter';
+      case OrderStatus.accepted:
+        return 'À préparer pour le transporteur';
+      case OrderStatus.inProgress:
+        return 'Livraison en cours';
+      case OrderStatus.disputed:
+        return 'Litige en cours';
+      default:
+        return null;
+    }
   }
 }
 
@@ -268,127 +270,127 @@ class _LienDetails extends StatelessWidget {
   }
 }
 
-class _ChipPaiement extends StatelessWidget {
-  const _ChipPaiement({required this.label});
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          label,
-          style: AppTextStyles.labelSmall.copyWith(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        const SizedBox(width: 6),
-        Container(
-          width: 3,
-          height: 18,
-          decoration: BoxDecoration(
-            color: AppColors.primary,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _Ligne extends StatelessWidget {
-  const _Ligne({
-    required this.label,
-    required this.valeur,
-    required this.valeurEnVert,
-  });
-
-  final String label;
-  final String valeur;
-  final bool valeurEnVert;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            label,
-            style: AppTextStyles.bodySmall.copyWith(
-              fontSize: 13,
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-        Text(
-          valeur,
-          style: AppTextStyles.bodyMedium.copyWith(
-            fontSize: 14,
-            fontWeight: FontWeight.w800,
-            color: valeurEnVert ? AppColors.primary : AppColors.text,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _StatutLigne extends StatelessWidget {
-  const _StatutLigne({required this.status, required this.escrow});
+/// Chip statut compact partagé avec la carte acheteur — mêmes couleurs
+/// cross-rôle (BLEU = attend producteur, ORANGE = transporteur en route,
+/// VERT = livré, ROUGE = blocage).
+class _ChipStatut extends StatelessWidget {
+  const _ChipStatut({required this.status, required this.escrow});
   final OrderStatus status;
   final bool escrow;
 
   @override
   Widget build(BuildContext context) {
-    final (label, color) = _spec(status, escrow);
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            'Statut transaction',
-            style: AppTextStyles.bodySmall.copyWith(
-              fontSize: 13,
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w500,
+    final (label, color, fond) = _spec(status, escrow);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: fond,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color,
             ),
           ),
-        ),
-        Text(
-          label,
-          style: AppTextStyles.bodyMedium.copyWith(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            color: color,
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: AppTextStyles.labelMedium.copyWith(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  (String, Color) _spec(OrderStatus s, bool escrow) {
+  /// Cycle de vie côté producteur :
+  /// - 🔵 Bleu : commande à traiter (acheteur a payé) — Nouvelle / Acceptée
+  /// - 🟠 Orange : transporteur a pris la marchandise — En transport
+  /// - 🟢 Vert : livré / clôturé — escrow libéré, l'argent est arrivé
+  /// - 🔴 Rouge : rejet / litige
+  /// - ⚪ Gris : annulée / inconnu
+  (String, Color, Color) _spec(OrderStatus s, bool escrow) {
+    const bleu = Color(0xFF1E40AF);
+    const fondBleu = Color(0xFFDBEAFE);
+    const orange = Color(0xFFB45309);
+    const fondOrange = Color(0xFFFFF3CD);
+    const fondVert = Color(0xFFE8F5E9);
+    const fondRouge = Color(0xFFFEE2E2);
+    const fondGris = AppColors.surfaceSoft;
     switch (s) {
       case OrderStatus.sent:
-        return ('Nouvelle', const Color(0xFFB45309));
+        return ('Nouvelle', bleu, fondBleu);
       case OrderStatus.accepted:
-        return ('Acceptée', AppColors.primary);
-      case OrderStatus.rejected:
-        return ('Rejetée', AppColors.error);
+        return ('Acceptée', bleu, fondBleu);
       case OrderStatus.inProgress:
-        return ('En transport', AppColors.primary);
+        return ('En transport', orange, fondOrange);
       case OrderStatus.delivered:
-        return ('Livrée', AppColors.primary);
+        return ('Livrée', AppColors.primary, fondVert);
       case OrderStatus.completed:
-        return (escrow ? 'Payée' : 'Clôturée', AppColors.primary);
+        return (
+          escrow ? 'Payée' : 'Clôturée',
+          AppColors.primary,
+          fondVert,
+        );
+      case OrderStatus.rejected:
+        return ('Rejetée', AppColors.error, fondRouge);
       case OrderStatus.disputed:
-        return ('Litige', const Color(0xFFB45309));
+        return ('Litige', AppColors.error, fondRouge);
       case OrderStatus.cancelled:
-        return ('Annulée', AppColors.textSecondary);
+        return ('Annulée', AppColors.textSecondary, fondGris);
       case OrderStatus.unknown:
-        return ('—', AppColors.textSubtle);
+        return ('—', AppColors.textSubtle, fondGris);
     }
+  }
+}
+
+class _BandeauAction extends StatelessWidget {
+  const _BandeauAction({required this.message});
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: const BoxDecoration(
+        color: Color(0xFFFFF8E1),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(14),
+          bottomRight: Radius.circular(14),
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.arrow_circle_right_outlined,
+            size: 16,
+            color: Color(0xFFB45309),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              message,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.bodySmall.copyWith(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFFB45309),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

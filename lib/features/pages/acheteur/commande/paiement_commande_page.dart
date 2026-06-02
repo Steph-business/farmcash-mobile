@@ -13,6 +13,7 @@ import '../../../../services/orders_service.dart' show OrderSourceType;
 import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
+import '../../../state/badges_state.dart';
 import '../../../widgets/acheteur/commandes/bandeau_solde_insuffisant.dart';
 import '../../../widgets/acheteur/commandes/carte_adresse_livraison.dart';
 import '../../../widgets/acheteur/commandes/carte_montants_paiement.dart';
@@ -122,7 +123,11 @@ class _PaiementCommandePageState extends ConsumerState<PaiementCommandePage> {
     final qte = (widget.quantiteKgInitiale ?? qteMin).clamp(qteMin, dispo);
     final prix = annonce.prixParKg.round();
     final sousTotal = qte * prix;
-    final frais = (sousTotal * 0.015).round();
+    // L'acheteur ne paye AUCUNE commission FarmCash (modèle "buyer-side
+    // zero fees"). Les frais 3 % sont retenus sur la part du vendeur et
+    // du transporteur au moment du release d'escrow. Le total à payer
+    // est strictement le sous-total — pas de surcharge cachée.
+    final frais = 0;
     final total = sousTotal + frais;
 
     final soldeWallet = bundle.wallet?.wallet.balance ?? 0.0;
@@ -250,7 +255,29 @@ class _PaiementCommandePageState extends ConsumerState<PaiementCommandePage> {
             paymentMethodId: defaultMp.id,
             idempotencyKey: idempotencyKey,
           );
-      // Rafraîchit le wallet (le débit immédiat éventuel).
+
+      // 3) Nettoyage post-commande : vider TOUT le panier. V1 est
+      //    mono-vendeur (le backend force déjà un seul vendeur par
+      //    panier) ET le bouton « Commander » ne paye que le 1er item
+      //    — l'utilisateur croit pourtant avoir tout commandé. Si on
+      //    ne garde que les items « non commandés », il retombe sur le
+      //    panier avec l'article encore présent (« je l'ai pourtant
+      //    commandé ? »). On vide donc tout : c'est ce qu'il attend.
+      //    Best-effort : on avale les erreurs pour ne pas bloquer la
+      //    redirection vers la page succès (commande déjà créée).
+      await _viderPanier();
+
+      // Force le rafraîchissement immédiat du badge panier (icône
+      // header dans tout l'app). On attend la nouvelle valeur avant
+      // de naviguer — sinon le header peut conserver la valeur en
+      // cache et afficher « 1 » alors que le panier est vide.
+      ref.invalidate(cartCountProvider);
+      try {
+        await ref.read(cartCountProvider.future);
+      } catch (_) {
+        // Si la requête échoue (réseau HS), on ne bloque pas la nav.
+      }
+      // Wallet (débit immédiat éventuel) : invalide aussi.
       ref.invalidate(_paiementBundleProvider(widget.annonceId));
       if (!mounted) return;
       Snackbars.showSucces(
@@ -264,6 +291,32 @@ class _PaiementCommandePageState extends ConsumerState<PaiementCommandePage> {
       if (mounted) Snackbars.showErreur(context, 'Erreur : $e');
     } finally {
       if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// Best-effort : vide intégralement le panier de l'utilisateur. En
+  /// V1, le bouton « Commander » ne paye que le 1er item du panier, mais
+  /// l'utilisateur s'attend à un panier vide après paiement (modèle
+  /// e-commerce classique « j'ai payé → mon panier est vide »). Comme
+  /// le backend force déjà un seul vendeur par panier (mono-vendeur),
+  /// vider tout est sans risque et matche l'attente UX.
+  ///
+  /// Toute erreur est avalée (la commande est déjà créée, on ne veut
+  /// pas bloquer la redirection vers la page succès).
+  Future<void> _viderPanier() async {
+    try {
+      final svc = ref.read(marketplaceServiceProvider);
+      final panier = await svc.getPanier();
+      for (final it in panier.items) {
+        try {
+          await svc.removeFromPanier(it.id);
+        } catch (_) {
+          // Continue même si la suppression d'un item échoue.
+        }
+      }
+    } catch (_) {
+      // Réseau HS, panier inaccessible : on abandonne silencieusement.
+      // Le badge sera de toute façon ré-évalué au prochain refresh.
     }
   }
 

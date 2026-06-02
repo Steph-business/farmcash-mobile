@@ -170,27 +170,15 @@ class DocumentsKycPage extends ConsumerWidget {
     KycDocTypeKyc docType,
     File file,
   ) async {
+    // Loader : snackbar info unifié (fond sombre + icône info) le temps
+    // de l'upload. Durée longue (30 s) car le multipart peut être lent
+    // sur 3G ; le snackbar est explicitement caché à la fin via
+    // `hideCurrentSnackBar()` (succès ou erreur).
     final messenger = ScaffoldMessenger.of(context);
-    messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Row(
-          children: [
-            SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: Colors.white,
-              ),
-            ),
-            SizedBox(width: 12),
-            Text('Téléversement en cours…'),
-          ],
-        ),
-        duration: Duration(seconds: 30),
-        behavior: SnackBarBehavior.floating,
-      ),
+    Snackbars.showInfo(
+      context,
+      'Téléversement en cours…',
+      duration: const Duration(seconds: 30),
     );
     try {
       await ref.read(authServiceProvider).uploadKyc(

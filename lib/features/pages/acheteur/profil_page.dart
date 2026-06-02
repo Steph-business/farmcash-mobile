@@ -19,6 +19,7 @@ import '../../widgets/communs/chargement.dart';
 import '../../widgets/communs/profil/barre_superieure_profil.dart';
 import '../../widgets/communs/profil/bouton_deconnexion_profil.dart';
 import '../../widgets/communs/profil/carte_identite_profil.dart';
+import '../../widgets/communs/profil/changer_photo_helper.dart';
 import '../../widgets/communs/profil/groupe_profil.dart';
 import '../../widgets/communs/profil/photo_profil.dart';
 import '../../widgets/communs/profil/pied_legal_profil.dart';
@@ -148,6 +149,7 @@ class ProfilAcheteurPage extends ConsumerWidget {
                       context.go(RouteNames.bienvenuePath);
                     }
                   },
+                  onChangerPhoto: () => changerPhotoProfil(context, ref),
                 ),
               ),
             ),
@@ -165,20 +167,13 @@ class _ContenuProfilAcheteur extends StatelessWidget {
     required this.data,
     required this.onRefresh,
     required this.onLogout,
+    required this.onChangerPhoto,
   });
 
   final _ProfilData data;
   final Future<void> Function() onRefresh;
   final VoidCallback onLogout;
-
-  void _showSoon(BuildContext context, String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
+  final VoidCallback onChangerPhoto;
 
   @override
   Widget build(BuildContext context) {
@@ -224,8 +219,7 @@ class _ContenuProfilAcheteur extends StatelessWidget {
             sousLigne: sousLigneIdentiteAcheteur(rating: user?.rating ?? 0),
             onModifier: () =>
                 context.push(RouteNames.acheteurProfilSettingsPath),
-            onEditPhoto: () =>
-                _showSoon(context, 'Changer la photo — à venir'),
+            onEditPhoto: onChangerPhoto,
           ),
           AppDimens.vGap24,
 

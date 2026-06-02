@@ -48,6 +48,30 @@ class Proposition with _$Proposition {
       _$PropositionFromJson(json);
 }
 
+/// Résultat des endpoints `PUT /negotiation/{candidatures|propositions|
+/// contre-offres-coop}/:id/traiter`.
+///
+/// Le backend NE retourne PAS la négociation complète — il retourne un
+/// petit objet récap : un message à afficher + l'`id` (et la référence)
+/// de la commande créée si l'action a déclenché sa création
+/// (cas `ACCEPTED`). Côté UI on s'en sert pour informer l'utilisateur
+/// et éventuellement naviguer vers la nouvelle commande.
+///
+/// Avant 2026-05-27 le mobile tentait de désérialiser ce payload comme
+/// `Candidature` / `Proposition` / `ContreOffreCoop` → crash
+/// CheckedFromJsonException sur `id` manquant.
+@freezed
+class TraitementNegociationResultat with _$TraitementNegociationResultat {
+  const factory TraitementNegociationResultat({
+    @Default('') String message,
+    String? commandeId,
+    String? reference,
+  }) = _TraitementNegociationResultat;
+
+  factory TraitementNegociationResultat.fromJson(Map<String, dynamic> json) =>
+      _$TraitementNegociationResultatFromJson(json);
+}
+
 /// Contre-offre BUYER sur une publication coop.
 @freezed
 class ContreOffreCoop with _$ContreOffreCoop {

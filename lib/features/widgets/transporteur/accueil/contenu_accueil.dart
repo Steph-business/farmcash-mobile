@@ -6,7 +6,9 @@ import '../../../../theme/app_dimens.dart';
 import '../../communs/carte_solde_hero.dart';
 import '../../communs/entete_bonjour.dart';
 import '../../communs/grille_actions.dart';
+import '../../communs/snackbars.dart';
 import '_constantes_accueil_transporteur.dart';
+import 'bandeau_pas_de_route.dart';
 import 'carte_mission_active.dart';
 import 'cta_declarer_itineraire.dart';
 import 'etat_vide_accueil.dart';
@@ -58,6 +60,13 @@ class ContenuAccueilTransporteur extends StatelessWidget {
           question: 'Quelles courses aujourd\'hui ?',
         ),
         AppDimens.vGap16,
+        // 0a-bis. Alerte si aucun itinéraire actif déclaré. Sans route,
+        //         le backend ne push aucune mission au transporteur
+        //         (catch-22). On force la visibilité du problème + CTA.
+        if (itinerairesActifs.isEmpty) ...[
+          const BandeauPasDeRoute(),
+          AppDimens.vGap16,
+        ],
         // 0b. Carte solde wallet — gains du transporteur + CTA wallet
         CarteSoldeHero(
           solde: data.wallet?.balance,
@@ -140,7 +149,8 @@ class ContenuAccueilTransporteur extends StatelessWidget {
         ActionRapide(
           icone: Icons.local_shipping_outlined,
           label: 'Mes missions',
-          onTap: () => context.push(RouteNames.transporteurMissionsPath),
+          // Onglet shell → go pour activer la branche bottom nav.
+          onTap: () => context.go(RouteNames.transporteurMissionsPath),
         ),
         ActionRapide(
           icone: Icons.map_outlined,
@@ -167,11 +177,8 @@ class ContenuAccueilTransporteur extends StatelessWidget {
 
   /// SnackBar discrète "à venir".
   void _snack(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    // Délègue au helper unifié — design pro (fond sombre + icône
+    // colorée), cohérent avec le reste de l'app.
+    Snackbars.showInfo(context, message);
   }
 }

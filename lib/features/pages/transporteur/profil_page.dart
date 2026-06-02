@@ -15,9 +15,11 @@ import '../../widgets/communs/chargement.dart';
 import '../../widgets/communs/profil/barre_superieure_profil.dart';
 import '../../widgets/communs/profil/bouton_deconnexion_profil.dart';
 import '../../widgets/communs/profil/carte_identite_profil.dart';
+import '../../widgets/communs/profil/changer_photo_helper.dart';
 import '../../widgets/communs/profil/groupe_profil.dart';
 import '../../widgets/communs/profil/photo_profil.dart';
 import '../../widgets/communs/profil/pied_legal_profil.dart';
+import '../../widgets/communs/snackbars.dart';
 import '../../widgets/communs/profil/tuile_profil.dart';
 import '../../widgets/communs/vue_erreur.dart';
 import '../../widgets/transporteur/profil/ligne_stats_transporteur.dart';
@@ -142,6 +144,7 @@ class ProfilTransporteurPage extends ConsumerWidget {
                         context.go(RouteNames.bienvenuePath);
                       }
                     },
+                    onChangerPhoto: () => changerPhotoProfil(context, ref),
                   ),
                 ),
               ),
@@ -160,11 +163,13 @@ class _ContenuProfilTransporteur extends StatelessWidget {
     required this.data,
     required this.user,
     required this.onLogout,
+    required this.onChangerPhoto,
   });
 
   final _ProfilTransporteurData data;
   final dynamic user; // Utilisateur? — getters dynamiques tolérants
   final VoidCallback onLogout;
+  final VoidCallback onChangerPhoto;
 
   @override
   Widget build(BuildContext context) {
@@ -195,8 +200,7 @@ class _ContenuProfilTransporteur extends StatelessWidget {
           sousLigne: sousLigneIdentiteTransporteur(rating: rating),
           onModifier: () =>
               _snack(context, 'Modification du profil — à venir'),
-          onEditPhoto: () =>
-              _snack(context, 'Modifier la photo — à venir'),
+          onEditPhoto: onChangerPhoto,
         ),
         AppDimens.vGap24,
 
@@ -392,11 +396,9 @@ class _ContenuProfilTransporteur extends StatelessWidget {
 }
 
 /// SnackBar discrète "à venir".
+// Helper local conservé pour ne pas casser les call sites — il
+// délègue maintenant au snackbar unifié style apps pro (fond sombre,
+// icône colorée). Le wording « — à venir » reste le même.
 void _snack(BuildContext context, String message) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text(message),
-      behavior: SnackBarBehavior.floating,
-    ),
-  );
+  Snackbars.showInfo(context, message);
 }

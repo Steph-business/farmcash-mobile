@@ -19,11 +19,13 @@ import '../../state/auth_state.dart';
 import '../../widgets/communs/chargement.dart';
 import '../../widgets/communs/profil/bouton_deconnexion_profil.dart';
 import '../../widgets/communs/profil/carte_identite_profil.dart';
+import '../../widgets/communs/profil/changer_photo_helper.dart';
 import '../../widgets/communs/profil/groupe_profil.dart';
 import '../../widgets/communs/profil/photo_profil.dart';
 import '../../widgets/communs/profil/pied_legal_profil.dart';
 import '../../widgets/communs/profil/tuile_profil.dart';
 import '../../widgets/communs/profil/tuile_toggle_profil.dart';
+import '../../widgets/communs/snackbars.dart';
 import '../../widgets/communs/vue_erreur.dart';
 import '../../widgets/cooperative/profil/ligne_stats_cooperative.dart';
 import '../../widgets/cooperative/profil/sous_textes_profil_cooperative.dart';
@@ -94,6 +96,7 @@ class ProfilCooperativePage extends ConsumerWidget {
                 context.go(RouteNames.bienvenuePath);
               }
             },
+            onChangerPhoto: () => changerPhotoProfil(context, ref),
           ),
         ),
       ),
@@ -209,10 +212,12 @@ class _ContenuProfilCooperative extends StatelessWidget {
   const _ContenuProfilCooperative({
     required this.data,
     required this.onLogout,
+    required this.onChangerPhoto,
   });
 
   final _ProfilCoopData data;
   final VoidCallback onLogout;
+  final VoidCallback onChangerPhoto;
 
   @override
   Widget build(BuildContext context) {
@@ -240,8 +245,7 @@ class _ContenuProfilCooperative extends StatelessWidget {
           photoCarree: true,
           onModifier: () =>
               _snack(context, 'Modification du profil — à venir'),
-          onEditPhoto: () =>
-              _snack(context, 'Modifier la photo — à venir'),
+          onEditPhoto: onChangerPhoto,
         ),
         AppDimens.vGap24,
 
@@ -323,6 +327,14 @@ class _ContenuProfilCooperative extends StatelessWidget {
           titre: 'Gestion',
           enfants: [
             TuileProfil(
+              icone: Icons.receipt_long_outlined,
+              accent: true,
+              label: 'Mes commandes',
+              sousTitre: 'Suivi des ventes directes',
+              onTap: () =>
+                  context.push(RouteNames.cooperativeCommandesPath),
+            ),
+            TuileProfil(
               icone: Icons.groups_outlined,
               label: 'Mes membres',
               sousTitre: sousTitreMembresCooperative(
@@ -395,13 +407,8 @@ class _ContenuProfilCooperative extends StatelessWidget {
   }
 }
 
+/// SnackBar discrète « à venir » — délègue au helper unifié style apps
+/// pro (fond sombre + icône colorée), cohérent avec le reste de l'app.
 void _snack(BuildContext context, String message) {
-  ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+  Snackbars.showInfo(context, message);
 }

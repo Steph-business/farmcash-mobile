@@ -65,6 +65,10 @@ _$LivraisonImpl _$$LivraisonImplFromJson(
         'commandes_vente',
         (v) => _commandeApercuFromJson(v),
       ),
+      transporter: $checkedConvert(
+        'users',
+        (v) => _transporterApercuFromJson(v),
+      ),
     );
     return val;
   },
@@ -85,6 +89,7 @@ _$LivraisonImpl _$$LivraisonImplFromJson(
     'createdAt': 'created_at',
     'pickupScannedAt': 'pickup_scanned_at',
     'commande': 'commandes_vente',
+    'transporter': 'users',
   },
 );
 
@@ -117,6 +122,8 @@ Map<String, dynamic> _$$LivraisonImplToJson(_$LivraisonImpl instance) =>
         'pickup_scanned_at': value,
       if (_commandeApercuToJson(instance.commande) case final value?)
         'commandes_vente': value,
+      if (_transporterApercuToJson(instance.transporter) case final value?)
+        'users': value,
     };
 
 const _$ShipmentStatusEnumMap = {

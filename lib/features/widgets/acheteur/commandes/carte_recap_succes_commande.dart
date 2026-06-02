@@ -8,7 +8,13 @@ import '../../../../theme/app_text_styles.dart';
 
 final NumberFormat _nf = NumberFormat('#,##0', 'fr_FR');
 
-/// Carte récapitulative affichée après une commande réussie.
+/// Carte récapitulative après une commande réussie — version « hero
+/// montant ». Le montant payé est mis en valeur (grand, vert), puis les
+/// 2 infos compactes (quantité + livraison) sur une seule ligne en bas.
+///
+/// On n'affiche **plus le N° de commande** dans cette carte : il
+/// encombrait pour rien (l'utilisateur ne le lit jamais ici). Il est
+/// repris en footer discret via [PiedReferenceCommandeSucces].
 class CarteRecapSuccesCommande extends StatelessWidget {
   const CarteRecapSuccesCommande({required this.commande, super.key});
   final Commande commande;
@@ -16,35 +22,80 @@ class CarteRecapSuccesCommande extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final df = DateFormat('d MMM y', 'fr_FR');
-    final reference =
-        commande.reference.isNotEmpty ? commande.reference : commande.id;
     final livraisonStr = commande.livraisonDate != null
         ? df.format(commande.livraisonDate!)
         : 'À planifier';
+    final qte = '${_nf.format(commande.quantiteKg.round())} kg';
+    final montant = '${_nf.format(commande.montantTotal.round())} F';
+
     return Container(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
       decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(12),
+        color: AppColors.primary.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-            color: AppColors.border, width: AppDimens.borderThin),
+          color: AppColors.primary.withValues(alpha: 0.22),
+          width: AppDimens.borderThin,
+        ),
       ),
-      clipBehavior: Clip.hardEdge,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          _LigneRecap(label: 'N° commande', value: '#$reference'),
-          _LigneRecap(
-            label: 'Quantité',
-            value: '${_nf.format(commande.quantiteKg.round())} kg',
+          // Label discret
+          Text(
+            'MONTANT PAYÉ',
+            style: AppTextStyles.bodySmall.copyWith(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.2,
+              color: AppColors.textSecondary,
+            ),
           ),
-          _LigneRecap(
-            label: 'Montant',
-            value: '${_nf.format(commande.montantTotal.round())} F',
-            valueGreen: true,
+          const SizedBox(height: 6),
+          // Montant en grand — l'info la plus importante après le
+          // checkmark. Poppins gras vert primary.
+          Text(
+            montant,
+            style: AppTextStyles.headlineLarge.copyWith(
+              fontFamily: 'Poppins',
+              fontSize: 30,
+              fontWeight: FontWeight.w800,
+              color: AppColors.primary,
+              height: 1.1,
+            ),
           ),
-          _LigneRecap(
-            label: 'Livraison estimée',
-            value: livraisonStr,
-            isLast: true,
+          const SizedBox(height: 12),
+          // Séparateur fin de la même teinte primary atténuée — relie
+          // le montant aux 2 chips d'info ci-dessous.
+          Container(
+            height: 1,
+            color: AppColors.primary.withValues(alpha: 0.15),
+          ),
+          const SizedBox(height: 12),
+          // Quantité + Livraison en 2 mini-blocs côte à côte. Plus de
+          // table verticale 4 lignes : plus compact, plus moderne.
+          Row(
+            children: [
+              Expanded(
+                child: _InfoMini(
+                  icone: Icons.inventory_2_outlined,
+                  label: 'Quantité',
+                  valeur: qte,
+                ),
+              ),
+              Container(
+                width: 1,
+                height: 28,
+                color: AppColors.primary.withValues(alpha: 0.15),
+              ),
+              Expanded(
+                child: _InfoMini(
+                  icone: Icons.local_shipping_outlined,
+                  label: 'Livraison',
+                  valeur: livraisonStr,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -52,62 +103,44 @@ class CarteRecapSuccesCommande extends StatelessWidget {
   }
 }
 
-class _LigneRecap extends StatelessWidget {
-  const _LigneRecap({
+/// Mini-bloc icône + label gris + valeur — utilisé pour quantité &
+/// livraison sous le montant hero.
+class _InfoMini extends StatelessWidget {
+  const _InfoMini({
+    required this.icone,
     required this.label,
-    required this.value,
-    this.valueGreen = false,
-    this.isLast = false,
+    required this.valeur,
   });
+  final IconData icone;
   final String label;
-  final String value;
-  final bool valueGreen;
-  final bool isLast;
+  final String valeur;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: isLast ? Colors.transparent : AppColors.border,
-            width: AppDimens.borderThin,
+    return Column(
+      children: [
+        Icon(icone, size: 18, color: AppColors.primary),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: AppTextStyles.bodySmall.copyWith(
+            fontSize: 11,
+            color: AppColors.textSecondary,
           ),
         ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: AppTextStyles.bodySmall.copyWith(
-                fontSize: 13,
-                color: AppColors.textSecondary,
-              ),
-            ),
+        const SizedBox(height: 2),
+        Text(
+          valeur,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppTextStyles.bodyMedium.copyWith(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: AppColors.text,
           ),
-          Flexible(
-            child: Text(
-              value,
-              textAlign: TextAlign.right,
-              style: valueGreen
-                  ? AppTextStyles.bodyMedium.copyWith(
-                      fontFamily: 'Poppins',
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
-                    )
-                  : AppTextStyles.bodyMedium.copyWith(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.text,
-                    ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

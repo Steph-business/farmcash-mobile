@@ -109,7 +109,9 @@ class CarteAnnonceAcheteur extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       _vendeurLigne(annonce),
-                      style: AppTextStyles.bodySmall,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -130,6 +132,18 @@ class CarteAnnonceAcheteur extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    if (formatPublieIlYa(annonce.createdAt).isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        formatPublieIlYa(annonce.createdAt),
+                        style: AppTextStyles.labelSmall.copyWith(
+                          fontSize: 11,
+                          color: AppColors.textSubtle,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -140,11 +154,20 @@ class CarteAnnonceAcheteur extends StatelessWidget {
     );
   }
 
+  /// Construit la ligne « nom du vendeur · région ».
+  ///
+  /// Avant 2026-05-27 : « Vendeur · 86738c2c-681a-… » — placeholder
+  /// hardcodé + UUID brut de la région. Maintenant on utilise les noms
+  /// joints (`vendeurNom`, `regionNom`) et on cache proprement quand
+  /// une partie manque (au lieu d'afficher du faux contenu).
   String _vendeurLigne(AnnonceVente a) {
-    final region = a.regionId;
-    if (region != null && region.isNotEmpty) {
-      return 'Vendeur · $region';
-    }
+    final nom = a.vendeurNom?.trim();
+    final region = a.regionNom?.trim();
+    final hasNom = nom != null && nom.isNotEmpty;
+    final hasRegion = region != null && region.isNotEmpty;
+    if (hasNom && hasRegion) return '$nom · $region';
+    if (hasNom) return nom;
+    if (hasRegion) return region;
     return 'Vendeur';
   }
 

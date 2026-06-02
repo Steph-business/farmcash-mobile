@@ -7,12 +7,12 @@ import '../../../../routing/route_names.dart';
 import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
-import '../../../../theme/app_text_styles.dart';
 import '../../../widgets/acheteur/commandes/boutons_sticky_commande_succes.dart';
 import '../../../widgets/acheteur/commandes/carte_recap_succes_commande.dart';
 import '../../../widgets/acheteur/commandes/header_commande_succes.dart';
 import '../../../widgets/acheteur/commandes/hero_commande_succes.dart';
 import '../../../widgets/acheteur/commandes/liste_etapes_commande_succes.dart';
+import '../../../widgets/acheteur/commandes/pied_reference_commande_succes.dart';
 import '../../../widgets/communs/chargement.dart';
 import '../../../widgets/communs/vue_erreur.dart';
 
@@ -68,28 +68,32 @@ class CommandeSuccesPage extends ConsumerWidget {
   }
 
   Widget _build(BuildContext context, Commande cmd) {
+    final reference = cmd.reference.isNotEmpty ? cmd.reference : cmd.id;
     return Column(
       children: [
         HeaderCommandeSucces(
             onClose: () => context.go(RouteNames.accueilAcheteurPath)),
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
             children: [
+              // Bloc 1 — Hero : ✓ + « Commande passée ! » + 1 ligne.
               const HeroCommandeSucces(),
-              const SizedBox(height: 4),
+              const SizedBox(height: 8),
+              // Bloc 2 — Carte hero montant : montant en grand + 2
+              //          micro-blocs (quantité + livraison). Plus de
+              //          tableau verbeux 4 lignes ni de N° commande.
               CarteRecapSuccesCommande(commande: cmd),
-              const SizedBox(height: 18),
-              Text(
-                'Et maintenant ?',
-                style: AppTextStyles.bodyMedium.copyWith(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.text,
-                ),
-              ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 22),
+              // Bloc 3 — Stepper horizontal 4 étapes. Visuel, sans
+              //          paragraphe explicatif (« Et maintenant ? »
+              //          retiré — le stepper se lit instantanément).
               const ListeEtapesCommandeSucces(),
+              const SizedBox(height: 18),
+              // Bloc 4 — Référence en footer discret, tappable pour
+              //          copier. L'info reste accessible (support) mais
+              //          ne pollue plus la carte montant.
+              PiedReferenceCommandeSucces(reference: reference),
             ],
           ),
         ),

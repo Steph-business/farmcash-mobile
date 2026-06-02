@@ -11,6 +11,7 @@ import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../state/auth_state.dart';
+import '../../widgets/communs/entete_page_compacte_acheteur.dart';
 import '../../widgets/communs/header_utilisateur.dart';
 import '../../widgets/messages/barre_recherche.dart';
 import '../../widgets/messages/entete_messages.dart';
@@ -144,7 +145,11 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
         child: Column(
           children: [
             _buildHeader(role, convsAsync.valueOrNull),
-            if (role != UserRole.cooperative) _buildPageTitle(role),
+            // Titre "Messages" déjà inclus dans l'entête compact côté
+            // acheteur et côté coop (top-level header). On ne le répète
+            // donc pas pour ces rôles.
+            if (role != UserRole.cooperative && role != UserRole.buyer)
+              _buildPageTitle(role),
             BarreRechercheMessages(
               controller: _searchCtrl,
               onChanged: (v) => setState(() => _query = v),
@@ -189,9 +194,10 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
                 },
               ),
             ),
-            // TODO(refacto) : factoriser ce bottom-nav statique avec les
-            // autres pages cooperative qui en ont besoin (hors scope ici).
-            if (role == UserRole.cooperative) const _BottomNavStatic(),
+            // Bottom-nav décoratif retiré : la page Messages côté coop
+            // est hors-shell (la coop a Membres/Stock/Marché en bas, pas
+            // Messages). Afficher une fausse barre créait de la
+            // confusion (utilisateur croyait pouvoir cliquer).
           ],
         ),
       ),
@@ -217,10 +223,11 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
           unreadNotifications: unread,
         );
       case UserRole.buyer:
-        return const HeaderUtilisateur(
-          variant: HeaderVariant.acheteur,
-          cartCount: 3,
-        );
+        // En-tête compact (back + titre + 🛒 + 🔔) — même style que sur
+        // « Commandes ». Les badges panier + notif sont lus depuis les
+        // providers globaux (plus de mock `cartCount: 3` hardcodé qui
+        // créait un badge fantôme sur cette page uniquement).
+        return const EntetePageCompacteAcheteur(title: 'Messages');
       default:
         return HeaderUtilisateur(
           variant: _fallbackVariantForRole(role),
@@ -287,82 +294,3 @@ HeaderVariant _fallbackVariantForRole(UserRole? role) {
   }
 }
 
-// ─── Bottom-nav statique (coop) ─────────────────────────────────────────
-// TODO(refacto) : extraire vers widgets/cooperative/barre_navigation_*.dart
-// quand le pattern sera partagé avec d'autres pages coop.
-
-class _BottomNavStatic extends StatelessWidget {
-  const _BottomNavStatic();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: AppDimens.bottomNavHeight,
-      decoration: const BoxDecoration(
-        color: AppColors.background,
-        border: Border(
-          top: BorderSide(
-            color: AppColors.border,
-            width: AppDimens.borderThin,
-          ),
-        ),
-      ),
-      child: Row(
-        children: const [
-          _NavItem(icon: Icons.home, label: 'Accueil', active: true),
-          _NavItem(
-            icon: Icons.groups_outlined,
-            label: 'Membres',
-            active: false,
-          ),
-          SizedBox(width: 56 + 8),
-          _NavItem(
-            icon: Icons.inventory_2_outlined,
-            label: 'Stock',
-            active: false,
-          ),
-          _NavItem(
-            icon: Icons.storefront_outlined,
-            label: 'Marché',
-            active: false,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _NavItem extends StatelessWidget {
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    required this.active,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool active;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = active ? AppColors.primary : AppColors.textSecondary;
-    return Expanded(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 22, color: color),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: AppTextStyles.labelSmall.copyWith(
-              fontSize: 11,
-              fontWeight: active ? FontWeight.w600 : FontWeight.w500,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}

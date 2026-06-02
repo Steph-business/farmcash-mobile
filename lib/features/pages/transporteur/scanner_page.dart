@@ -12,15 +12,34 @@ import '../../widgets/communs/snackbars.dart';
 
 const Color _kBg = Color(0xFF1A1A1A);
 
+/// Mode du scanner : enlèvement chez le producteur ou livraison chez
+/// l'acheteur. Le mode contrôle quel endpoint est appelé après le scan
+/// et où l'utilisateur est redirigé en cas de succès.
+enum ScannerMode {
+  /// QR du producteur — déclenche `scan-pickup` + libère escrow PRODUCT.
+  pickup,
+
+  /// QR de l'acheteur — déclenche `scan-delivery` + libère escrow
+  /// TRANSPORT et passe la commande en COMPLETED.
+  delivery,
+}
+
 /// Scanner QR (placeholder caméra : V1 utilise la saisie manuelle).
 ///
-/// La route porte le `missionId` cible — on accepte aussi un mode "demo"
-/// où le shipmentId est saisi à la main. Le scan déclenche
-/// `POST /logistics/shipments/:id/scan-pickup` avec la position GPS.
+/// La route porte le `missionId` cible et un `mode` (pickup ou delivery).
+/// Le scan déclenche soit `scan-pickup` soit `scan-delivery` avec la
+/// position GPS (anti-fraude, < 500 m du point attendu).
 class ScannerPage extends ConsumerStatefulWidget {
-  const ScannerPage({this.missionId, super.key});
+  const ScannerPage({
+    this.missionId,
+    this.mode = ScannerMode.pickup,
+    super.key,
+  });
 
   final String? missionId;
+
+  /// Mode de scan — détermine l'endpoint appelé et le wording.
+  final ScannerMode mode;
 
   @override
   ConsumerState<ScannerPage> createState() => _ScannerPageState();
@@ -82,7 +101,9 @@ class _ScannerPageState extends ConsumerState<ScannerPage> {
               child: Padding(
                 padding: const EdgeInsets.only(top: 320),
                 child: Text(
-                  'Pointe la caméra vers le QR du producteur',
+                  widget.mode == ScannerMode.delivery
+                      ? 'Pointe la caméra vers le QR de l\'acheteur'
+                      : 'Pointe la caméra vers le QR du producteur',
                   style: AppTextStyles.bodyMedium.copyWith(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
@@ -121,10 +142,13 @@ class _ScannerPageState extends ConsumerState<ScannerPage> {
   Future<void> _ouvrirSaisieManuelle() async {
     final shipmentCtrl = TextEditingController(text: widget.missionId ?? '');
     final tokenCtrl = TextEditingController();
+    final estDelivery = widget.mode == ScannerMode.delivery;
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Saisie manuelle'),
+        title: Text(
+          estDelivery ? 'Scan livraison' : 'Saisie manuelle',
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -137,8 +161,10 @@ class _ScannerPageState extends ConsumerState<ScannerPage> {
             const SizedBox(height: 12),
             TextField(
               controller: tokenCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Token QR producteur',
+              decoration: InputDecoration(
+                labelText: estDelivery
+                    ? 'Token QR acheteur'
+                    : 'Token QR producteur',
               ),
             ),
           ],
@@ -178,22 +204,44 @@ class _ScannerPageState extends ConsumerState<ScannerPage> {
         if (mounted) {
           Snackbars.showErreur(
             context,
-            'Position GPS requise pour valider l\'enlèvement.',
+            'Position GPS requise pour valider le scan.',
           );
         }
         return;
       }
-      await ref.read(logisticsServiceProvider).scanPickup(
-            shipmentId: shipmentId,
-            token: token,
-            lat: position.latitude,
-            lng: position.longitude,
-          );
-      if (!mounted) return;
-      Snackbars.showSucces(context, 'Enlèvement confirmé · escrow libéré');
-      context.go(
-        RouteNames.transporteurEnlevementConfirmePathFor(shipmentId),
-      );
+      final svc = ref.read(logisticsServiceProvider);
+      if (widget.mode == ScannerMode.delivery) {
+        // Photo de preuve : placeholder côté V1 — l'upload réel viendra
+        // dans une PR dédiée. Le backend exige une URL HTTP/HTTPS valide.
+        await svc.scanDelivery(
+          shipmentId: shipmentId,
+          token: token,
+          lat: position.latitude,
+          lng: position.longitude,
+          photoPreuveUrl:
+              'https://placeholder.farmcash.app/delivery-proof.jpg',
+        );
+        if (!mounted) return;
+        Snackbars.showSucces(
+          context,
+          'Livraison confirmée · transporteur payé',
+        );
+        context.go(
+          RouteNames.transporteurLivraisonConfirmePathFor(shipmentId),
+        );
+      } else {
+        await svc.scanPickup(
+          shipmentId: shipmentId,
+          token: token,
+          lat: position.latitude,
+          lng: position.longitude,
+        );
+        if (!mounted) return;
+        Snackbars.showSucces(context, 'Enlèvement confirmé · escrow libéré');
+        context.go(
+          RouteNames.transporteurEnlevementConfirmePathFor(shipmentId),
+        );
+      }
     } on ApiException catch (e) {
       if (mounted) Snackbars.showErreur(context, e.message);
     } catch (e) {

@@ -5,7 +5,9 @@ import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
 
-/// Carte affichant le QR code de livraison et la référence commande.
+/// Carte affichant le QR code de livraison et un **code court de
+/// réception** (6 caractères) lisible par le transporteur d'un coup
+/// d'œil — fini la longue ref `#ORD-1779742258490-77b4` illisible.
 class CarteQrLivraison extends StatelessWidget {
   const CarteQrLivraison({
     required this.payload,
@@ -13,7 +15,11 @@ class CarteQrLivraison extends StatelessWidget {
     super.key,
   });
 
+  /// Contenu du QR (URL deep-link `farmcash://commande/...`).
   final String payload;
+
+  /// Code court à afficher sous le QR (ex. `4A1FBB`). Doit être déjà
+  /// formaté côté appelant — la carte n'effectue aucune transformation.
   final String commandeRef;
 
   @override
@@ -45,11 +51,24 @@ class CarteQrLivraison extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Text(
-            'Commande #$commandeRef',
-            style: AppTextStyles.titleSmall.copyWith(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
+            'Code de réception',
+            style: AppTextStyles.labelSmall.copyWith(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSubtle,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 4),
+          // Code court bien gros, monospace pour lisibilité maximale.
+          Text(
+            commandeRef,
+            style: AppTextStyles.titleLarge.copyWith(
+              fontFamily: 'Poppins',
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
               color: AppColors.text,
+              letterSpacing: 2,
             ),
           ),
         ],

@@ -14,11 +14,16 @@ class ActionRapide {
     required this.icone,
     required this.label,
     required this.onTap,
+    this.badge = 0,
   });
 
   final IconData icone;
   final String label;
   final VoidCallback onTap;
+
+  /// Pastille rouge optionnelle posée sur l'icône (ex: nombre de
+  /// propositions reçues non vues). `0` → pas de badge.
+  final int badge;
 }
 
 /// Grille 2×3 (par défaut) d'actions rapides sur l'accueil de tous les
@@ -79,19 +84,57 @@ class _Tuile extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: _kPastelVert,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                alignment: Alignment.center,
-                child: Icon(
-                  action.icone,
-                  size: 22,
-                  color: AppColors.primary,
-                ),
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: _kPastelVert,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    alignment: Alignment.center,
+                    child: Icon(
+                      action.icone,
+                      size: 22,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  if (action.badge > 0)
+                    Positioned(
+                      right: -6,
+                      top: -4,
+                      child: Container(
+                        constraints: const BoxConstraints(
+                          minWidth: 18,
+                          minHeight: 18,
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.error,
+                          borderRadius: BorderRadius.circular(9),
+                          border: Border.all(
+                            color: AppColors.background,
+                            width: 1.5,
+                          ),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          action.badge > 99 ? '99+' : '${action.badge}',
+                          style: const TextStyle(
+                            color: AppColors.onError,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            height: 1.1,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(height: 8),
               Text(

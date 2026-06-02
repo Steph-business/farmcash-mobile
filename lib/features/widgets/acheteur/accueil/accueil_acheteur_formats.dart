@@ -17,6 +17,21 @@ String formatKgAccueil(double kg) {
   return '${_nfFr.format(kg.round())} kg';
 }
 
+/// Formate une date en libellé relatif court « publié il y a … ».
+/// Exemple : `Publié il y a 2 h`, `Publié il y a 3 j`, `À l'instant`.
+/// Retourne une chaîne vide si la date est null.
+String formatPublieIlYa(DateTime? date) {
+  if (date == null) return '';
+  final now = DateTime.now();
+  final diff = now.difference(date);
+  if (diff.inMinutes < 1) return 'À l\'instant';
+  if (diff.inHours < 1) return 'Il y a ${diff.inMinutes} min';
+  if (diff.inDays < 1) return 'Il y a ${diff.inHours} h';
+  if (diff.inDays < 7) return 'Il y a ${diff.inDays} j';
+  // Au-delà d'une semaine, on bascule sur la date courte (ex. « 12 mai »).
+  return DateFormat('d MMM', 'fr_FR').format(date);
+}
+
 /// Génère 2 lettres depuis un id/nom — utile pour avatar placeholder.
 String initialesAccueil(String input) {
   final trimmed = input.trim();

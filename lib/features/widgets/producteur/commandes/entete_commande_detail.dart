@@ -4,21 +4,20 @@ import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
 
-/// Header de la page détail commande côté producteur. Affiche
-/// `Commande #<reference>` au centre avec un bouton retour à gauche.
+/// Header de la page détail commande côté producteur. Affiche un titre
+/// simple « Commande » au centre + bouton retour. L'UUID long est
+/// volontairement masqué — il est dispo dans la carte résumé pliable.
 class EnteteCommandeDetail extends StatelessWidget {
   const EnteteCommandeDetail({
-    required this.commandeId,
+    this.commandeId = '',
     super.key,
   });
 
-  /// ID brut de la commande (ex: UUID). Si déjà préfixé `C-`, affiché tel
-  /// quel. Sinon fallback à un placeholder lisible.
+  /// Conservé pour compat API — non affiché dans le titre.
   final String commandeId;
 
   @override
   Widget build(BuildContext context) {
-    final ref = commandeId.startsWith('C-') ? commandeId : 'C-2026-0089';
     return Container(
       padding: const EdgeInsets.fromLTRB(
         AppDimens.pagePaddingH,
@@ -52,7 +51,7 @@ class EnteteCommandeDetail extends StatelessWidget {
           ),
           Expanded(
             child: Text(
-              'Commande #$ref',
+              'Commande',
               style: AppTextStyles.titleSmall.copyWith(
                 fontSize: 17,
                 fontWeight: FontWeight.w700,

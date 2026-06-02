@@ -311,6 +311,60 @@ class LogisticsService {
     );
   }
 
+  // ─── Delivery QR (symétrique pickup) ────────────────────────────────
+
+  /// Récupère le shipment d'une commande. Accessible aux 3 parties
+  /// (buyer, seller, transporter). Le buyer s'en sert pour connaître
+  /// le shipment_id et générer son delivery QR.
+  ///
+  /// Retourne `null` quand la commande n'a pas encore de shipment
+  /// (statut SENT/ACCEPTED, ou état incohérent en dev). C'est un cas
+  /// normal — pas une erreur. Avant 2026-05-27 le backend throwait
+  /// 404 ici, ce qui polluait le log mobile en rouge sur un cas pourtant
+  /// attendu. Maintenant il retourne `null` proprement.
+  Future<Livraison?> getShipmentByCommande(String commandeId) async {
+    final json = await _api.get<Map<String, dynamic>?>(
+      ApiEndpoints.shipmentByCommande(commandeId),
+    );
+    if (json == null) return null;
+    return Livraison.fromJson(json);
+  }
+
+  /// BUYER (acheteur) génère un QR signé pour confirmation de livraison.
+  /// TTL 15 min — l'acheteur le montre au transporteur à l'arrivée.
+  Future<PickupQrToken> generateDeliveryQrToken(String shipmentId) async {
+    final json = await _api.get<Map<String, dynamic>>(
+      ApiEndpoints.shipmentDeliveryQrToken(shipmentId),
+    );
+    return PickupQrToken.fromJson(json);
+  }
+
+  /// TRANSPORTER scanne le QR de l'acheteur → shipment DELIVERED, escrow
+  /// TRANSPORT libéré, commande passe en COMPLETED. Évite à l'acheteur
+  /// d'avoir à cliquer "Confirmer la réception" manuellement.
+  ///
+  /// La position GPS est obligatoire (anti-fraude < 500 m du
+  /// delivery_location attendu). La photo de preuve aussi (garde-fou
+  /// en cas de litige post-livraison).
+  Future<Map<String, dynamic>> scanDelivery({
+    required String shipmentId,
+    required String token,
+    required double lat,
+    required double lng,
+    required String photoPreuveUrl,
+    String? note,
+  }) async {
+    return _api.post<Map<String, dynamic>>(
+      ApiEndpoints.shipmentScanDelivery(shipmentId),
+      body: {
+        'token': token,
+        'scan_position': {'lat': lat, 'lng': lng},
+        'photo_preuve_url': photoPreuveUrl,
+        if (note != null && note.isNotEmpty) 'note': note,
+      },
+    );
+  }
+
   List<T> _asList<T>(dynamic raw, T Function(Map<String, dynamic>) from) {
     if (raw is List) {
       return raw

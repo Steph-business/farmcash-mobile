@@ -720,6 +720,227 @@ abstract class _Proposition implements Proposition {
       throw _privateConstructorUsedError;
 }
 
+TraitementNegociationResultat _$TraitementNegociationResultatFromJson(
+  Map<String, dynamic> json,
+) {
+  return _TraitementNegociationResultat.fromJson(json);
+}
+
+/// @nodoc
+mixin _$TraitementNegociationResultat {
+  String get message => throw _privateConstructorUsedError;
+  String? get commandeId => throw _privateConstructorUsedError;
+  String? get reference => throw _privateConstructorUsedError;
+
+  /// Serializes this TraitementNegociationResultat to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+
+  /// Create a copy of TraitementNegociationResultat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $TraitementNegociationResultatCopyWith<TraitementNegociationResultat>
+  get copyWith => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $TraitementNegociationResultatCopyWith<$Res> {
+  factory $TraitementNegociationResultatCopyWith(
+    TraitementNegociationResultat value,
+    $Res Function(TraitementNegociationResultat) then,
+  ) =
+      _$TraitementNegociationResultatCopyWithImpl<
+        $Res,
+        TraitementNegociationResultat
+      >;
+  @useResult
+  $Res call({String message, String? commandeId, String? reference});
+}
+
+/// @nodoc
+class _$TraitementNegociationResultatCopyWithImpl<
+  $Res,
+  $Val extends TraitementNegociationResultat
+>
+    implements $TraitementNegociationResultatCopyWith<$Res> {
+  _$TraitementNegociationResultatCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of TraitementNegociationResultat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? message = null,
+    Object? commandeId = freezed,
+    Object? reference = freezed,
+  }) {
+    return _then(
+      _value.copyWith(
+            message: null == message
+                ? _value.message
+                : message // ignore: cast_nullable_to_non_nullable
+                      as String,
+            commandeId: freezed == commandeId
+                ? _value.commandeId
+                : commandeId // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            reference: freezed == reference
+                ? _value.reference
+                : reference // ignore: cast_nullable_to_non_nullable
+                      as String?,
+          )
+          as $Val,
+    );
+  }
+}
+
+/// @nodoc
+abstract class _$$TraitementNegociationResultatImplCopyWith<$Res>
+    implements $TraitementNegociationResultatCopyWith<$Res> {
+  factory _$$TraitementNegociationResultatImplCopyWith(
+    _$TraitementNegociationResultatImpl value,
+    $Res Function(_$TraitementNegociationResultatImpl) then,
+  ) = __$$TraitementNegociationResultatImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({String message, String? commandeId, String? reference});
+}
+
+/// @nodoc
+class __$$TraitementNegociationResultatImplCopyWithImpl<$Res>
+    extends
+        _$TraitementNegociationResultatCopyWithImpl<
+          $Res,
+          _$TraitementNegociationResultatImpl
+        >
+    implements _$$TraitementNegociationResultatImplCopyWith<$Res> {
+  __$$TraitementNegociationResultatImplCopyWithImpl(
+    _$TraitementNegociationResultatImpl _value,
+    $Res Function(_$TraitementNegociationResultatImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of TraitementNegociationResultat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? message = null,
+    Object? commandeId = freezed,
+    Object? reference = freezed,
+  }) {
+    return _then(
+      _$TraitementNegociationResultatImpl(
+        message: null == message
+            ? _value.message
+            : message // ignore: cast_nullable_to_non_nullable
+                  as String,
+        commandeId: freezed == commandeId
+            ? _value.commandeId
+            : commandeId // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        reference: freezed == reference
+            ? _value.reference
+            : reference // ignore: cast_nullable_to_non_nullable
+                  as String?,
+      ),
+    );
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _$TraitementNegociationResultatImpl
+    implements _TraitementNegociationResultat {
+  const _$TraitementNegociationResultatImpl({
+    this.message = '',
+    this.commandeId,
+    this.reference,
+  });
+
+  factory _$TraitementNegociationResultatImpl.fromJson(
+    Map<String, dynamic> json,
+  ) => _$$TraitementNegociationResultatImplFromJson(json);
+
+  @override
+  @JsonKey()
+  final String message;
+  @override
+  final String? commandeId;
+  @override
+  final String? reference;
+
+  @override
+  String toString() {
+    return 'TraitementNegociationResultat(message: $message, commandeId: $commandeId, reference: $reference)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$TraitementNegociationResultatImpl &&
+            (identical(other.message, message) || other.message == message) &&
+            (identical(other.commandeId, commandeId) ||
+                other.commandeId == commandeId) &&
+            (identical(other.reference, reference) ||
+                other.reference == reference));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(runtimeType, message, commandeId, reference);
+
+  /// Create a copy of TraitementNegociationResultat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$TraitementNegociationResultatImplCopyWith<
+    _$TraitementNegociationResultatImpl
+  >
+  get copyWith =>
+      __$$TraitementNegociationResultatImplCopyWithImpl<
+        _$TraitementNegociationResultatImpl
+      >(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$TraitementNegociationResultatImplToJson(this);
+  }
+}
+
+abstract class _TraitementNegociationResultat
+    implements TraitementNegociationResultat {
+  const factory _TraitementNegociationResultat({
+    final String message,
+    final String? commandeId,
+    final String? reference,
+  }) = _$TraitementNegociationResultatImpl;
+
+  factory _TraitementNegociationResultat.fromJson(Map<String, dynamic> json) =
+      _$TraitementNegociationResultatImpl.fromJson;
+
+  @override
+  String get message;
+  @override
+  String? get commandeId;
+  @override
+  String? get reference;
+
+  /// Create a copy of TraitementNegociationResultat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$TraitementNegociationResultatImplCopyWith<
+    _$TraitementNegociationResultatImpl
+  >
+  get copyWith => throw _privateConstructorUsedError;
+}
+
 ContreOffreCoop _$ContreOffreCoopFromJson(Map<String, dynamic> json) {
   return _ContreOffreCoop.fromJson(json);
 }

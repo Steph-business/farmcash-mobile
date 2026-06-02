@@ -14,7 +14,6 @@ import '../../widgets/communs/vue_erreur.dart';
 import '../../widgets/transporteur/missions/barre_onglets_missions.dart';
 import '../../widgets/transporteur/missions/carte_mission_liste.dart';
 import '../../widgets/transporteur/missions/etat_vide_missions.dart';
-import '../../widgets/transporteur/missions/hero_compteur_missions.dart';
 import '../../widgets/transporteur/missions/mission_tab.dart';
 import '../../widgets/transporteur/missions/titre_page_missions.dart';
 
@@ -123,10 +122,6 @@ class _MissionsTransporteurPageState
       MissionTab.disponibles => data.disponibles,
     };
 
-    final headerText = enCours.isEmpty
-        ? 'Aucune mission en cours · ${data.disponibles.length} dispo'
-        : '${enCours.length} mission${enCours.length > 1 ? 's' : ''} en cours';
-
     return RefreshIndicator(
       color: AppColors.primary,
       onRefresh: _refresh,
@@ -134,13 +129,11 @@ class _MissionsTransporteurPageState
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(
           AppDimens.pagePaddingH,
-          0,
+          AppDimens.space8,
           AppDimens.pagePaddingH,
           AppDimens.space16,
         ),
         children: [
-          HeroCompteurMissions(texte: headerText),
-          AppDimens.vGap16,
           BarreOngletsMissions(
             current: _tab,
             enCoursCount: enCours.length,

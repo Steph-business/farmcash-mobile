@@ -16,6 +16,7 @@ import '../../widgets/communs/profil_settings/hero_identite.dart';
 import '../../widgets/communs/profil_settings/pied_version.dart';
 import '../../widgets/communs/profil_settings/titre_section_settings.dart';
 import '../../widgets/communs/profil_settings/tuile_settings.dart';
+import '../../widgets/communs/snackbars.dart';
 
 /// Provider qui charge le profil public de la coop courante.
 /// Pas d'endpoint "ma coop" — on passe par `getPublic(cooperativeId)`.
@@ -165,15 +166,10 @@ class ProfilSettingsCooperativePage extends ConsumerWidget {
     );
   }
 
+  /// SnackBar « à venir » — délègue au helper unifié style apps pro
+  /// (fond sombre + icône colorée).
   static void _showSoon(BuildContext context, String msg) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(msg),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+    Snackbars.showInfo(context, msg);
   }
 }
 

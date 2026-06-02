@@ -150,6 +150,30 @@ Map<String, dynamic> _$$PropositionImplToJson(_$PropositionImpl instance) =>
         'updated_at': value,
     };
 
+_$TraitementNegociationResultatImpl
+_$$TraitementNegociationResultatImplFromJson(Map<String, dynamic> json) =>
+    $checkedCreate(
+      r'_$TraitementNegociationResultatImpl',
+      json,
+      ($checkedConvert) {
+        final val = _$TraitementNegociationResultatImpl(
+          message: $checkedConvert('message', (v) => v as String? ?? ''),
+          commandeId: $checkedConvert('commande_id', (v) => v as String?),
+          reference: $checkedConvert('reference', (v) => v as String?),
+        );
+        return val;
+      },
+      fieldKeyMap: const {'commandeId': 'commande_id'},
+    );
+
+Map<String, dynamic> _$$TraitementNegociationResultatImplToJson(
+  _$TraitementNegociationResultatImpl instance,
+) => <String, dynamic>{
+  'message': instance.message,
+  if (instance.commandeId case final value?) 'commande_id': value,
+  if (instance.reference case final value?) 'reference': value,
+};
+
 _$ContreOffreCoopImpl _$$ContreOffreCoopImplFromJson(
   Map<String, dynamic> json,
 ) => $checkedCreate(

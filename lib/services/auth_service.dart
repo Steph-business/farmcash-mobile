@@ -271,6 +271,28 @@ class AuthService {
     return const <KycDocument>[];
   }
 
+  /// Upload de la photo de profil (avatar) — multipart `file`.
+  ///
+  /// Le backend stocke l'image sur MinIO sous `avatars/<user_id>/...`,
+  /// met à jour `users.photo_url` et retourne le user complet — qu'on
+  /// désérialise puis qu'on reçoit côté UI pour rafraîchir
+  /// `currentUserProvider`.
+  Future<Utilisateur> uploadAvatar({
+    required File file,
+    void Function(int sent, int total)? progress,
+  }) async {
+    final fileName = file.path.split(Platform.pathSeparator).last;
+    final form = FormData.fromMap({
+      'file': await MultipartFile.fromFile(file.path, filename: fileName),
+    });
+    final json = await _api.upload<Map<String, dynamic>>(
+      ApiEndpoints.authUploadAvatar,
+      formData: form,
+      onSendProgress: progress,
+    );
+    return Utilisateur.fromJson(json);
+  }
+
   /// Upload multipart d'un justificatif KYC (CNI_RECTO, CNI_VERSO,
   /// SELFIE, CARTE_PRODUCTEUR, JUSTIFICATIF_PARCELLE...).
   Future<KycDocument> uploadKyc({

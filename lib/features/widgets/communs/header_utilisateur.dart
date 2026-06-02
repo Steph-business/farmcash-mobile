@@ -9,6 +9,7 @@ import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../state/auth_state.dart';
+import '../../state/badges_state.dart';
 import 'badge_notification.dart';
 
 /// Header utilisateur partagé, posé en haut des pages d'accueil de chaque
@@ -47,6 +48,19 @@ class HeaderUtilisateur extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
+    // Badges lus depuis les providers globaux pour que TOUTES les pages
+    // affichent les mêmes compteurs à jour (panier, notif, messages).
+    // Les props `unreadMessages`/`unreadNotifications`/`cartCount`
+    // restent supportés comme override de test/preview ; sinon on
+    // retombe sur la valeur globale.
+    final notifGlobal = ref.watch(unreadNotificationsCountProvider).valueOrNull;
+    final cartGlobal = ref.watch(cartCountProvider).valueOrNull;
+    final msgsGlobal = ref.watch(unreadMessagesCountProvider).valueOrNull;
+    final notifBadge =
+        unreadNotifications > 0 ? unreadNotifications : (notifGlobal ?? 0);
+    final cartBadge = cartCount > 0 ? cartCount : (cartGlobal ?? 0);
+    final msgsBadge =
+        unreadMessages > 0 ? unreadMessages : (msgsGlobal ?? 0);
 
     return Container(
       padding: const EdgeInsets.fromLTRB(
@@ -94,7 +108,12 @@ class HeaderUtilisateur extends ConsumerWidget {
                   ],
                 ),
               ),
-              ..._actionsDroite(context),
+              ..._actionsDroite(
+                context,
+                notifBadge: notifBadge,
+                cartBadge: cartBadge,
+                msgsBadge: msgsBadge,
+              ),
             ],
           ),
           if (bottomChild != null) ...[
@@ -128,13 +147,18 @@ class HeaderUtilisateur extends ConsumerWidget {
 
   // ─── Actions à droite ─────────────────────────────────────────────────
 
-  List<Widget> _actionsDroite(BuildContext context) {
+  List<Widget> _actionsDroite(
+    BuildContext context, {
+    required int notifBadge,
+    required int cartBadge,
+    required int msgsBadge,
+  }) {
     switch (variant) {
       case HeaderVariant.producteur:
         return [
           _IconButton(
             icon: Icons.notifications_none,
-            badge: unreadNotifications,
+            badge: notifBadge,
             onTap: () => _openNotifications(context),
           ),
         ];
@@ -143,12 +167,12 @@ class HeaderUtilisateur extends ConsumerWidget {
         return [
           _IconButton(
             icon: Icons.shopping_cart_outlined,
-            badge: cartCount,
+            badge: cartBadge,
             onTap: () => context.push(RouteNames.acheteurPanierPath),
           ),
           _IconButton(
             icon: Icons.notifications_none,
-            badge: unreadNotifications,
+            badge: notifBadge,
             onTap: () => _openNotifications(context),
           ),
         ];
@@ -156,12 +180,12 @@ class HeaderUtilisateur extends ConsumerWidget {
         return [
           _IconButton(
             icon: Icons.chat_bubble_outline,
-            badge: unreadMessages,
+            badge: msgsBadge,
             onTap: () => _openMessages(context),
           ),
           _IconButton(
             icon: Icons.notifications_none,
-            badge: unreadNotifications,
+            badge: notifBadge,
             onTap: () => _openNotifications(context),
           ),
         ];
@@ -170,7 +194,7 @@ class HeaderUtilisateur extends ConsumerWidget {
         return [
           _IconButton(
             icon: Icons.notifications_none,
-            badge: unreadNotifications,
+            badge: notifBadge,
             onTap: () => _openNotifications(context),
           ),
         ];

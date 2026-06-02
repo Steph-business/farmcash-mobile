@@ -5,8 +5,12 @@ import '../../../../routing/route_names.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_text_styles.dart';
 
-/// Header de la page de détail commande côté acheteur. Affiche la
-/// référence de la commande au centre et un bouton retour à gauche.
+/// Header de la page de détail commande côté acheteur. Affiche un titre
+/// simple « Commande » au centre et un bouton retour à gauche.
+///
+/// La référence longue (ex: `#ORD-1779742258490-77b4`) n'est PLUS affichée
+/// ici — elle reste disponible dans le résumé déplié et dans la sticky
+/// info en pied. Le titre garde la page lisible et propre.
 ///
 /// Fallback important côté navigation : si l'utilisateur arrive ici via
 /// `context.go(...)` depuis la page succès (qui remplace la stack),
@@ -15,12 +19,12 @@ import '../../../../theme/app_text_styles.dart';
 /// bouton retour inactif.
 class EnteteCommandeDetail extends StatelessWidget {
   const EnteteCommandeDetail({
-    required this.reference,
+    this.reference = '',
     super.key,
   });
 
-  /// Référence affichée dans le titre (ex: `C-2026-0089`). Si vide, on
-  /// affiche juste « Commande ».
+  /// Conservé pour compat API mais non affiché — la longue ref encombrait
+  /// le header.
   final String reference;
 
   @override
@@ -51,7 +55,7 @@ class EnteteCommandeDetail extends StatelessWidget {
           ),
           Expanded(
             child: Text(
-              reference.isEmpty ? 'Commande' : 'Commande #$reference',
+              'Commande',
               style: AppTextStyles.titleSmall.copyWith(
                 fontSize: 17,
                 fontWeight: FontWeight.w700,

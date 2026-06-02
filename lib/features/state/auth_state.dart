@@ -76,6 +76,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
       // Silencieux — le state reste cohérent.
     }
   }
+
+  /// Met à jour directement le user en mémoire à partir d'un payload
+  /// déjà reçu (ex. après upload avatar, après update profile). Évite
+  /// un aller-retour `me()` réseau quand on a déjà la valeur fraîche.
+  void updateUser(Utilisateur user) {
+    state = state.copyWith(user: user);
+  }
 }
 
 final authStateProvider =

@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../api_client/api_exception.dart';
 import '../../../../models/commande.dart';
 import '../../../../models/enums.dart';
+import '../../../../routing/route_names.dart';
 import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
-import '../../communs/dialog_signaler_probleme.dart';
+import '../../communs/litige/motifs_litige.dart';
 import '../../communs/snackbars.dart';
 
 /// Bandeau d'actions sticky en bas de la page détail commande côté
@@ -60,6 +62,13 @@ class _ActionsCommandeProducteurState
     }
   }
 
+  /// Le QR d'enlèvement n'a de sens qu'au statut ACCEPTED — l'acheteur
+  /// a payé, le producteur a accepté, le transporteur va arriver bientôt.
+  /// Sur SENT (vendeur n'a pas encore accepté) on cache. Sur IN_PROGRESS
+  /// + après (transporteur déjà parti / livré) on cache aussi.
+  bool get _canShowQr =>
+      widget.commande.status == OrderStatus.accepted;
+
   Future<void> _markShipped() async {
     if (_busy) return;
     setState(() => _busy = true);
@@ -99,16 +108,20 @@ class _ActionsCommandeProducteurState
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // CTA principal plein-largeur — l'action 1 du producteur c'est
-          // d'expédier. Le chat est déjà accessible inline dans la
-          // section Acheteur en haut (icône à droite du nom), pas besoin
-          // de doublonner ici.
-          SizedBox(
-            width: double.infinity,
-            child: Opacity(
-              opacity: shipEnabled ? 1 : 0.5,
+          // CTA principal : QR d'enlèvement (statut ACCEPTED). C'est le
+          // déclencheur du flow — montrer ce QR au transporteur qui
+          // arrive. Pas de "Confirmer" à taper côté producteur : le
+          // scan transporteur fait tout. Sur les autres statuts on
+          // affiche "Marquer expédiée" comme avant (fallback manuel
+          // si le QR ne passe pas).
+          if (_canShowQr)
+            SizedBox(
+              width: double.infinity,
               child: InkWell(
-                onTap: shipEnabled ? _markShipped : null,
+                onTap: () => context.push(
+                  RouteNames
+                      .producteurCommandeEnlevementQrPathFor(widget.commande.id),
+                ),
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
                   height: 54,
@@ -117,41 +130,79 @@ class _ActionsCommandeProducteurState
                     borderRadius: BorderRadius.circular(12),
                   ),
                   alignment: Alignment.center,
-                  child: _busy
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            color: Colors.white,
-                          ),
-                        )
-                      : Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.local_shipping_outlined,
-                              size: 20,
-                              color: AppColors.onPrimary,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              shipEnabled
-                                  ? 'Marquer comme expédiée'
-                                  : 'Déjà expédiée',
-                              style: AppTextStyles.button.copyWith(
-                                fontSize: 15,
-                                color: AppColors.onPrimary,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.qr_code_2,
+                        size: 22,
+                        color: AppColors.onPrimary,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Voir mon QR d\'enlèvement',
+                        style: AppTextStyles.button.copyWith(
+                          fontSize: 15,
+                          color: AppColors.onPrimary,
+                          fontWeight: FontWeight.w700,
                         ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            )
+          else
+            SizedBox(
+              width: double.infinity,
+              child: Opacity(
+                opacity: shipEnabled ? 1 : 0.5,
+                child: InkWell(
+                  onTap: shipEnabled ? _markShipped : null,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    height: 54,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    alignment: Alignment.center,
+                    child: _busy
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.local_shipping_outlined,
+                                size: 20,
+                                color: AppColors.onPrimary,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                shipEnabled
+                                    ? 'Marquer comme expédiée'
+                                    : 'Déjà expédiée',
+                                style: AppTextStyles.button.copyWith(
+                                  fontSize: 15,
+                                  color: AppColors.onPrimary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
                 ),
               ),
             ),
-          ),
           // « Signaler un problème » : visible tant que la commande est
           // active et que l'escrow n'a pas été libéré. C'est le dernier
           // recours du producteur (acheteur disparaît / refuse la
@@ -161,11 +212,17 @@ class _ActionsCommandeProducteurState
           if (_signalerVisible(widget.commande)) ...[
             const SizedBox(height: 4),
             TextButton.icon(
-              onPressed: () => ouvrirDialogSignalerProbleme(
-                context,
-                widget.commande,
-                viewerIsBuyer: false,
-              ),
+              onPressed: () async {
+                final result = await context.push<bool>(
+                  RouteNames.signalerProblemePathFor(widget.commande.id),
+                );
+                // Litige créé → on demande au parent de rafraîchir le
+                // provider (`onAfterShipped` est aussi utilisé pour ça
+                // — il est branché sur `ref.invalidate(_commandeProvider)`
+                // côté page parente). Effet : statut DISPUTED s'affiche
+                // immédiatement, les autres actions sont masquées.
+                if (result == true) widget.onAfterShipped();
+              },
               icon: const Icon(
                 Icons.flag_outlined,
                 size: 16,
@@ -186,17 +243,10 @@ class _ActionsCommandeProducteurState
     );
   }
 
-  /// Bouton « Signaler un problème » : visible quand la commande est
-  /// active et que l'escrow n'a pas été libéré.
-  bool _signalerVisible(Commande c) {
-    if (c.escrowReleased) return false;
-    switch (c.status) {
-      case OrderStatus.completed:
-      case OrderStatus.cancelled:
-      case OrderStatus.rejected:
-        return false;
-      default:
-        return true;
-    }
-  }
+  /// Bouton « Signaler un problème » : visible uniquement quand le
+  /// backend autorise l'ouverture d'un litige — c.-à-d. statuts
+  /// `IN_PROGRESS` ou `DELIVERED`. Sur les autres statuts on cache le
+  /// lien pour ne pas tenter l'utilisateur avec une action qui
+  /// renverra 400.
+  bool _signalerVisible(Commande c) => peutOuvrirLitige(c.status);
 }

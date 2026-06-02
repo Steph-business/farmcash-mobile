@@ -17,6 +17,7 @@ import '../../widgets/communs/chargement.dart';
 import '../../widgets/communs/profil/barre_superieure_profil.dart';
 import '../../widgets/communs/profil/bouton_deconnexion_profil.dart';
 import '../../widgets/communs/profil/carte_identite_profil.dart';
+import '../../widgets/communs/profil/changer_photo_helper.dart';
 import '../../widgets/communs/profil/groupe_profil.dart';
 import '../../widgets/communs/profil/photo_profil.dart';
 import '../../widgets/communs/profil/pied_legal_profil.dart';
@@ -159,6 +160,7 @@ class ProfilProducteurPage extends ConsumerWidget {
                       context.go(RouteNames.bienvenuePath);
                     }
                   },
+                  onChangerPhoto: () => changerPhotoProfil(context, ref),
                 ),
               ),
             ),
@@ -176,11 +178,13 @@ class _ContenuProfilProducteur extends StatelessWidget {
     required this.user,
     required this.data,
     required this.onLogout,
+    required this.onChangerPhoto,
   });
 
   final Utilisateur? user;
   final _ProfilData data;
   final VoidCallback onLogout;
+  final VoidCallback onChangerPhoto;
 
   @override
   Widget build(BuildContext context) {
@@ -205,8 +209,7 @@ class _ContenuProfilProducteur extends StatelessWidget {
               sousLigneIdentiteProducteur(rating: user?.rating ?? 0),
           onModifier: () =>
               context.push(RouteNames.producteurProfilEditerPath),
-          onEditPhoto: () =>
-              Snackbars.showInfo(context, 'Modifier la photo — à venir'),
+          onEditPhoto: onChangerPhoto,
         ),
         AppDimens.vGap24,
 

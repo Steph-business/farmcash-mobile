@@ -45,6 +45,16 @@ class Livraison with _$Livraison {
       toJson: _commandeApercuToJson,
     )
     CommandeApercu? commande,
+
+    /// Champ joint `users` (le transporteur assigné) quand le backend
+    /// l'expose — notamment `GET /shipments/by-commande/:id`. Permet
+    /// d'afficher nom + photo + rating sans appel supplémentaire.
+    @JsonKey(
+      name: 'users',
+      fromJson: _transporterApercuFromJson,
+      toJson: _transporterApercuToJson,
+    )
+    TransporterApercu? transporter,
   }) = _Livraison;
 
   factory Livraison.fromJson(Map<String, dynamic> json) =>
@@ -64,6 +74,133 @@ class Livraison with _$Livraison {
     if (o == null || o.isEmpty || d == null || d.isEmpty) return null;
     return '$o → $d';
   }
+
+  // ─── Raccourcis vers les infos transporteur jointes ─────────────────
+
+  String? get transporterName => transporter?.fullName;
+  String? get transporterPhone => transporter?.phone;
+  String? get transporterPhotoUrl => transporter?.photoUrl;
+  double? get transporterRating => transporter?.rating;
+  int? get transporterRatingCount => transporter?.ratingCount;
+  String? get vehiclePlaque => transporter?.vehicle?.immatriculation;
+  String? get vehicleMarque => transporter?.vehicle?.marque;
+
+  /// Label affichable du véhicule. On préfère « Marque + Type » (ex.
+  /// « Renault — Camion 10t ») si la marque est jointe, sinon on retombe
+  /// sur le `vehicle_type` brut du shipment, sinon le type du véhicule.
+  String? get vehiculeLabel {
+    final marque = transporter?.vehicle?.marque?.trim();
+    final typeV = transporter?.vehicle?.type?.trim();
+    final fallbackType = vehicleType?.trim();
+    if (marque != null && marque.isNotEmpty) {
+      if (typeV != null && typeV.isNotEmpty) return '$marque · $typeV';
+      return marque;
+    }
+    if (typeV != null && typeV.isNotEmpty) return typeV;
+    if (fallbackType != null && fallbackType.isNotEmpty) return fallbackType;
+    return null;
+  }
+}
+
+/// Sous-objet joint à un shipment : informations minimales sur le
+/// transporteur assigné. Le `vehicle` est le 1er véhicule actif du
+/// transporteur (cf. service backend).
+class TransporterApercu {
+  const TransporterApercu({
+    this.id,
+    this.fullName,
+    this.phone,
+    this.photoUrl,
+    this.rating,
+    this.ratingCount,
+    this.vehicle,
+  });
+
+  final String? id;
+  final String? fullName;
+
+  /// Téléphone du chauffeur — utilisé pour le bouton « Appeler » qui
+  /// déclenche `tel:` via `url_launcher`. Peut être null en dev / si le
+  /// transporteur n'a pas renseigné son numéro.
+  final String? phone;
+  final String? photoUrl;
+  final double? rating;
+  final int? ratingCount;
+  final VehiculeApercu? vehicle;
+}
+
+/// Snapshot d'un véhicule joint au transporteur. Pas tous les champs sont
+/// exposés — juste ce qu'on affiche sur la carte tracking.
+class VehiculeApercu {
+  const VehiculeApercu({
+    this.id,
+    this.type,
+    this.immatriculation,
+    this.marque,
+  });
+
+  final String? id;
+  final String? type;
+  final String? immatriculation;
+  final String? marque;
+}
+
+TransporterApercu? _transporterApercuFromJson(dynamic raw) {
+  if (raw is! Map) return null;
+  final m = raw.cast<String, dynamic>();
+  // `vehicles` est joint via `users.vehicles { take: 1, where: is_active }`
+  // côté backend — donc c'est toujours un array de 0 ou 1 élément.
+  VehiculeApercu? vehicle;
+  final vehicles = m['vehicles'];
+  if (vehicles is List && vehicles.isNotEmpty) {
+    final v = vehicles.first;
+    if (v is Map) {
+      final mv = v.cast<String, dynamic>();
+      vehicle = VehiculeApercu(
+        id: mv['id'] as String?,
+        type: mv['type'] as String?,
+        immatriculation: mv['immatriculation'] as String?,
+        marque: mv['marque'] as String?,
+      );
+    }
+  }
+  final rating = m['rating'];
+  final ratingCount = m['rating_count'];
+  return TransporterApercu(
+    id: m['id'] as String?,
+    fullName: m['full_name'] as String?,
+    phone: m['phone'] as String?,
+    photoUrl: m['photo_url'] as String?,
+    rating: rating is num
+        ? rating.toDouble()
+        : (rating is String ? double.tryParse(rating) : null),
+    ratingCount: ratingCount is num
+        ? ratingCount.toInt()
+        : (ratingCount is String ? int.tryParse(ratingCount) : null),
+    vehicle: vehicle,
+  );
+}
+
+Map<String, dynamic>? _transporterApercuToJson(TransporterApercu? t) {
+  if (t == null) return null;
+  return {
+    if (t.id != null) 'id': t.id,
+    if (t.fullName != null) 'full_name': t.fullName,
+    if (t.phone != null) 'phone': t.phone,
+    if (t.photoUrl != null) 'photo_url': t.photoUrl,
+    if (t.rating != null) 'rating': t.rating,
+    if (t.ratingCount != null) 'rating_count': t.ratingCount,
+    if (t.vehicle != null)
+      'vehicles': [
+        {
+          if (t.vehicle!.id != null) 'id': t.vehicle!.id,
+          if (t.vehicle!.type != null) 'type': t.vehicle!.type,
+          if (t.vehicle!.immatriculation != null)
+            'immatriculation': t.vehicle!.immatriculation,
+          if (t.vehicle!.marque != null) 'marque': t.vehicle!.marque,
+        }
+      ],
+  };
 }
 
 /// Sous-objet joint à un shipment : informations minimales sur la commande

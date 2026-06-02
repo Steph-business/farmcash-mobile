@@ -76,7 +76,13 @@ class CarteDemandeAcheteur extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${demande.prixMaxLabel} · ${demande.villeLabel}',
+                    // `villeLabel` peut être vide quand le backend n'a
+                    // pas joint la région : on évite le séparateur
+                    // traînant « max 900 F/kg · » qui laisserait
+                    // croire à de la donnée manquante.
+                    demande.villeLabel.trim().isEmpty
+                        ? demande.prixMaxLabel
+                        : '${demande.prixMaxLabel} · ${demande.villeLabel}',
                     style: AppTextStyles.bodySmall.copyWith(
                       fontSize: 12,
                       color: AppColors.textSecondary,

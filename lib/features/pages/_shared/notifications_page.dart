@@ -7,12 +7,13 @@ import '../../../models/notification.dart';
 import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
-import '../../../theme/app_text_styles.dart';
 import '../../state/auth_state.dart';
 import '../../widgets/communs/snackbars.dart';
+import '../../state/badges_state.dart';
 import '../../widgets/notifications/entete_notifications.dart';
 import '../../widgets/notifications/etat_erreur_notifications.dart';
 import '../../widgets/notifications/etat_vide_notifications.dart';
+import '../../widgets/notifications/router_notification.dart';
 import '../../widgets/notifications/tuile_notification.dart';
 
 // ─── Provider liste notifications ───────────────────────────────────────
@@ -59,25 +60,34 @@ class NotificationsPage extends ConsumerWidget {
     WidgetRef ref,
     AppNotification notif,
   ) async {
-    // Marquage best-effort si non lue. Une erreur ici n'a pas d'impact UX.
+    // 1. Marquer comme lue (best-effort) + refresh du badge global.
+    //    Une erreur ici n'empêche pas d'ouvrir la cible.
     if (!notif.isRead) {
       try {
         await ref.read(notificationsServiceProvider).markAsRead(notif.id);
         if (!context.mounted) return;
         ref.invalidate(_notificationsProvider);
+        ref.invalidate(unreadNotificationsCountProvider);
       } on ApiException catch (_) {
         // Silencieux : l'invalidate suivant la recharge corrigera l'état.
       }
     }
-    // TODO(notif-deeplink) : router vers la cible selon `notif.data`
-    // (commande_id → page commande, candidature_id → négo, etc.). Pour
-    // l'instant on affiche un toast informatif minimal.
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(notif.titre.isEmpty ? 'Notification' : notif.titre),
-        behavior: SnackBarBehavior.floating,
-      ),
+    // 2. Deep-link vers la cible (commande, chat, wallet, …) en fonction
+    //    du type + data + rôle. Si pas de cible utile, snackbar fallback.
+    final role = ref.read(currentUserProvider)?.role;
+    ouvrirNotification(
+      context,
+      notif,
+      role,
+      onSystem: () {
+        // Fallback : notif sans cible deep-link → on affiche juste son
+        // titre via le snackbar unifié style apps pro.
+        Snackbars.showInfo(
+          context,
+          notif.titre.isEmpty ? 'Notification' : notif.titre,
+        );
+      },
     );
   }
 
@@ -133,7 +143,12 @@ class NotificationsPage extends ConsumerWidget {
                 },
               ),
             ),
-            _BottomNavForRole(role: role),
+            // Bottom-nav décoratif retiré : la page Notifications est
+            // poussée hors shell, donc aucune barre du bas ne doit
+            // s'afficher. Avant on rendait une fausse barre grisée
+            // pour "rappeler" le contexte — ça créait juste de la
+            // confusion (l'utilisateur croyait pouvoir tap, mais elle
+            // était inactive).
           ],
         ),
       ),
@@ -159,184 +174,3 @@ class NotificationsPage extends ConsumerWidget {
   }
 }
 
-// ─── Bottom-nav par rôle ────────────────────────────────────────────────
-//
-// TODO(refacto-bottom-nav) : factoriser ces 4 variantes (+ `_NavItem`)
-// vers `widgets/communs/` une fois le pattern stabilisé sur l'ensemble
-// des pages. Pour l'instant elles restent inline ici car elles sont
-// purement décoratives (Opacity 0.45) et propres à la page Notifications.
-
-class _BottomNavForRole extends StatelessWidget {
-  const _BottomNavForRole({required this.role});
-
-  final UserRole? role;
-
-  @override
-  Widget build(BuildContext context) {
-    switch (role) {
-      case UserRole.farmer:
-        return const _BottomNavStaticProducteur();
-      case UserRole.buyer:
-        return const _BottomNavDimmedAcheteur();
-      case UserRole.cooperative:
-        return const _BottomNavDimmedCooperative();
-      case UserRole.transporter:
-        return const _BottomNavDimmedTransporteur();
-      default:
-        return const SizedBox.shrink();
-    }
-  }
-}
-
-class _BottomNavStaticProducteur extends StatelessWidget {
-  const _BottomNavStaticProducteur();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: AppDimens.bottomNavHeight,
-      decoration: const BoxDecoration(
-        color: AppColors.background,
-        border: Border(
-          top: BorderSide(
-            color: AppColors.border,
-            width: AppDimens.borderThin,
-          ),
-        ),
-      ),
-      child: Row(
-        children: const [
-          _NavItem(icon: Icons.home_outlined, label: 'Accueil'),
-          _NavItem(icon: Icons.chat_bubble_outline, label: 'Messages'),
-          SizedBox(width: 56 + 8),
-          _NavItem(icon: Icons.receipt_long_outlined, label: 'Commandes'),
-          _NavItem(icon: Icons.person_outline, label: 'Profil'),
-        ],
-      ),
-    );
-  }
-}
-
-class _BottomNavDimmedAcheteur extends StatelessWidget {
-  const _BottomNavDimmedAcheteur();
-
-  @override
-  Widget build(BuildContext context) {
-    return Opacity(
-      opacity: 0.45,
-      child: Container(
-        height: AppDimens.bottomNavHeight,
-        decoration: const BoxDecoration(
-          color: AppColors.background,
-          border: Border(
-            top: BorderSide(
-              color: AppColors.border,
-              width: AppDimens.borderThin,
-            ),
-          ),
-        ),
-        child: Row(
-          children: const [
-            _NavItem(icon: Icons.home_outlined, label: 'Accueil'),
-            _NavItem(icon: Icons.storefront_outlined, label: 'Marché'),
-            _NavItem(icon: Icons.chat_bubble_outline, label: 'Messages'),
-            _NavItem(icon: Icons.receipt_long_outlined, label: 'Commandes'),
-            _NavItem(icon: Icons.person_outline, label: 'Profil'),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _BottomNavDimmedCooperative extends StatelessWidget {
-  const _BottomNavDimmedCooperative();
-
-  @override
-  Widget build(BuildContext context) {
-    return Opacity(
-      opacity: 0.45,
-      child: Container(
-        height: AppDimens.bottomNavHeight,
-        decoration: const BoxDecoration(
-          color: AppColors.background,
-          border: Border(
-            top: BorderSide(
-              color: AppColors.border,
-              width: AppDimens.borderThin,
-            ),
-          ),
-        ),
-        child: Row(
-          children: const [
-            _NavItem(icon: Icons.home_outlined, label: 'Accueil'),
-            _NavItem(icon: Icons.groups_outlined, label: 'Membres'),
-            SizedBox(width: 56 + 8),
-            _NavItem(icon: Icons.inventory_2_outlined, label: 'Stock'),
-            _NavItem(icon: Icons.storefront_outlined, label: 'Marché'),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _BottomNavDimmedTransporteur extends StatelessWidget {
-  const _BottomNavDimmedTransporteur();
-
-  @override
-  Widget build(BuildContext context) {
-    return Opacity(
-      opacity: 0.45,
-      child: Container(
-        height: AppDimens.bottomNavHeight,
-        decoration: const BoxDecoration(
-          color: AppColors.background,
-          border: Border(
-            top: BorderSide(
-              color: AppColors.border,
-              width: AppDimens.borderThin,
-            ),
-          ),
-        ),
-        child: Row(
-          children: const [
-            _NavItem(icon: Icons.home_outlined, label: 'Accueil'),
-            _NavItem(icon: Icons.local_shipping_outlined, label: 'Missions'),
-            _NavItem(icon: Icons.chat_bubble_outline, label: 'Messages'),
-            _NavItem(icon: Icons.person_outline, label: 'Profil'),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _NavItem extends StatelessWidget {
-  const _NavItem({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 22, color: AppColors.textSecondary),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: AppTextStyles.labelSmall.copyWith(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}

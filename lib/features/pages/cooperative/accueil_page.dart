@@ -231,12 +231,14 @@ class _AccueilContent extends ConsumerWidget {
         ActionRapide(
           icone: Icons.groups_outlined,
           label: 'Membres',
-          onTap: () => context.push(RouteNames.cooperativeMembresPath),
+          // Onglet shell → go pour activer la branche bottom nav.
+          onTap: () => context.go(RouteNames.cooperativeMembresPath),
         ),
         ActionRapide(
           icone: Icons.campaign_outlined,
           label: 'Publications',
-          onTap: () => context.push(RouteNames.cooperativeMarchePath),
+          // Onglet shell Marché → go.
+          onTap: () => context.go(RouteNames.cooperativeMarchePath),
         ),
         ActionRapide(
           icone: Icons.payments_outlined,

@@ -8,6 +8,7 @@ import '../../communs/alertes_prix_section.dart';
 import '../../communs/carte_solde_hero.dart';
 import '../../communs/entete_bonjour.dart';
 import '../../communs/grille_actions.dart';
+import '../../communs/snackbars.dart';
 import 'accueil_producteur_data.dart';
 import 'etat_vide.dart';
 import 'section_conseils.dart';
@@ -45,13 +46,11 @@ class ContenuAccueil extends StatelessWidget {
   final String prenom;
 
   /// Snackbar d'attente pour les actions sans page dédiée.
+  ///
+  /// Délègue au helper unifié — design pro (fond sombre + icône colorée),
+  /// cohérent avec le reste de l'app (Uber/Jumia style).
   void _showSoon(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    Snackbars.showInfo(context, message);
   }
 
   /// Liste des 6 actions rapides côté producteur (grid 2×3). Ordre pensé
@@ -74,7 +73,9 @@ class ContenuAccueil extends StatelessWidget {
         ActionRapide(
           icone: Icons.receipt_long_outlined,
           label: 'Commandes',
-          onTap: () => context.push(RouteNames.producteurCommandesPath),
+          // Onglet shell → context.go pour que le bottom nav active la
+          // bonne branche (sinon "Accueil" reste highlight).
+          onTap: () => context.go(RouteNames.producteurCommandesPath),
         ),
         ActionRapide(
           icone: Icons.smart_toy_outlined,

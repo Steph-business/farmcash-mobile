@@ -55,6 +55,16 @@ mixin _$Livraison {
   )
   CommandeApercu? get commande => throw _privateConstructorUsedError;
 
+  /// Champ joint `users` (le transporteur assigné) quand le backend
+  /// l'expose — notamment `GET /shipments/by-commande/:id`. Permet
+  /// d'afficher nom + photo + rating sans appel supplémentaire.
+  @JsonKey(
+    name: 'users',
+    fromJson: _transporterApercuFromJson,
+    toJson: _transporterApercuToJson,
+  )
+  TransporterApercu? get transporter => throw _privateConstructorUsedError;
+
   /// Serializes this Livraison to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
@@ -95,6 +105,12 @@ abstract class $LivraisonCopyWith<$Res> {
       toJson: _commandeApercuToJson,
     )
     CommandeApercu? commande,
+    @JsonKey(
+      name: 'users',
+      fromJson: _transporterApercuFromJson,
+      toJson: _transporterApercuToJson,
+    )
+    TransporterApercu? transporter,
   });
 }
 
@@ -132,6 +148,7 @@ class _$LivraisonCopyWithImpl<$Res, $Val extends Livraison>
     Object? createdAt = freezed,
     Object? pickupScannedAt = freezed,
     Object? commande = freezed,
+    Object? transporter = freezed,
   }) {
     return _then(
       _value.copyWith(
@@ -211,6 +228,10 @@ class _$LivraisonCopyWithImpl<$Res, $Val extends Livraison>
                 ? _value.commande
                 : commande // ignore: cast_nullable_to_non_nullable
                       as CommandeApercu?,
+            transporter: freezed == transporter
+                ? _value.transporter
+                : transporter // ignore: cast_nullable_to_non_nullable
+                      as TransporterApercu?,
           )
           as $Val,
     );
@@ -251,6 +272,12 @@ abstract class _$$LivraisonImplCopyWith<$Res>
       toJson: _commandeApercuToJson,
     )
     CommandeApercu? commande,
+    @JsonKey(
+      name: 'users',
+      fromJson: _transporterApercuFromJson,
+      toJson: _transporterApercuToJson,
+    )
+    TransporterApercu? transporter,
   });
 }
 
@@ -287,6 +314,7 @@ class __$$LivraisonImplCopyWithImpl<$Res>
     Object? createdAt = freezed,
     Object? pickupScannedAt = freezed,
     Object? commande = freezed,
+    Object? transporter = freezed,
   }) {
     return _then(
       _$LivraisonImpl(
@@ -366,6 +394,10 @@ class __$$LivraisonImplCopyWithImpl<$Res>
             ? _value.commande
             : commande // ignore: cast_nullable_to_non_nullable
                   as CommandeApercu?,
+        transporter: freezed == transporter
+            ? _value.transporter
+            : transporter // ignore: cast_nullable_to_non_nullable
+                  as TransporterApercu?,
       ),
     );
   }
@@ -400,6 +432,12 @@ class _$LivraisonImpl extends _Livraison {
       toJson: _commandeApercuToJson,
     )
     this.commande,
+    @JsonKey(
+      name: 'users',
+      fromJson: _transporterApercuFromJson,
+      toJson: _transporterApercuToJson,
+    )
+    this.transporter,
   }) : super._();
 
   factory _$LivraisonImpl.fromJson(Map<String, dynamic> json) =>
@@ -458,9 +496,20 @@ class _$LivraisonImpl extends _Livraison {
   )
   final CommandeApercu? commande;
 
+  /// Champ joint `users` (le transporteur assigné) quand le backend
+  /// l'expose — notamment `GET /shipments/by-commande/:id`. Permet
+  /// d'afficher nom + photo + rating sans appel supplémentaire.
+  @override
+  @JsonKey(
+    name: 'users',
+    fromJson: _transporterApercuFromJson,
+    toJson: _transporterApercuToJson,
+  )
+  final TransporterApercu? transporter;
+
   @override
   String toString() {
-    return 'Livraison(id: $id, commandeId: $commandeId, transporterId: $transporterId, status: $status, vehicleType: $vehicleType, origineZone: $origineZone, destinationZone: $destinationZone, pickupAddress: $pickupAddress, deliveryAddress: $deliveryAddress, prixDevis: $prixDevis, prixFinal: $prixFinal, quantiteKg: $quantiteKg, photoPreuveUrl: $photoPreuveUrl, notes: $notes, scheduledAt: $scheduledAt, deliveredAt: $deliveredAt, createdAt: $createdAt, pickupScannedAt: $pickupScannedAt, commande: $commande)';
+    return 'Livraison(id: $id, commandeId: $commandeId, transporterId: $transporterId, status: $status, vehicleType: $vehicleType, origineZone: $origineZone, destinationZone: $destinationZone, pickupAddress: $pickupAddress, deliveryAddress: $deliveryAddress, prixDevis: $prixDevis, prixFinal: $prixFinal, quantiteKg: $quantiteKg, photoPreuveUrl: $photoPreuveUrl, notes: $notes, scheduledAt: $scheduledAt, deliveredAt: $deliveredAt, createdAt: $createdAt, pickupScannedAt: $pickupScannedAt, commande: $commande, transporter: $transporter)';
   }
 
   @override
@@ -502,7 +551,9 @@ class _$LivraisonImpl extends _Livraison {
             (identical(other.pickupScannedAt, pickupScannedAt) ||
                 other.pickupScannedAt == pickupScannedAt) &&
             (identical(other.commande, commande) ||
-                other.commande == commande));
+                other.commande == commande) &&
+            (identical(other.transporter, transporter) ||
+                other.transporter == transporter));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -528,6 +579,7 @@ class _$LivraisonImpl extends _Livraison {
     createdAt,
     pickupScannedAt,
     commande,
+    transporter,
   ]);
 
   /// Create a copy of Livraison
@@ -571,6 +623,12 @@ abstract class _Livraison extends Livraison {
       toJson: _commandeApercuToJson,
     )
     final CommandeApercu? commande,
+    @JsonKey(
+      name: 'users',
+      fromJson: _transporterApercuFromJson,
+      toJson: _transporterApercuToJson,
+    )
+    final TransporterApercu? transporter,
   }) = _$LivraisonImpl;
   const _Livraison._() : super._();
 
@@ -629,6 +687,17 @@ abstract class _Livraison extends Livraison {
     toJson: _commandeApercuToJson,
   )
   CommandeApercu? get commande;
+
+  /// Champ joint `users` (le transporteur assigné) quand le backend
+  /// l'expose — notamment `GET /shipments/by-commande/:id`. Permet
+  /// d'afficher nom + photo + rating sans appel supplémentaire.
+  @override
+  @JsonKey(
+    name: 'users',
+    fromJson: _transporterApercuFromJson,
+    toJson: _transporterApercuToJson,
+  )
+  TransporterApercu? get transporter;
 
   /// Create a copy of Livraison
   /// with the given fields replaced by the non-null parameter values.

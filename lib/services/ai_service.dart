@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:http_parser/http_parser.dart';
 
 import '../api_client/api_client.dart';
 import '../api_client/api_endpoints.dart';
@@ -226,6 +227,86 @@ class AiService {
       ApiEndpoints.newsById(id),
     );
     return NewsItem.fromJson(json);
+  }
+
+  // ─── Extraction Annonce Express ──────────────────────────────────────
+
+  /// Extrait les paramètres d'une annonce à partir d'un fichier audio ou vidéo.
+  /// Envoie le fichier à `/ai/annonce-express` pour extraction.
+  /// Si le backend n'est pas déployé ou en cas de timeout/error, une simulation
+  /// locale intelligente s'exécute pour la robustesse et les tests.
+  Future<ExtractedAnnonce> extractAnnonceFromMedia({
+    required File file,
+    required double lat,
+    required double lng,
+    void Function(int sent, int total)? progress,
+  }) async {
+    try {
+      final fileName = file.path.split(Platform.pathSeparator).last;
+      final lower = fileName.toLowerCase();
+      final isVideo = lower.endsWith('.mp4') || lower.endsWith('.mov');
+      // MIME exact selon l'extension réelle (l'audio est enregistré en
+      // WAV). Un content-type juste est important pour Gemini/Whisper.
+      final String mime;
+      if (isVideo) {
+        mime = 'video/mp4';
+      } else if (lower.endsWith('.wav')) {
+        mime = 'audio/wav';
+      } else if (lower.endsWith('.m4a')) {
+        mime = 'audio/mp4';
+      } else {
+        mime = 'audio/wav';
+      }
+
+      // lat/lng en champs PLATS (chaînes) : Dio sérialise mal les maps
+      // imbriquées en multipart côté backend (class-validator).
+      final form = FormData.fromMap({
+        'lat': lat.toString(),
+        'lng': lng.toString(),
+        'type': isVideo ? 'VIDEO' : 'AUDIO',
+        'file': await MultipartFile.fromFile(
+          file.path,
+          filename: fileName,
+          contentType: MediaType.parse(mime),
+        ),
+      });
+
+      final json = await _api.upload<Map<String, dynamic>>(
+        '/ai/annonce-express',
+        formData: form,
+        onSendProgress: progress,
+      );
+      return ExtractedAnnonce.fromJson(json);
+    } catch (e) {
+      // Fallback local intelligent si l'appel échoue (ex. 404, connexion manquante)
+      await Future<void>.delayed(const Duration(milliseconds: 2500));
+      
+      String matchedProduct = 'Maïs grain blanc';
+      try {
+        final cultures = await _marketplace.listCultures();
+        if (cultures.isNotEmpty && cultures.first.produitNom != null) {
+          matchedProduct = cultures.first.produitNom!;
+        }
+      } catch (_) {}
+
+      final isVideo = file.path.toLowerCase().endsWith('.mp4') || file.path.toLowerCase().endsWith('.mov');
+
+      return ExtractedAnnonce(
+        productName: matchedProduct,
+        quantiteKg: isVideo ? 650.0 : 350.0,
+        prixParKg: isVideo ? 600.0 : 450.0,
+        qualite: ProductQuality.standard,
+        description: isVideo
+            ? "Lot de récolte de $matchedProduct filmé dans le champ. Bon séchage, prêt pour livraison rapide."
+            : "Annonce enregistrée par note vocale. Récolte fraîche du jour, stockée sous hangar.",
+        dateRecolte: DateTime.now().subtract(const Duration(days: 1)),
+        certifications: const ['Origine Côte d\'Ivoire'],
+        traitements: const ['Engrais naturel (compost, fumier)'],
+        // Marqueur : ces valeurs sont inventées (l'IA n'a pas été
+        // appelée). L'UI affiche un avertissement.
+        isSimulation: true,
+      );
+    }
   }
 
   // ─── Helper ──────────────────────────────────────────────────────────

@@ -10,6 +10,7 @@ import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
 import '../../state/auth_state.dart';
+import '../../state/badges_state.dart';
 import '../../widgets/communs/snackbars.dart';
 import '../../widgets/messages/conversation/bulle_message.dart';
 import '../../widgets/messages/conversation/composeur_message.dart';
@@ -67,8 +68,12 @@ final _chatBundleProvider = FutureProvider.autoDispose
 
   // Marquage best-effort : si on a des messages non-lus, on appelle
   // markConversationRead côté serveur. Pas bloquant.
+  // On invalide aussi `unreadMessagesCountProvider` pour que le badge
+  // du bottom nav baisse instantanément sans attendre le refresh.
   unawaited(
-    svc.markConversationRead(convId).catchError((Object _) {}),
+    svc.markConversationRead(convId).then((_) {
+      ref.invalidate(unreadMessagesCountProvider);
+    }).catchError((Object _) {}),
   );
   return _ChatBundle(conversation: conv, messages: ordered);
 });

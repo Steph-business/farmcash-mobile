@@ -4,78 +4,117 @@ import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
 
-/// Liste des prochaines étapes après une commande passée.
+/// Mini-stepper horizontal — résume visuellement les 4 étapes d'une
+/// commande sans le pavé de texte verbeux. Le 1er point (« Payé »)
+/// est déjà actif puisqu'on arrive sur cette page après paiement.
+///
+/// Remplace l'ancienne liste « Et maintenant ? » + 3 grosses tuiles
+/// texte (« Le vendeur prépare ton colis », « Le transporteur prend
+/// le colis (paiement libéré au vendeur via escrow auto) », etc).
+/// Le détail technique reste accessible sur la page « Suivre ma
+/// commande » — la confirmation n'a pas besoin de pédagogie.
 class ListeEtapesCommandeSucces extends StatelessWidget {
   const ListeEtapesCommandeSucces({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    // Premier point actif (payé). Les 3 suivants restent neutres.
+    const items = <_StepData>[
+      _StepData(icone: Icons.check, label: 'Payé', actif: true),
+      _StepData(icone: Icons.inventory_2_outlined, label: 'Préparation'),
+      _StepData(icone: Icons.local_shipping_outlined, label: 'Transport'),
+      _StepData(icone: Icons.home_outlined, label: 'Livraison'),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (var i = 0; i < items.length; i++) ...[
+              Expanded(child: _PastilleEtape(data: items[i])),
+              if (i < items.length - 1)
+                _LigneEntre(actif: items[i].actif && items[i + 1].actif),
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _StepData {
+  const _StepData({
+    required this.icone,
+    required this.label,
+    this.actif = false,
+  });
+  final IconData icone;
+  final String label;
+  final bool actif;
+}
+
+class _PastilleEtape extends StatelessWidget {
+  const _PastilleEtape({required this.data});
+  final _StepData data;
+
+  @override
+  Widget build(BuildContext context) {
+    final actif = data.actif;
+    final couleurCercle =
+        actif ? AppColors.primary : AppColors.primary.withValues(alpha: 0.12);
+    final couleurIcone = actif ? Colors.white : AppColors.primary;
+    final couleurLabel = actif ? AppColors.text : AppColors.textSecondary;
+
+    return Column(
       children: [
-        _TuileEtape(num: '1', text: 'Le vendeur prépare ton colis'),
-        SizedBox(height: 10),
-        _TuileEtape(
-          num: '2',
-          text:
-              'Le transporteur prend le colis (paiement libéré au vendeur via escrow auto)',
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: couleurCercle,
+            border: actif
+                ? null
+                : Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.35),
+                    width: AppDimens.borderThin,
+                  ),
+          ),
+          alignment: Alignment.center,
+          child: Icon(data.icone, size: 18, color: couleurIcone),
         ),
-        SizedBox(height: 10),
-        _TuileEtape(
-          num: '3',
-          text: 'Tu reçois et tu montres ton QR pour valider la livraison',
+        const SizedBox(height: 6),
+        Text(
+          data.label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppTextStyles.bodySmall.copyWith(
+            fontSize: 11,
+            fontWeight: actif ? FontWeight.w700 : FontWeight.w500,
+            color: couleurLabel,
+          ),
         ),
       ],
     );
   }
 }
 
-class _TuileEtape extends StatelessWidget {
-  const _TuileEtape({required this.num, required this.text});
-  final String num;
-  final String text;
-
+/// Petit trait entre 2 pastilles (4-5 px d'épaisseur visuelle).
+class _LigneEntre extends StatelessWidget {
+  const _LigneEntre({required this.actif});
+  final bool actif;
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-            color: AppColors.border, width: AppDimens.borderThin),
-      ),
-      padding: const EdgeInsets.all(12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 28,
-            height: 28,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: Color(0xFFE8F5E9),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              num,
-              style: AppTextStyles.labelSmall.copyWith(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: AppColors.primary,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              text,
-              style: AppTextStyles.bodySmall.copyWith(
-                fontSize: 13,
-                color: AppColors.text,
-                height: 1.45,
-              ),
-            ),
-          ),
-        ],
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: Container(
+        width: 16,
+        height: 2,
+        color: actif
+            ? AppColors.primary
+            : AppColors.primary.withValues(alpha: 0.22),
       ),
     );
   }

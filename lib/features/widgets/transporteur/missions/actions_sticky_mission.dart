@@ -137,7 +137,7 @@ class ActionsStickyMission extends StatelessWidget {
       case ShipmentStatus.loading:
         return ('Marquer en route', ShipmentStatus.inTransit, null);
       case ShipmentStatus.inTransit:
-        return ('Marquer livrée', ShipmentStatus.delivered, null);
+        return ('Scanner le QR acheteur', ShipmentStatus.delivered, null);
       case ShipmentStatus.delivered:
       case ShipmentStatus.cancelled:
       case ShipmentStatus.unknown:

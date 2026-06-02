@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import '../features/pages/_shared/aide_page.dart' as shared_aide;
 import '../features/pages/_shared/conditions_page.dart' as shared_conditions;
 import '../features/pages/_shared/conversation_detail_page.dart';
+import '../features/pages/_shared/litige/signaler_probleme_page.dart'
+    as shared_signaler;
 import '../features/pages/_shared/messages_page.dart';
 import '../features/pages/_shared/notifications_page.dart';
 import '../features/pages/_shared/parametres/langue_page.dart'
@@ -61,6 +63,7 @@ import '../features/pages/producteur/publications/annonce_detail_page.dart';
 import '../features/pages/producteur/publications/mes_publications_page.dart';
 import '../features/pages/producteur/publications/prevision_detail_page.dart';
 import '../features/pages/producteur/publications/publication_coop_detail_page.dart';
+import '../features/pages/producteur/publier/annonce_express_page.dart';
 import '../features/pages/producteur/publier/creer_prevision_page.dart';
 import '../features/pages/producteur/publier/parcelle_creer_page.dart';
 import '../features/pages/producteur/publier/publier_annonce_page.dart';
@@ -93,6 +96,7 @@ import '../features/pages/acheteur/marche/prevision_detail_page.dart';
 import '../features/pages/acheteur/marche/reservation_paiement_page.dart';
 import '../features/pages/acheteur/marche/vendeur_detail_page.dart';
 import '../features/pages/acheteur/mes_reservations_page.dart';
+import '../features/pages/acheteur/negociations_page.dart';
 import '../features/pages/acheteur/panier_page.dart';
 import '../features/pages/acheteur/profil_page.dart' as ach_profil;
 import '../features/pages/acheteur/profil_settings_page.dart'
@@ -108,6 +112,8 @@ import '../features/pages/acheteur/wallet/wallet_retirer_page.dart'
 import '../features/pages/cooperative/accueil_page.dart' as coop_accueil;
 import '../features/pages/cooperative/adhesions_page.dart';
 import '../features/pages/cooperative/collecte_page.dart';
+import '../features/pages/cooperative/commandes_page.dart'
+    as coop_commandes;
 import '../features/pages/cooperative/commission/commission_page.dart';
 import '../features/pages/cooperative/documents_officiels/documents_officiels_page.dart';
 import '../features/pages/cooperative/finance/distribution_confirmation_page.dart';
@@ -171,6 +177,7 @@ import '../features/state/auth_state.dart';
 import '../features/widgets/communs/barre_navigation.dart';
 import '../features/widgets/communs/bouton_ajout_central.dart';
 import '../features/widgets/communs/shell_layout.dart';
+import '../features/widgets/communs/snackbars.dart';
 import '../models/enums.dart';
 import 'route_guards.dart';
 import 'route_names.dart';
@@ -268,6 +275,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           fallbackPath: _homePathPourRoleCourant(context),
         ),
       ),
+      GoRoute(
+        path: RouteNames.signalerProblemePath,
+        name: RouteNames.signalerProbleme,
+        builder: (_, state) => shared_signaler.SignalerProblemePage(
+          commandeId: state.pathParameters['id'] ?? '',
+        ),
+      ),
 
       // ─── Pages métier acheteur (push hors shell, ajoutées récemment) ──
       GoRoute(
@@ -277,6 +291,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
 
       // ─── Pages métier coopérative (push hors shell, ajoutées récemment) ─
+      GoRoute(
+        path: RouteNames.cooperativeCommandesPath,
+        name: RouteNames.cooperativeCommandes,
+        builder: (_, _) => const coop_commandes.CommandesCooperativePage(),
+      ),
       GoRoute(
         path: RouteNames.cooperativeIdentitePath,
         name: RouteNames.cooperativeIdentite,
@@ -410,7 +429,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(routes: [
             GoRoute(
               path: RouteNames.acheteurCommandesPath,
-              builder: (_, _) => const CommandesAcheteurPage(),
+              builder: (_, state) => CommandesAcheteurPage(
+                // Permet `/acheteur/commandes?tab=negociations` pour
+                // ouvrir l'onglet Négociations en direct depuis l'accueil.
+                initialTab: CommandesAcheteurPage.parseTabParam(
+                  state.uri.queryParameters['tab'],
+                ),
+              ),
             ),
           ]),
           StatefulShellBranch(routes: [
@@ -454,6 +479,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: RouteNames.acheteurMesReservationsPath,
         name: RouteNames.acheteurMesReservations,
         builder: (_, _) => const MesReservationsAcheteurPage(),
+      ),
+      GoRoute(
+        path: RouteNames.acheteurNegociationsPath,
+        name: RouteNames.acheteurNegociations,
+        builder: (_, _) => const NegociationsAcheteurPage(),
       ),
 
       // ─── Acheteur — Profil public d'un vendeur (push hors shell) ───
@@ -784,6 +814,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: RouteNames.producteurPublierAnnoncePath,
         name: RouteNames.producteurPublierAnnonce,
         builder: (_, _) => const PublierAnnoncePage(),
+      ),
+      GoRoute(
+        path: RouteNames.producteurAnnonceExpressPath,
+        name: RouteNames.producteurAnnonceExpress,
+        builder: (_, _) => const AnnonceExpressPage(),
       ),
       GoRoute(
         path: RouteNames.producteurCreerParcellePath,
@@ -1270,13 +1305,10 @@ void _menuCooperative(BuildContext context) {
   );
 }
 
+/// SnackBar discret « à venir » pour les menu actions sans page dédiée.
+/// Délègue au helper unifié style apps pro (fond sombre + icône info).
 void _stubAction(BuildContext context, String label) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text('$label — à venir'),
-      duration: const Duration(seconds: 2),
-    ),
-  );
+  Snackbars.showInfo(context, '$label — à venir');
 }
 
 /// Retourne le chemin d'accueil du rôle de l'utilisateur courant. Utilisé

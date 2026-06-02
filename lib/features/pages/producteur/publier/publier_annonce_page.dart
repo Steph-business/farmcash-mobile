@@ -21,6 +21,7 @@ import '../../../state/auth_state.dart';
 import '../../../widgets/communs/chargement.dart';
 import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/producteur/publier/_couleurs_publier.dart';
+import '../../../widgets/producteur/publier/apercu_prix_net.dart';
 import '../../../widgets/producteur/publier/barre_progression.dart';
 import '../../../widgets/producteur/publier/bouton_pied_page.dart';
 import '../../../widgets/producteur/publier/carte_culture.dart';
@@ -754,6 +755,36 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
                 ),
               ),
               const SizedBox(height: 16),
+              InkWell(
+                onTap: () => context.push(RouteNames.producteurAnnonceExpressPath),
+                borderRadius: BorderRadius.circular(AppDimens.radiusCard),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.background,
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                    borderRadius: BorderRadius.circular(AppDimens.radiusCard),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.mic_none_outlined, size: 16, color: AppColors.primary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          "Publier par Vidéo ou Note Vocale (IA)",
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                            fontSize: 13.5,
+                          ),
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right, size: 18, color: AppColors.primary),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
               for (final c in _cultures)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 10),
@@ -842,6 +873,18 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
                   ),
                 ),
               ),
+              // Aperçu net par kg dès que l'utilisateur saisit son prix.
+              // Affiche en clair ce qu'il touchera vraiment après la
+              // commission FarmCash 3 %. Pas de mauvaise surprise au
+              // moment du paiement, et le producteur peut ajuster son
+              // prix d'affichage en connaissance de cause.
+              if (_prix != null) ...[
+                const SizedBox(height: 8),
+                ApercuPrixNet(
+                  prixBrutKg: _prix!,
+                  tauxFarmcash: 0.03,
+                ),
+              ],
               if (_total > 0) ...[
                 const SizedBox(height: 10),
                 CarteTotal(totalFormate: _formatMontant(_total)),

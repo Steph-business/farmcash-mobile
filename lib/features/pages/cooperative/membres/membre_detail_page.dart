@@ -207,15 +207,10 @@ class _Body extends StatelessWidget {
   }
 }
 
+/// SnackBar info — délègue au helper unifié style apps pro (fond sombre +
+/// icône colorée), cohérent avec le reste de l'app.
 void _snack(BuildContext context, String message) {
-  ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+  Snackbars.showInfo(context, message);
 }
 
 String _roleLabel(CoopMemberRole role) {

@@ -13,7 +13,6 @@ import '../../widgets/producteur/commandes/carte_commande_liste.dart';
 import '../../widgets/producteur/commandes/commandes_list_constants.dart';
 import '../../widgets/producteur/commandes/etats_liste_commandes.dart';
 import '../../widgets/producteur/commandes/onglets_commandes.dart';
-import '../../widgets/producteur/commandes/recap_commandes.dart';
 import '../../widgets/producteur/commandes/titre_page_commandes.dart';
 
 /// Source de vérité : `GET /orders/my?side=seller&limit=50`. Le FARMER
@@ -61,31 +60,6 @@ class _CommandesProducteurPageState
           children: [
             const HeaderUtilisateur(variant: HeaderVariant.producteur),
             const TitrePageCommandes(),
-            async.when(
-              loading: () => const RecapCommandes(enCours: 0, livreesCeMois: 0),
-              error: (_, _) =>
-                  const RecapCommandes(enCours: 0, livreesCeMois: 0),
-              data: (items) {
-                final enCours = items
-                    .where((o) => tabForStatus(o.commande.status) == OrderTab.enCours)
-                    .length;
-                // « Livrées ce mois » : on prend DELIVERED + COMPLETED dont
-                // `updatedAt` est sur le mois courant (côté UI car le backend
-                // ne renvoie pas ce compteur). Fallback `createdAt` si pas
-                // d'updatedAt — la commande n'a probablement jamais changé.
-                final now = DateTime.now();
-                final livreesCeMois = items.where((o) {
-                  final t = tabForStatus(o.commande.status);
-                  if (t != OrderTab.livrees) return false;
-                  final d = o.commande.updatedAt ?? o.commande.createdAt;
-                  return d != null && d.year == now.year && d.month == now.month;
-                }).length;
-                return RecapCommandes(
-                  enCours: enCours,
-                  livreesCeMois: livreesCeMois,
-                );
-              },
-            ),
             OngletsCommandes(
               current: _tab,
               enCoursCount: async.maybeWhen(

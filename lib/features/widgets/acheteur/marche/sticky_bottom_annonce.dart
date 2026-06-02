@@ -20,7 +20,7 @@ class StickyBottomAnnonce extends StatelessWidget {
     required this.onMinus,
     required this.onPlus,
     required this.onAjouterPanier,
-    required this.onCommander,
+    this.onNegocier,
     super.key,
   });
 
@@ -32,7 +32,10 @@ class StickyBottomAnnonce extends StatelessWidget {
   final VoidCallback onMinus;
   final VoidCallback onPlus;
   final VoidCallback onAjouterPanier;
-  final VoidCallback onCommander;
+
+  /// Tap sur le lien « Négocier le prix » au-dessus du CTA. Null →
+  /// le lien est caché (cas d'annonces non-négociables, à venir).
+  final VoidCallback? onNegocier;
 
   @override
   Widget build(BuildContext context) {
@@ -108,22 +111,64 @@ class StickyBottomAnnonce extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
+            // 2 CTAs côte à côte : « Négocier » (outline, gauche) +
+            // « Ajouter au panier » (plein, droite). Si l'annonce
+            // n'est pas négociable (onNegocier null), seul l'ajout
+            // panier reste, plein largeur.
             Row(
               children: [
+                if (onNegocier != null) ...[
+                  Expanded(
+                    child: InkWell(
+                      onTap: busy ? null : onNegocier,
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        height: 46,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: AppColors.background,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: AppColors.primary,
+                            width: AppDimens.borderThin,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.handshake_outlined,
+                              size: 18,
+                              color: AppColors.primary,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Négocier',
+                              style: AppTextStyles.button.copyWith(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                ],
                 Expanded(
                   child: InkWell(
                     onTap: busy ? null : onAjouterPanier,
                     borderRadius: BorderRadius.circular(10),
                     child: Container(
-                      height: 44,
+                      height: 46,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: AppColors.background,
+                        color: busy
+                            ? AppColors.primary.withValues(alpha: 0.6)
+                            : AppColors.primary,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: AppColors.primary,
-                          width: AppDimens.borderThin,
-                        ),
                       ),
                       child: busy
                           ? const SizedBox(
@@ -131,40 +176,28 @@ class StickyBottomAnnonce extends StatelessWidget {
                               height: 18,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: AppColors.primary,
+                                color: Colors.white,
                               ),
                             )
-                          : Text(
-                              'Ajouter au panier',
-                              style: AppTextStyles.button.copyWith(
-                                fontSize: 13,
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w600,
-                              ),
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.shopping_cart_outlined,
+                                  size: 18,
+                                  color: AppColors.onPrimary,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Ajouter au panier',
+                                  style: AppTextStyles.button.copyWith(
+                                    fontSize: 13,
+                                    color: AppColors.onPrimary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
                             ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: InkWell(
-                    onTap: onCommander,
-                    borderRadius: BorderRadius.circular(10),
-                    child: Container(
-                      height: 44,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        'Commander',
-                        style: AppTextStyles.button.copyWith(
-                          fontSize: 13,
-                          color: AppColors.onPrimary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
                     ),
                   ),
                 ),

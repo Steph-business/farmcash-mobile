@@ -6,7 +6,14 @@ import 'enums.dart';
 part 'commande.freezed.dart';
 part 'commande.g.dart';
 
-/// Commande passée par un BUYER sur une annonce de vente.
+/// Commande passée par un BUYER. Issue de l'une des 3 sources backend
+/// (cf. contrainte `chk_commande_source`) :
+///   • `annonceId` : achat sur une annonce de vente publique
+///   • `annonceAchatId` : commande issue d'une proposition acceptée
+///     (le vendeur a répondu à une demande d'achat)
+///   • `publicationCoopId` : achat direct sur publication coop
+/// Au moins l'un de ces 3 IDs est rempli, les autres peuvent être null
+/// — donc tous nullable côté modèle.
 @freezed
 class Commande with _$Commande {
   const factory Commande({
@@ -14,7 +21,9 @@ class Commande with _$Commande {
     @Default('') String reference,
     required String buyerId,
     required String sellerId,
-    required String annonceId,
+    String? annonceId,
+    String? annonceAchatId,
+    String? publicationCoopId,
     /// Identifiant du lot physique livré (rempli quand le vendeur lie la
     /// commande à un lot tracé). Sert à charger la traçabilité publique
     /// `/ai/traceability/:lotId` côté acheteur.

@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../../../models/enums.dart';
-import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
-import '../../../theme/app_text_styles.dart';
+import '../communs/barre_recherche_commune.dart';
 
-/// Barre de recherche utilisée par la page Messages.
+/// Barre de recherche pour la page Messages.
 ///
-/// Adapte sa taille et son padding au rôle acheteur (variant "card" 42 px
-/// + padding latéral 20) vs. les autres rôles (variant standard).
+/// Délègue le rendu à [BarreRechercheCommune] pour rester strictement
+/// identique aux autres barres de l'app (Marché, Accueil, etc.). Ce
+/// wrapper ne porte que le padding latéral (variant acheteur 20 vs.
+/// standard `pagePaddingH`) — le reste du style est unifié.
 class BarreRechercheMessages extends StatelessWidget {
   const BarreRechercheMessages({
     required this.controller,
@@ -24,58 +25,13 @@ class BarreRechercheMessages extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isAcheteur = role == UserRole.buyer;
+    final hPad = isAcheteur ? 20.0 : AppDimens.pagePaddingH;
     return Padding(
-      padding: EdgeInsets.fromLTRB(
-        isAcheteur ? 20 : AppDimens.pagePaddingH,
-        0,
-        isAcheteur ? 20 : AppDimens.pagePaddingH,
-        AppDimens.space12,
-      ),
-      child: Container(
-        height: isAcheteur ? 42 : null,
-        decoration: BoxDecoration(
-          color: AppColors.surfaceSoft,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isAcheteur ? AppColors.borderStrong : AppColors.border,
-            width: AppDimens.borderThin,
-          ),
-        ),
-        padding: EdgeInsets.symmetric(horizontal: isAcheteur ? 14 : 12),
-        child: Row(
-          children: [
-            Icon(
-              Icons.search,
-              size: isAcheteur ? 18 : 16,
-              color: isAcheteur ? AppColors.textSubtle : AppColors.textSecondary,
-            ),
-            SizedBox(width: isAcheteur ? 10 : 8),
-            Expanded(
-              child: TextField(
-                controller: controller,
-                onChanged: onChanged,
-                style: AppTextStyles.bodySmall.copyWith(
-                  fontSize: 13,
-                  color: AppColors.text,
-                ),
-                decoration: InputDecoration(
-                  isCollapsed: true,
-                  contentPadding: EdgeInsets.symmetric(
-                    vertical: isAcheteur ? 12 : 10,
-                  ),
-                  border: InputBorder.none,
-                  hintText: isAcheteur
-                      ? 'Rechercher une conversation…'
-                      : 'Rechercher une conversation',
-                  hintStyle: AppTextStyles.hint.copyWith(
-                    fontSize: 13,
-                    color: AppColors.textSubtle,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+      padding: EdgeInsets.fromLTRB(hPad, 4, hPad, AppDimens.space12),
+      child: BarreRechercheCommune(
+        placeholder: 'Rechercher une conversation…',
+        controller: controller,
+        onChanged: onChanged,
       ),
     );
   }

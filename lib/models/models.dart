@@ -15,6 +15,7 @@ export 'cooperative.dart';
 export 'coop_collection.dart';
 export 'coop_vehicle.dart';
 export 'enums.dart';
+export 'extracted_annonce.dart';
 export 'interactions.dart';
 export 'kyc_document.dart';
 export 'livraison.dart';

@@ -7,7 +7,7 @@ import '../../../../routing/route_names.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
-import '../../communs/dialog_signaler_probleme.dart';
+import '../../communs/litige/motifs_litige.dart';
 
 /// Bandeau d'actions sticky en bas de la page détail commande côté
 /// acheteur. L'action affichée dépend du statut commande :
@@ -29,6 +29,7 @@ class ActionsCommandeAcheteur extends StatelessWidget {
     required this.commande,
     required this.busy,
     required this.onConfirmerReception,
+    required this.onAfterLitige,
     super.key,
   });
 
@@ -42,19 +43,27 @@ class ActionsCommandeAcheteur extends StatelessWidget {
   /// parent doit afficher la confirmation modale et faire l'appel API.
   final VoidCallback onConfirmerReception;
 
+  /// Callback appelé après création d'un litige depuis la page litige.
+  /// Permet au parent d'invalider son provider pour refléter le statut
+  /// `DISPUTED` côté UI (sinon le bouton « Confirmer la réception »
+  /// reste visible avec un état cache).
+  final VoidCallback onAfterLitige;
+
   @override
   Widget build(BuildContext context) {
+    // Strictement aligné sur la règle backend `confirmDelivery` :
+    // `commande.status === DELIVERED` ET escrow non encore libéré.
+    // Sur IN_PROGRESS le bouton n'a pas de sens (le colis n'est pas
+    // encore arrivé) — on affiche le QR à la place. Sur DISPUTED /
+    // COMPLETED / CANCELLED on ne propose rien (états figés).
     final showConfirm = !commande.escrowReleased &&
-        (commande.status == OrderStatus.delivered ||
-            commande.status == OrderStatus.inProgress);
+        commande.status == OrderStatus.delivered;
     final showEvaluation = commande.status == OrderStatus.delivered ||
         commande.status == OrderStatus.completed;
-    // Le QR n'a de sens que pendant le transit / à la livraison. Avant ça
-    // (SENT / ACCEPTED = vendeur n'a pas expédié), l'afficher trompe
-    // l'utilisateur — il croit qu'il peut scanner immédiatement.
-    final showQrReception = commande.status == OrderStatus.inProgress ||
-        (commande.status == OrderStatus.delivered &&
-            !commande.escrowReleased);
+    // Le QR n'a de sens que pendant le transit. Sur DELIVERED + !escrow,
+    // c'est l'étape « Confirmer la réception » qui prend le relais.
+    final showQrReception =
+        commande.status == OrderStatus.inProgress;
     final showAttente = commande.status == OrderStatus.sent ||
         commande.status == OrderStatus.accepted;
     return Container(
@@ -80,15 +89,23 @@ class ActionsCommandeAcheteur extends StatelessWidget {
             const SizedBox(height: 8),
             _BoutonEvaluation(commandeId: commande.id),
           ],
-          if (!commande.escrowReleased &&
-              commande.status != OrderStatus.completed &&
-              commande.status != OrderStatus.cancelled &&
-              commande.status != OrderStatus.rejected) ...[
+          // Aligné sur la règle backend : litige autorisé seulement sur
+          // IN_PROGRESS et DELIVERED. Sur les autres statuts le backend
+          // renverrait 400 — on cache donc le lien plutôt que d'afficher
+          // un message d'erreur incompréhensible.
+          if (peutOuvrirLitige(commande.status)) ...[
             const SizedBox(height: 6),
             Center(
               child: TextButton.icon(
-                onPressed: () =>
-                    ouvrirDialogSignalerProbleme(context, commande),
+                onPressed: () async {
+                  final result = await context.push<bool>(
+                    RouteNames.signalerProblemePathFor(commande.id),
+                  );
+                  // Litige créé → on demande au parent de rafraîchir le
+                  // provider pour que le statut DISPUTED apparaisse et
+                  // que les boutons d'action soient masqués.
+                  if (result == true) onAfterLitige();
+                },
                 icon: const Icon(
                   Icons.flag_outlined,
                   size: 16,

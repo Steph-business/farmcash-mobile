@@ -7,28 +7,32 @@ import '../../../../services/orders_service.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
+import '../demandes/mapper_annonce_achat.dart' show thumbnailPourProduit;
 
 final _nf = NumberFormat('#,##0', 'fr_FR');
-final _dfShort = DateFormat('d MMM', 'fr_FR');
 
-/// Carte commande côté acheteur — design type « marketplace card » avec
-/// hiérarchie d'info scannable d'un coup d'œil. Layout inspiré des apps
-/// P2P de référence :
+/// Carte commande côté acheteur — design simplifié, scannable d'un coup
+/// d'œil.
 ///
 /// ```
 /// ┌──────────────────────────────────────────────┐
-/// │ [SK]  Stephy Koutouandah          Détails ›  │  ← header
-/// │       Tomates · 850 kg                       │
+/// │ [🍌]  Banane plantain · 545 kg   Détails ›  │  ← photo PRODUIT + lien
+/// │       N'DAH STEPHANE                         │
 /// ├──────────────────────────────────────────────┤
-/// │ FCFA 1.700 /kg               Orange Money │  │
-/// │                                              │
-/// │ Montant payé    ·     297 500 FCFA           │
-/// │ Statut          ·     [En cours]             │
+/// │ 299 750 FCFA                  ● Acceptée     │  ← montant + chip statut
+/// ├ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┤
+/// │ → Voir mon QR de réception (si action req.)  │
 /// └──────────────────────────────────────────────┘
 /// ```
 ///
-/// Si `Action requise` (à confirmer, voir QR, litige) → bandeau ambré en
-/// pied. Sinon footer simple avec la date livraison.
+/// Choix de design :
+/// - **Vignette = photo générique de la culture** (mangue, banane,
+///   manioc…), même thumbnail que l'onglet Négociations pour cohérence
+///   visuelle entre les deux listes.
+/// - **Lien « Détails › »** à droite du titre : la carte entière est
+///   cliquable, c'est juste l'affordance visuelle (pas un CTA massif).
+/// - **Montant + chip statut sur la même ligne** en bas : structure
+///   « QUOI on a acheté » en haut, « COMBIEN + OÙ ÇA EN EST » en bas.
 class CarteCommandeAcheteur extends StatelessWidget {
   const CarteCommandeAcheteur({
     required this.item,
@@ -45,11 +49,7 @@ class CarteCommandeAcheteur extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = item.commande;
-    final ref = c.reference.isNotEmpty
-        ? c.reference
-        : c.id.substring(0, 6).toUpperCase();
     final qte = '${_nf.format(c.quantiteKg.round())} kg';
-    final prixUnit = _nf.format(c.prixUnitaireKg.round());
     final total = _nf.format(c.montantTotal.round());
     final vendeur = (item.sellerName ?? '').trim().isNotEmpty
         ? item.sellerName!
@@ -68,6 +68,7 @@ class CarteCommandeAcheteur extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(14),
           child: Container(
+            clipBehavior: Clip.hardEdge,
             decoration: BoxDecoration(
               color: AppColors.background,
               borderRadius: BorderRadius.circular(14),
@@ -79,17 +80,14 @@ class CarteCommandeAcheteur extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // En-tête : avatar vendeur + nom + sous-titre produit·qté
-                // + lien « Détails »
+                // En-tête : avatar produit + titre (produit·qté) + sous-titre
+                // (vendeur) + lien « Détails ».
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
                   child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      _AvatarVendeur(
-                        nom: vendeur,
-                        photoUrl: item.sellerPhotoUrl,
-                      ),
+                      _ThumbnailProduit(produit: produit),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Column(
@@ -97,7 +95,7 @@ class CarteCommandeAcheteur extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              vendeur,
+                              '$produit · $qte',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: AppTextStyles.bodyMedium.copyWith(
@@ -108,7 +106,7 @@ class CarteCommandeAcheteur extends StatelessWidget {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              '$produit · $qte',
+                              vendeur,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: AppTextStyles.bodySmall.copyWith(
@@ -129,68 +127,41 @@ class CarteCommandeAcheteur extends StatelessWidget {
                   thickness: AppDimens.borderThin,
                   color: AppColors.border,
                 ),
-                // Corps : prix unitaire en hero + moyen paiement
+                // Ligne unique : montant total + chip statut compacte.
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Expanded(
-                            child: RichText(
-                              text: TextSpan(
-                                children: [
-                                  TextSpan(
-                                    text: 'FCFA ',
-                                    style: AppTextStyles.bodyMedium.copyWith(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.text,
-                                    ),
-                                  ),
-                                  TextSpan(
-                                    text: prixUnit,
-                                    style: AppTextStyles.headlineSmall
-                                        .copyWith(
-                                      fontFamily: 'Poppins',
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppColors.text,
-                                      letterSpacing: -0.5,
-                                      height: 1.0,
-                                    ),
-                                  ),
-                                  TextSpan(
-                                    text: ' /kg',
-                                    style: AppTextStyles.bodyMedium.copyWith(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                ],
+                      Expanded(
+                        child: RichText(
+                          text: TextSpan(
+                            children: [
+                              TextSpan(
+                                text: total,
+                                style: AppTextStyles.headlineSmall.copyWith(
+                                  fontFamily: 'Poppins',
+                                  fontSize: 19,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.text,
+                                  letterSpacing: -0.3,
+                                  height: 1.0,
+                                ),
                               ),
-                            ),
+                              TextSpan(
+                                text: ' FCFA',
+                                style: AppTextStyles.bodyMedium.copyWith(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
                           ),
-                          const _ChipPaiement(label: 'Wallet FarmCash'),
-                        ],
+                        ),
                       ),
-                      const SizedBox(height: 10),
-                      _Ligne(
-                        label: 'Montant payé',
-                        valeur: '$total FCFA',
-                        valeurEnVert: true,
-                      ),
-                      const SizedBox(height: 6),
-                      _Ligne(
-                        label: 'Réf · ${c.id.substring(0, 6).toUpperCase()}',
-                        valeur: '#$ref',
-                        valeurEnVert: false,
-                      ),
-                      const SizedBox(height: 6),
-                      _StatutLigne(status: c.status),
+                      const SizedBox(width: 8),
+                      _ChipStatut(status: c.status),
                     ],
                   ),
                 ),
@@ -218,58 +189,51 @@ class CarteCommandeAcheteur extends StatelessWidget {
   }
 }
 
-/// Avatar carré arrondi 44×44 avec initiales si pas de photo. Garde le
-/// même style que la section Acheteur côté producteur pour cohérence.
-class _AvatarVendeur extends StatelessWidget {
-  const _AvatarVendeur({required this.nom, required this.photoUrl});
+/// Vignette 44×44 du produit. On utilise les mêmes thumbnails génériques
+/// que l'onglet Négociations (`thumbnailPourProduit`) pour garder une
+/// cohérence visuelle entre les deux listes. En cas d'échec de chargement
+/// ou de produit inconnu, on retombe sur une icône feuille verte sur fond
+/// pastel — sobre, ça n'introduit pas de bruit visuel.
+class _ThumbnailProduit extends StatelessWidget {
+  const _ThumbnailProduit({required this.produit});
 
-  final String nom;
-  final String? photoUrl;
+  final String produit;
 
   @override
   Widget build(BuildContext context) {
-    final hasPhoto = photoUrl != null && photoUrl!.isNotEmpty;
+    final url = thumbnailPourProduit(produit);
     return ClipRRect(
       borderRadius: BorderRadius.circular(10),
-      child: Container(
+      child: SizedBox(
         width: 44,
         height: 44,
-        color: AppColors.primary,
-        alignment: Alignment.center,
-        child: hasPhoto
-            ? CachedNetworkImage(
-                imageUrl: photoUrl!,
-                fit: BoxFit.cover,
-                width: 44,
-                height: 44,
-                placeholder: (_, _) => _Initiale(nom: nom),
-                errorWidget: (_, _, _) => _Initiale(nom: nom),
-              )
-            : _Initiale(nom: nom),
+        child: CachedNetworkImage(
+          imageUrl: url,
+          fit: BoxFit.cover,
+          placeholder: (_, _) => const _Fallback(),
+          errorWidget: (_, _, _) => const _Fallback(),
+        ),
       ),
     );
   }
 }
 
-class _Initiale extends StatelessWidget {
-  const _Initiale({required this.nom});
-  final String nom;
+/// Carré pastel + icône feuille — utilisé pendant le chargement du
+/// thumbnail ou si l'image distante échoue (réseau, 404…).
+class _Fallback extends StatelessWidget {
+  const _Fallback();
 
   @override
   Widget build(BuildContext context) {
-    final n = nom.trim();
-    final lettre = n.isEmpty ? '?' : n.characters.first.toUpperCase();
     return Container(
-      color: AppColors.primary,
+      width: 44,
+      height: 44,
+      color: const Color(0xFFE8F5E9),
       alignment: Alignment.center,
-      child: Text(
-        lettre,
-        style: AppTextStyles.titleMedium.copyWith(
-          fontFamily: 'Poppins',
-          fontSize: 20,
-          fontWeight: FontWeight.w800,
-          color: Colors.white,
-        ),
+      child: const Icon(
+        Icons.eco_outlined,
+        size: 22,
+        color: AppColors.primary,
       ),
     );
   }
@@ -300,129 +264,84 @@ class _LienDetails extends StatelessWidget {
   }
 }
 
-/// Petite chip à droite indiquant le moyen de paiement (style barre
-/// verticale + texte). À l'avenir, on l'alimentera avec `c.paymentProvider`
-/// quand le backend renverra la valeur. Pour l'instant : « Wallet FarmCash ».
-class _ChipPaiement extends StatelessWidget {
-  const _ChipPaiement({required this.label});
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          label,
-          style: AppTextStyles.labelSmall.copyWith(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        const SizedBox(width: 6),
-        Container(
-          width: 3,
-          height: 18,
-          decoration: BoxDecoration(
-            color: AppColors.primary,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _Ligne extends StatelessWidget {
-  const _Ligne({
-    required this.label,
-    required this.valeur,
-    required this.valeurEnVert,
-  });
-
-  final String label;
-  final String valeur;
-  final bool valeurEnVert;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            label,
-            style: AppTextStyles.bodySmall.copyWith(
-              fontSize: 13,
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-        Text(
-          valeur,
-          style: AppTextStyles.bodyMedium.copyWith(
-            fontSize: 14,
-            fontWeight: FontWeight.w800,
-            color: valeurEnVert ? AppColors.primary : AppColors.text,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _StatutLigne extends StatelessWidget {
-  const _StatutLigne({required this.status});
+/// Chip statut compact : pastille colorée + label. Aligné sur le cycle
+/// vie de la commande (cf. `_spec` plus bas).
+class _ChipStatut extends StatelessWidget {
+  const _ChipStatut({required this.status});
   final OrderStatus status;
 
   @override
   Widget build(BuildContext context) {
-    final (label, color) = _spec(status);
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            'Statut transaction',
-            style: AppTextStyles.bodySmall.copyWith(
-              fontSize: 13,
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w500,
+    final (label, color, fond) = _spec(status);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: fond,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color,
             ),
           ),
-        ),
-        Text(
-          label,
-          style: AppTextStyles.bodyMedium.copyWith(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            color: color,
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: AppTextStyles.labelMedium.copyWith(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  (String, Color) _spec(OrderStatus s) {
+  /// Spec couleur d'une étape du cycle de vie commande, alignée sur la
+  /// progression vécue par l'acheteur :
+  ///
+  /// - 🔵 Bleu : il a payé, en attente que le producteur confirme avoir
+  ///   remis la marchandise au transporteur (sent, accepted).
+  /// - 🟠 Orange : le transporteur a pris la livraison et est en route
+  ///   (inProgress).
+  /// - 🟢 Vert : livré / clôturé — l'argent est libéré (delivered, completed).
+  /// - 🔴 Rouge : la commande a un blocage (rejetée par le producteur,
+  ///   litige ouvert).
+  /// - ⚪ Gris : annulée / état inconnu (neutre, on n'attire pas l'œil).
+  (String, Color, Color) _spec(OrderStatus s) {
+    const bleu = Color(0xFF1E40AF);
+    const fondBleu = Color(0xFFDBEAFE);
+    const orange = Color(0xFFB45309);
+    const fondOrange = Color(0xFFFFF3CD);
+    const fondVert = Color(0xFFE8F5E9);
+    const fondRouge = Color(0xFFFEE2E2);
+    const fondGris = AppColors.surfaceSoft;
     switch (s) {
       case OrderStatus.sent:
-        return ('En attente', const Color(0xFFB45309));
+        return ('En attente', bleu, fondBleu);
       case OrderStatus.accepted:
-        return ('Acceptée', AppColors.primary);
-      case OrderStatus.rejected:
-        return ('Rejetée', AppColors.error);
+        return ('Acceptée', bleu, fondBleu);
       case OrderStatus.inProgress:
-        return ('En cours', AppColors.primary);
+        return ('En cours', orange, fondOrange);
       case OrderStatus.delivered:
-        return ('Livrée', AppColors.primary);
+        return ('Livrée', AppColors.primary, fondVert);
       case OrderStatus.completed:
-        return ('Clôturée', AppColors.primary);
+        return ('Clôturée', AppColors.primary, fondVert);
+      case OrderStatus.rejected:
+        return ('Rejetée', AppColors.error, fondRouge);
       case OrderStatus.disputed:
-        return ('Litige', const Color(0xFFB45309));
+        return ('Litige', AppColors.error, fondRouge);
       case OrderStatus.cancelled:
-        return ('Annulée', AppColors.textSecondary);
+        return ('Annulée', AppColors.textSecondary, fondGris);
       case OrderStatus.unknown:
-        return ('—', AppColors.textSubtle);
+        return ('—', AppColors.textSubtle, fondGris);
     }
   }
 }
@@ -467,11 +386,4 @@ class _BandeauAction extends StatelessWidget {
       ),
     );
   }
-}
-
-// Petit helper pour la date de livraison (gardé pour usage futur).
-// ignore: unused_element
-String _dateLivraison(DateTime? d) {
-  if (d == null) return '';
-  return _dfShort.format(d);
 }

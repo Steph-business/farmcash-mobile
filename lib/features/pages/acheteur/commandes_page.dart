@@ -1,51 +1,43 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
-import '../../../models/enums.dart';
-import '../../../models/pagination.dart';
-import '../../../routing/route_names.dart';
-import '../../../services/orders_service.dart';
-import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
-import '../../../theme/app_dimens.dart';
-import '../../widgets/acheteur/commandes/carte_commande_acheteur.dart';
-import '../../widgets/acheteur/commandes/compteur_commandes.dart';
-import '../../widgets/acheteur/commandes/etat_vide_commandes.dart';
-import '../../widgets/acheteur/commandes/onglets_commandes.dart';
-import '../../widgets/acheteur/commandes/titre_page_commandes.dart';
-import '../../widgets/communs/chargement.dart';
-import '../../widgets/communs/header_utilisateur.dart';
-import '../../widgets/communs/vue_erreur.dart';
+import '../../widgets/acheteur/commandes/onglet_commandes_directes.dart';
+import '../../widgets/acheteur/commandes/onglet_reservations.dart';
+import '../../widgets/acheteur/commandes/onglets_principaux_commandes.dart';
+import '../../widgets/communs/entete_page_compacte_acheteur.dart';
 
-// Statuts considérés comme "en cours" pour le filtre côté UI. Les statuts
-// "completed" / "delivered" sont considérés comme livrés (avant escrow ou
-// après notation).
-const Set<OrderStatus> _kEnCoursStatus = {
-  OrderStatus.sent,
-  OrderStatus.accepted,
-  OrderStatus.inProgress,
-  OrderStatus.disputed,
-};
-
-const Set<OrderStatus> _kLivreesStatus = {
-  OrderStatus.delivered,
-  OrderStatus.completed,
-};
-
-/// Provider qui charge les commandes avec les joins vendeur + produit
-/// (`listMyOrdersWithJoins`). On a besoin de `sellerName/Photo` +
-/// `produitNom` pour afficher des cartes scannables type marketplace.
-final _commandesAcheteurProvider =
-    FutureProvider.autoDispose<List<OrderListItem>>((ref) async {
-  final svc = ref.read(ordersServiceProvider);
-  final Paginated<OrderListItem> page =
-      await svc.listMyOrdersWithJoins(side: 'buyer', limit: 50);
-  return page.data;
-});
-
+/// « Mes commandes » côté acheteur — page à 2 onglets :
+///
+///   1. **Commandes** — achats payés (en cours / livrés / etc.)
+///   2. **Réservations** — précommandes sur prévisions (acompte versé)
+///
+/// Note : l'ancien onglet « Négociations » a été sorti dans une page
+/// autonome dédiée (`/acheteur/negociations`), accessible depuis la
+/// tuile sur l'accueil. Une négociation n'est pas une commande au sens
+/// propre (pas de paiement, pas de livraison) — la séparer clarifie
+/// l'UX et évite de mélanger 3 concepts différents sous le même titre.
 class CommandesAcheteurPage extends ConsumerStatefulWidget {
-  const CommandesAcheteurPage({super.key});
+  const CommandesAcheteurPage({
+    this.initialTab = OngletPrincipalCommandes.commandes,
+    super.key,
+  });
+
+  /// Onglet à sélectionner au montage. Permet aux deep-links et aux
+  /// raccourcis d'ouvrir directement le bon flux.
+  final OngletPrincipalCommandes initialTab;
+
+  /// Convertit la valeur d'un query param `?tab=...` en enum.
+  /// Retourne `commandes` par défaut si la valeur est absente ou inconnue.
+  static OngletPrincipalCommandes parseTabParam(String? value) {
+    switch (value) {
+      case 'reservations':
+        return OngletPrincipalCommandes.reservations;
+      case 'commandes':
+      default:
+        return OngletPrincipalCommandes.commandes;
+    }
+  }
 
   @override
   ConsumerState<CommandesAcheteurPage> createState() =>
@@ -54,100 +46,37 @@ class CommandesAcheteurPage extends ConsumerStatefulWidget {
 
 class _CommandesAcheteurPageState
     extends ConsumerState<CommandesAcheteurPage> {
-  OngletCommandes _tab = OngletCommandes.enCours;
+  late OngletPrincipalCommandes _tab = widget.initialTab;
 
-  Future<void> _refresh() async {
-    ref.invalidate(_commandesAcheteurProvider);
-    await ref.read(_commandesAcheteurProvider.future);
-  }
-
-  List<OrderListItem> _filter(List<OrderListItem> all) {
+  int get _index {
     switch (_tab) {
-      case OngletCommandes.enCours:
-        return all
-            .where((c) => _kEnCoursStatus.contains(c.commande.status))
-            .toList();
-      case OngletCommandes.livrees:
-        return all
-            .where((c) => _kLivreesStatus.contains(c.commande.status))
-            .toList();
-      case OngletCommandes.toutes:
-        return all;
+      case OngletPrincipalCommandes.commandes:
+        return 0;
+      case OngletPrincipalCommandes.reservations:
+        return 1;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final async = ref.watch(_commandesAcheteurProvider);
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         bottom: false,
         child: Column(
           children: [
-            const HeaderUtilisateur(variant: HeaderVariant.acheteur),
-            const TitrePageCommandes(),
+            const EntetePageCompacteAcheteur(title: 'Commandes'),
+            OngletsPrincipalCommandes(
+              current: _tab,
+              onSelect: (t) => setState(() => _tab = t),
+            ),
             Expanded(
-              child: async.when(
-                loading: () => const Padding(
-                  padding: EdgeInsets.only(top: 48),
-                  child: Chargement(size: 22),
-                ),
-                error: (e, _) => Padding(
-                  padding: const EdgeInsets.all(AppDimens.pagePaddingH),
-                  child: VueErreur(
-                    message: 'Impossible de charger les commandes. $e',
-                    onRetry: _refresh,
-                  ),
-                ),
-                data: (all) {
-                  final orders = _filter(all);
-                  final enCoursCount = all
-                      .where(
-                        (c) => _kEnCoursStatus.contains(c.commande.status),
-                      )
-                      .length;
-                  final livreesCount = all
-                      .where(
-                        (c) => _kLivreesStatus.contains(c.commande.status),
-                      )
-                      .length;
-                  return RefreshIndicator(
-                    color: AppColors.primary,
-                    onRefresh: _refresh,
-                    child: ListView(
-                      padding: const EdgeInsets.fromLTRB(
-                          20, 0, 20, AppDimens.space16),
-                      children: [
-                        CompteurCommandes(
-                          enCours: enCoursCount,
-                          livrees: livreesCount,
-                        ),
-                        AppDimens.vGap16,
-                        OngletsCommandes(
-                          current: _tab,
-                          enCoursCount: enCoursCount,
-                          livreesCount: livreesCount,
-                          onSelect: (t) => setState(() => _tab = t),
-                        ),
-                        AppDimens.vGap16,
-                        if (orders.isEmpty)
-                          const EtatVideCommandes()
-                        else
-                          ...orders.map(
-                            (item) => CarteCommandeAcheteur(
-                              item: item,
-                              onTap: () => context.push(
-                                RouteNames.acheteurCommandeDetailPathFor(
-                                  item.commande.id,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  );
-                },
+              child: IndexedStack(
+                index: _index,
+                children: const [
+                  OngletCommandesDirectes(),
+                  OngletReservations(),
+                ],
               ),
             ),
           ],

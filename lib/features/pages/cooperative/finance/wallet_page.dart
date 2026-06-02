@@ -10,6 +10,7 @@ import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/communs/vue_erreur.dart';
 import '../../../widgets/communs/wallet/wallet_widgets.dart';
 
@@ -244,13 +245,8 @@ class _BoutonNotifs extends StatelessWidget {
   }
 }
 
+/// SnackBar info — délègue au helper unifié style apps pro (fond sombre +
+/// icône colorée), cohérent avec le reste de l'app.
 void _snack(BuildContext context, String message) {
-  ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+  Snackbars.showInfo(context, message);
 }

@@ -13,17 +13,13 @@ import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
 import '../../state/auth_state.dart';
+import '../../state/badges_state.dart';
 import '../../widgets/acheteur/accueil/annonces_grid_acheteur.dart';
-import '../../widgets/acheteur/accueil/bandeau_demande_active.dart';
 import '../../widgets/acheteur/accueil/etat_vide_accueil_acheteur.dart';
 import '../../widgets/acheteur/accueil/section_accueil_acheteur.dart';
-import '../../widgets/acheteur/accueil/section_producteurs.dart';
 import '../../widgets/acheteur/accueil/section_tendance.dart';
-import '../../widgets/acheteur/accueil/vendeur_apercu.dart';
-import '../../widgets/communs/alertes_prix_section.dart';
 import '../../widgets/communs/carte_solde_hero.dart';
 import '../../widgets/communs/chargement.dart';
-import '../../widgets/communs/entete_bonjour.dart';
 import '../../widgets/communs/grille_actions.dart';
 import '../../widgets/communs/header_utilisateur.dart';
 import '../../widgets/communs/vue_erreur.dart';
@@ -35,7 +31,6 @@ class _AccueilData {
     required this.annonces,
     required this.demandes,
     required this.produitsParId,
-    required this.producteursADecouvrir,
     required this.insights,
     required this.solde,
   });
@@ -44,7 +39,6 @@ class _AccueilData {
   final List<AnnonceVente> annonces;
   final List<AnnonceAchat> demandes;
   final Map<String, Produit> produitsParId;
-  final List<ApercuProducteur> producteursADecouvrir;
   final AiInsights? insights;
 
   /// Solde wallet FCFA. `null` si chargement échoué (on affiche
@@ -129,30 +123,11 @@ final _accueilAcheteurDataProvider =
       ? const <AnnonceAchat>[]
       : demandesPage.data.where((a) => a.buyerId == user.id).toList();
 
-  // Producteurs à découvrir : group by farmerId, 5 premiers uniques.
-  final Map<String, List<AnnonceVente>> parFarmer = {};
-  for (final a in annoncesPage.data) {
-    parFarmer.putIfAbsent(a.farmerId, () => []).add(a);
-  }
-  final producteurs = parFarmer.entries.take(5).map((entry) {
-    final premier = entry.value.first;
-    final produit = produitsParId[premier.produitId];
-    return ApercuProducteur(
-      farmerId: entry.key,
-      regionId: premier.regionId,
-      nbProduits: entry.value.length,
-      premierProduitNom: produit?.nom ?? premier.titre,
-      fullName: premier.vendeur?.fullName,
-      reliabilityScore: premier.vendeur?.reliabilityScore,
-    );
-  }).toList();
-
   return _AccueilData(
     categories: categories,
     annonces: annoncesPage.data,
     demandes: mesDemandes,
     produitsParId: produitsParId,
-    producteursADecouvrir: producteurs,
     insights: insights,
     solde: solde,
   );
@@ -175,30 +150,28 @@ class _AccueilPageState extends ConsumerState<AccueilPage> {
     await ref.read(_accueilAcheteurDataProvider.future);
   }
 
-  void _showSoon(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
+  // Onglets du shell (Marché, Commandes) → `context.go` pour que le
+  // bottom nav suive le changement de branche. Sinon `push` empile au
+  // dessus de l'onglet actuel et la barre du bas reste sur Accueil
+  // (bug courant des StatefulShellRoute).
+  void _onTapRecherche() => context.go(RouteNames.acheteurMarchePath);
+  void _onTapVoirTout() => context.go(RouteNames.acheteurMarchePath);
+  void _onTapCommandes() => context.go(RouteNames.acheteurCommandesPath);
 
-  void _onTapRecherche() => context.push(RouteNames.acheteurMarchePath);
-  void _onTapDemande() => context.push(RouteNames.acheteurDemandesPath);
-  void _onTapVoirTout() => context.push(RouteNames.acheteurMarchePath);
-  void _onTapVoirProducteurs() => context.push(RouteNames.acheteurMarchePath);
-  void _onTapVendeur(ApercuProducteur v) {
-    final farmerId = v.farmerId.isNotEmpty ? v.farmerId : 'mock-farmer-1';
-    context.push(RouteNames.acheteurVendeurDetailPathFor(farmerId));
-  }
-  void _onTapAlertesPrix() => _showSoon('Alertes prix — à venir');
+  /// Ouvre la page autonome « Négociations » (propositions reçues sur
+  /// les demandes d'achat publiées). Page dédiée hors shell — c'est un
+  /// flux distinct des commandes au sens propre (pas de paiement, pas
+  /// de livraison à attendre).
+  void _onTapNegociations() =>
+      context.push(RouteNames.acheteurNegociationsPath);
+
+  // Pages hors-shell (wallet, demandes, favoris) → `push` reste correct
+  // car ce sont des écrans empilés (pas des onglets).
   void _onTapWallet() => context.push(RouteNames.acheteurWalletPath);
-  void _onTapTransport() => _showSoon('Transport — à venir');
   void _onTapPaiements() => context.push(RouteNames.acheteurWalletPath);
   void _onTapMesOffres() =>
       context.push(RouteNames.acheteurDemandesPath);
-  void _onTapCommandes() => context.push(RouteNames.acheteurCommandesPath);
+  void _onTapFavoris() => context.push(RouteNames.acheteurFavorisPath);
 
   void _onTapAnnonce(AnnonceVente a) {
     context.push(RouteNames.acheteurAnnonceDetailPathFor(a.id));
@@ -217,15 +190,29 @@ class _AccueilPageState extends ConsumerState<AccueilPage> {
           label: 'Mes commandes',
           onTap: _onTapCommandes,
         ),
+        // Tuile « Négociations » : raccourci direct vers l'onglet
+        // Négociations dans Mes commandes (propositions reçues sur les
+        // demandes d'achat publiées). Avant 2026-05-27 cet emplacement
+        // hébergeait « Vendeurs » qui dupliquait juste l'onglet Marché
+        // du bottom nav — on l'a remplacé par un raccourci utile vers
+        // un flux moins visible.
         ActionRapide(
-          icone: Icons.people_outline,
-          label: 'Vendeurs',
-          onTap: _onTapVoirProducteurs,
+          icone: Icons.handshake_outlined,
+          label: 'Négociations',
+          onTap: _onTapNegociations,
+          // Badge dynamique : nombre de propositions reçues encore
+          // actionnables (PENDING ou COUNTER_OFFERED). L'utilisateur
+          // voit en un coup d'œil qu'il y a une réponse à traiter sans
+          // ouvrir la page.
+          badge: ref
+                  .watch(propositionsRecuesNonTraiteesCountProvider)
+                  .valueOrNull ??
+              0,
         ),
         ActionRapide(
-          icone: Icons.local_shipping_outlined,
-          label: 'Transport',
-          onTap: _onTapTransport,
+          icone: Icons.favorite_border,
+          label: 'Mes favoris',
+          onTap: _onTapFavoris,
         ),
         ActionRapide(
           icone: Icons.credit_card_outlined,
@@ -235,8 +222,7 @@ class _AccueilPageState extends ConsumerState<AccueilPage> {
         // Tuile « Mes offres » : pointe vers les demandes d'achat
         // publiées par l'acheteur. Corollaire du « Offres d'achat »
         // côté producteur — l'acheteur voit ses propres demandes et
-        // les négociations en cours. Le profil reste accessible via
-        // l'avatar du HeaderUtilisateur.
+        // les négociations en cours.
         ActionRapide(
           icone: Icons.shopping_basket_outlined,
           label: 'Mes offres',
@@ -247,9 +233,6 @@ class _AccueilPageState extends ConsumerState<AccueilPage> {
   @override
   Widget build(BuildContext context) {
     final asyncData = ref.watch(_accueilAcheteurDataProvider);
-    final user = ref.watch(currentUserProvider);
-    // Prénom = premier mot du fullName, sinon fallback amical « toi ».
-    final prenom = (user?.fullName ?? '').trim().split(RegExp(r'\s+')).first;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -271,7 +254,7 @@ class _AccueilPageState extends ConsumerState<AccueilPage> {
                     onRetry: _refresh,
                   ),
                 ),
-                data: (data) => _buildContent(data, prenom),
+                data: _buildContent,
               ),
             ),
           ],
@@ -280,7 +263,7 @@ class _AccueilPageState extends ConsumerState<AccueilPage> {
     );
   }
 
-  Widget _buildContent(_AccueilData data, String prenom) {
+  Widget _buildContent(_AccueilData data) {
     // Empty global (rien à montrer du tout).
     if (data.categories.isEmpty &&
         data.annonces.isEmpty &&
@@ -314,15 +297,6 @@ class _AccueilPageState extends ConsumerState<AccueilPage> {
         ? data.insights!.tendances.first
         : null;
 
-    // Alertes prix : on mock 2 alertes pour l'instant (cacao −5 %,
-    // anacarde −3 %) en attendant le vrai endpoint backend. Une fois
-    // l'IA insights enrichie avec un champ alertesPrix dédié, on
-    // branchera ici sans toucher au layout.
-    final alertesPrix = const [
-      AlertePrix(produit: 'Cacao', variationPct: -5),
-      AlertePrix(produit: 'Anacarde', variationPct: -3),
-    ];
-
     return RefreshIndicator(
       onRefresh: _refresh,
       color: AppColors.primary,
@@ -335,44 +309,16 @@ class _AccueilPageState extends ConsumerState<AccueilPage> {
           AppDimens.space16,
         ),
         children: [
-          // 1. Hero personnalisé « Bonjour, [Prénom] 👋 »
-          EnteteBonjour(prenom: prenom),
-          AppDimens.vGap16,
-          // 2. Carte solde wallet — hero card avec CTA « Mon portefeuille »
+          // 1. Carte solde wallet — hero card avec CTA « Mon portefeuille »
           CarteSoldeHero(
             solde: data.solde,
             onOuvrirWallet: _onTapWallet,
           ),
           AppDimens.vGap16,
-          // 3. Grille 2×3 d'actions rapides — pattern maquette FarmCash AI
+          // 2. Grille 2×3 d'actions rapides — pattern maquette FarmCash AI
           GrilleActions(actions: _actions()),
           AppDimens.vGap16,
-          // 4. Alertes prix — déclenche l'envie d'aller au marché
-          AlertesPrixSection(
-            alertes: alertesPrix,
-            onVoirTout: _onTapAlertesPrix,
-          ),
-          AppDimens.vGap16,
-          // 5. Bandeau « Ma demande active » (si l'acheteur a une demande
-          //    ouverte → priorise sa propre activité).
-          if (data.demandes.isNotEmpty) ...[
-            BandeauDemandeActive(
-              demandes: data.demandes,
-              produitsParId: data.produitsParId,
-              onTap: _onTapDemande,
-            ),
-            AppDimens.vGap16,
-          ],
-          // 6. Producteurs à découvrir (masqué si < 2 vendeurs uniques)
-          if (data.producteursADecouvrir.length >= 2) ...[
-            SectionProducteurs(
-              producteurs: data.producteursADecouvrir,
-              onVoirTout: _onTapVoirProducteurs,
-              onTapVendeur: _onTapVendeur,
-            ),
-            AppDimens.vGap24,
-          ],
-          // 7. Recommandé pour toi (grid 2 col)
+          // 3. Recommandé pour toi (grid 2 col)
           SectionAccueilAcheteur(
             titre: 'Recommandé pour toi',
             onVoirTout: _onTapVoirTout,
@@ -389,7 +335,7 @@ class _AccueilPageState extends ConsumerState<AccueilPage> {
                   ),
           ),
           AppDimens.vGap24,
-          // 8. Près de chez toi (grid 2 col, masqué si vide)
+          // 4. Près de chez toi (grid 2 col, masqué si vide)
           if (pres.isNotEmpty) ...[
             SectionAccueilAcheteur(
               titre: 'Près de chez toi',
@@ -402,7 +348,7 @@ class _AccueilPageState extends ConsumerState<AccueilPage> {
             ),
             AppDimens.vGap24,
           ],
-          // 9. Tendances du marché (bandeau vert pâle)
+          // 5. Tendances du marché (bandeau vert pâle)
           SectionTendance(tendance: tendance),
         ],
       ),

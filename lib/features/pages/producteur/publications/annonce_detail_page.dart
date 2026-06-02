@@ -191,8 +191,10 @@ class _Content extends ConsumerWidget {
                 async: candidaturesAsync,
                 onRetry: () =>
                     ref.invalidate(_candidaturesProvider(annonce.id)),
+                // Onglet shell → context.go pour que le bottom nav
+                // active la branche Messages (sinon Accueil reste actif).
                 onRepondre: (c) =>
-                    context.push(RouteNames.producteurMessagesPath),
+                    context.go(RouteNames.producteurMessagesPath),
               ),
             ],
           ),

@@ -8,6 +8,7 @@ import '../../../routing/route_names.dart';
 import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
+import '../../state/badges_state.dart';
 import '../../widgets/acheteur/commandes/bouton_sticky_commander.dart';
 import '../../widgets/acheteur/commandes/carte_adresse_panier.dart';
 import '../../widgets/acheteur/commandes/carte_item_panier.dart';
@@ -50,7 +51,12 @@ class _PanierAcheteurPageState extends ConsumerState<PanierAcheteurPage> {
   }
 
   Future<void> _refresh() async {
+    // Invalide d'abord le provider local (la page panier) ET le badge
+    // global (icône header) — sinon le compteur du header reste
+    // obsolète quand l'utilisateur quitte la page. Les deux ciblent
+    // la même API (getPanier) mais sont des providers distincts.
     ref.invalidate(_panierProvider);
+    ref.invalidate(cartCountProvider);
     await ref.read(_panierProvider.future);
   }
 

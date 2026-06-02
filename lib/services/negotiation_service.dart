@@ -45,7 +45,11 @@ class NegotiationService {
     return _asList(raw, Candidature.fromJson);
   }
 
-  Future<Candidature> traiterCandidature({
+  /// Traite une candidature.
+  ///
+  /// Backend retourne `{ message, commande_id?, reference? }` — PAS la
+  /// candidature complète. D'où le type [TraitementNegociationResultat].
+  Future<TraitementNegociationResultat> traiterCandidature({
     required String id,
     required NegotiationAction action,
     double? prixContreOffreKg,
@@ -61,7 +65,7 @@ class NegotiationService {
         message,
       ),
     );
-    return Candidature.fromJson(json);
+    return TraitementNegociationResultat.fromJson(json);
   }
 
   Future<Message> sendCandidatureMessage({
@@ -115,7 +119,12 @@ class NegotiationService {
     return _asList(raw, Proposition.fromJson);
   }
 
-  Future<Proposition> traiterProposition({
+  /// Traite une proposition (Accepter / Refuser / Contre-offre / Annuler).
+  ///
+  /// Backend retourne `{ message, commande_id?, reference? }` — PAS la
+  /// proposition complète. Tenter `Proposition.fromJson` ici crashait
+  /// avec « id is null » (cf. fix 2026-05-27).
+  Future<TraitementNegociationResultat> traiterProposition({
     required String id,
     required NegotiationAction action,
     double? prixContreOffreKg,
@@ -131,7 +140,7 @@ class NegotiationService {
         message,
       ),
     );
-    return Proposition.fromJson(json);
+    return TraitementNegociationResultat.fromJson(json);
   }
 
   Future<Message> sendPropositionMessage({
@@ -189,7 +198,11 @@ class NegotiationService {
     return _asList(raw, ContreOffreCoop.fromJson);
   }
 
-  Future<ContreOffreCoop> traiterContreOffreCoop({
+  /// Traite une contre-offre coop.
+  ///
+  /// Backend retourne `{ message }` (parfois enrichi). Cf. note sur
+  /// [traiterProposition].
+  Future<TraitementNegociationResultat> traiterContreOffreCoop({
     required String id,
     required NegotiationAction action,
     double? prixContreOffreKg,
@@ -205,7 +218,7 @@ class NegotiationService {
         message,
       ),
     );
-    return ContreOffreCoop.fromJson(json);
+    return TraitementNegociationResultat.fromJson(json);
   }
 
   Future<Message> sendContreOffreCoopMessage({
@@ -248,20 +261,36 @@ class NegotiationService {
     };
   }
 
+  /// Convertit un payload `List` ou `{ data: List }` en liste typée.
+  ///
+  /// Robuste face aux items malformés : si la déserialisation d'UN item
+  /// échoue (ex. champ obligatoire à null côté backend), on log l'item
+  /// problématique et on continue avec les autres. Sans cette tolérance
+  /// un seul record cassé en base fait crash toute la page de liste.
   List<T> _asList<T>(dynamic raw, T Function(Map<String, dynamic>) from) {
+    Iterable<dynamic>? items;
     if (raw is List) {
-      return raw
-          .whereType<Map>()
-          .map((m) => from(m.cast<String, dynamic>()))
-          .toList();
+      items = raw;
+    } else if (raw is Map && raw['data'] is List) {
+      items = raw['data'] as List;
+    } else {
+      return const [];
     }
-    if (raw is Map && raw['data'] is List) {
-      return (raw['data'] as List)
-          .whereType<Map>()
-          .map((m) => from(m.cast<String, dynamic>()))
-          .toList();
+
+    final result = <T>[];
+    for (final item in items) {
+      if (item is! Map) continue;
+      try {
+        result.add(from(item.cast<String, dynamic>()));
+      } catch (e, st) {
+        // ignore: avoid_print
+        print(
+          '[NegotiationService._asList] item malformé skipped: $e\n'
+          'item=$item\n$st',
+        );
+      }
     }
-    return const [];
+    return result;
   }
 }
 

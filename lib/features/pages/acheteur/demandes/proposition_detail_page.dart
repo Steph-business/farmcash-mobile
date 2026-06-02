@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../api_client/api_exception.dart';
+import '../../../../models/annonce_achat.dart';
 import '../../../../models/negociation.dart';
 import '../../../../services/negotiation_service.dart';
 import '../../../../services/providers.dart';
@@ -10,19 +11,44 @@ import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
 import '../../../widgets/acheteur/demandes/carte_proposition_demande.dart';
 import '../../../widgets/acheteur/demandes/header_propositions_demande.dart';
-import '../../../widgets/acheteur/demandes/sheet_discussion_demande.dart';
+import 'discussion_negociation_page.dart';
 import '../../../widgets/communs/chargement.dart';
 import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/communs/vue_erreur.dart';
 
-// ─── Provider ──────────────────────────────────────────────────────────
+// ─── Providers ──────────────────────────────────────────────────────────
 
-final _propositionsAcheteurProvider = FutureProvider.autoDispose
-    .family<List<Proposition>, String>((ref, demandeId) async {
-  final all = await ref
-      .read(negotiationServiceProvider)
-      .listPropositions(direction: 'incoming');
-  return all.where((p) => p.annonceAchatId == demandeId).toList();
+/// Bundle qui couple les propositions reçues et la demande source — la
+/// demande nous donne le **nom du produit** à afficher en tête des cartes
+/// (sinon l'acheteur ne sait pas de quoi on parle si elle a publié
+/// plusieurs demandes différentes).
+class _PropositionsBundle {
+  const _PropositionsBundle({required this.propositions, this.demande});
+  final List<Proposition> propositions;
+  final AnnonceAchat? demande;
+}
+
+final _propositionsAcheteurProvider =
+    FutureProvider.autoDispose.family<_PropositionsBundle, String>(
+        (ref, demandeId) async {
+  final negotiation = ref.read(negotiationServiceProvider);
+  final marketplace = ref.read(marketplaceServiceProvider);
+
+  final results = await Future.wait<dynamic>([
+    negotiation.listPropositions(direction: 'incoming'),
+    // La demande peut avoir été supprimée ou inaccessible — on ne casse
+    // pas la liste des propositions si ce fetch échoue.
+    marketplace.getAnnonceAchat(demandeId).then<Object?>((v) => v).catchError(
+          (_) => null,
+        ),
+  ]);
+
+  final all = results[0] as List<Proposition>;
+  final demande = results[1] as AnnonceAchat?;
+  return _PropositionsBundle(
+    propositions: all.where((p) => p.annonceAchatId == demandeId).toList(),
+    demande: demande,
+  );
 });
 
 /// Liste des propositions reçues sur une demande d'achat — côté ACHETEUR.
@@ -69,14 +95,13 @@ class _PropositionDetailAcheteurPageState
   }
 
   Future<void> _discuter(Proposition p) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.background,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+    // Avant 2026-05-27 c'était un bottom sheet — l'utilisateur préfère
+    // une vraie page avec flèche back (plus naturel pour les longues
+    // conversations qui peuvent scroller sur plusieurs écrans).
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => DiscussionNegociationPage(proposition: p),
       ),
-      builder: (ctx) => SheetDiscussionDemande(propositionId: p.id),
     );
   }
 
@@ -90,7 +115,10 @@ class _PropositionDetailAcheteurPageState
         child: Column(
           children: [
             HeaderPropositionsDemande(
-              count: async.maybeWhen(data: (l) => l.length, orElse: () => 0),
+              count: async.maybeWhen(
+                data: (b) => b.propositions.length,
+                orElse: () => 0,
+              ),
             ),
             Expanded(
               child: async.when(
@@ -105,12 +133,18 @@ class _PropositionDetailAcheteurPageState
                     onRetry: _refresh,
                   ),
                 ),
-                data: (items) {
+                data: (bundle) {
+                  final items = bundle.propositions;
                   if (items.isEmpty) {
                     return _emptyState(context);
                   }
                   final sorted = [...items]
                     ..sort((a, b) => a.prixProposeKg.compareTo(b.prixProposeKg));
+                  // Nom + photo du produit — extraits de la demande source.
+                  // L'AnnonceAchat ne joint pas (encore) la photo produit
+                  // côté API : pour V1 on n'envoie que le nom et on laisse
+                  // l'icône eco_outlined par défaut côté carte.
+                  final produitNom = bundle.demande?.produitLabel;
                   return RefreshIndicator(
                     color: AppColors.primary,
                     onRefresh: _refresh,
@@ -124,6 +158,7 @@ class _PropositionDetailAcheteurPageState
                               proposition: sorted[i],
                               isBest: i == 0,
                               busy: _opEnCours == sorted[i].id,
+                              produitNom: produitNom,
                               onAccepter: () => _traiter(
                                 sorted[i],
                                 NegotiationAction.accept,

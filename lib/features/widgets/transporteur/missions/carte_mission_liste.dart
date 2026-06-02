@@ -9,22 +9,24 @@ import '../../../../theme/app_text_styles.dart';
 
 final NumberFormat _nf = NumberFormat('#,##0', 'fr_FR');
 
-/// Carte mission côté transporteur — alignée sur le design « marketplace
-/// card » des autres rôles (acheteur, producteur). Hiérarchie d'info :
+/// Carte mission côté transporteur — design simplifié, aligné sur les
+/// cartes acheteur/producteur. Hiérarchie : l'itinéraire (QUOI faire),
+/// la quantité (combien transporter), puis montant + statut.
 ///
 /// ```
 /// ┌──────────────────────────────────────────────┐
-/// │ [SK]  Stephy K.                  Détails ›   │  ← émetteur de la commande
-/// │       Abidjan → Bouaké                       │
+/// │ [🚚]  Abidjan → Bouaké            Détails ›  │
+/// │       850 kg · 14 mai 09:00                  │
 /// ├──────────────────────────────────────────────┤
-/// │ FCFA 15.000                   Wallet FC │    │  ← prix total mission
-/// │ Quantité            ·       850 kg           │
-/// │ Statut transaction  ·       Acceptée         │
+/// │ 15 000 FCFA                  ● En transit    │
+/// ├ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┤
+/// │ → À récupérer chez le producteur             │
 /// └──────────────────────────────────────────────┘
 /// ```
 ///
-/// Le prix est le **devis transporteur** (ce que le transporteur va
-/// toucher pour ce trajet). Le statut suit le `ShipmentStatus`.
+/// Le prix affiché est le **devis transporteur** (ce qu'il va toucher
+/// pour ce trajet, brut). Couleurs de statut alignées sur les autres
+/// rôles : BLEU = à accepter / accepté, ORANGE = en route, VERT = livré.
 class CarteMissionListe extends StatelessWidget {
   const CarteMissionListe({
     super.key,
@@ -37,8 +39,6 @@ class CarteMissionListe extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ref = mission.reference ??
-        mission.commandeId.substring(0, 6).toUpperCase();
     final itineraire = mission.itineraireLabel ??
         '${mission.pickupAddress ?? '—'} → ${mission.deliveryAddress ?? '—'}';
     final qte = mission.quantiteKg != null
@@ -46,6 +46,9 @@ class CarteMissionListe extends StatelessWidget {
         : '—';
     final prix = mission.prixDevis ?? mission.prixFinal;
     final prixLabel = prix != null ? _nf.format(prix.round()) : 'À fixer';
+    final schedule = _scheduleLabel(mission);
+    final sousLigne = schedule == '—' ? qte : '$qte · $schedule';
+    final action = _actionRequise(mission.status);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -67,14 +70,13 @@ class CarteMissionListe extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Header : icône camion + itinéraire (titre) + qté/heure
+                // (sous-ligne) + lien Détails.
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
                   child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      // Avatar avec icône camion (le transporteur n'a pas
-                      // forcément le nom de l'acheteur dans le payload
-                      // mission — on utilise une icône thématique).
                       Container(
                         width: 44,
                         height: 44,
@@ -95,8 +97,9 @@ class CarteMissionListe extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            // Ligne 1 : QUOI faire (itinéraire)
                             Text(
-                              'Mission #$ref',
+                              itineraire,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: AppTextStyles.bodyMedium.copyWith(
@@ -106,8 +109,9 @@ class CarteMissionListe extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 2),
+                            // Ligne 2 : COMBIEN / QUAND
                             Text(
-                              itineraire,
+                              sousLigne,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: AppTextStyles.bodySmall.copyWith(
@@ -128,63 +132,67 @@ class CarteMissionListe extends StatelessWidget {
                   thickness: AppDimens.borderThin,
                   color: AppColors.border,
                 ),
+                // Ligne unique : montant devis + chip statut.
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Expanded(
-                            child: RichText(
-                              text: TextSpan(
-                                children: [
-                                  TextSpan(
-                                    text: 'FCFA ',
-                                    style: AppTextStyles.bodyMedium.copyWith(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.text,
-                                    ),
-                                  ),
-                                  TextSpan(
-                                    text: prixLabel,
-                                    style: AppTextStyles.headlineSmall
-                                        .copyWith(
-                                      fontFamily: 'Poppins',
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppColors.text,
-                                      letterSpacing: -0.5,
-                                      height: 1.0,
-                                    ),
-                                  ),
-                                ],
+                      Expanded(
+                        child: RichText(
+                          text: TextSpan(
+                            children: [
+                              TextSpan(
+                                text: prixLabel,
+                                style: AppTextStyles.headlineSmall.copyWith(
+                                  fontFamily: 'Poppins',
+                                  fontSize: 19,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.text,
+                                  letterSpacing: -0.3,
+                                  height: 1.0,
+                                ),
                               ),
-                            ),
+                              TextSpan(
+                                text: ' FCFA',
+                                style: AppTextStyles.bodyMedium.copyWith(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
                           ),
-                          const _ChipPaiement(label: 'Wallet FarmCash'),
-                        ],
+                        ),
                       ),
-                      const SizedBox(height: 10),
-                      _Ligne(label: 'Quantité', valeur: qte),
-                      const SizedBox(height: 6),
-                      _Ligne(
-                        label: 'Programmation',
-                        valeur: _scheduleLabel(mission),
-                      ),
-                      const SizedBox(height: 6),
-                      _StatutLigne(status: mission.status),
+                      const SizedBox(width: 8),
+                      _ChipStatut(status: mission.status),
                     ],
                   ),
                 ),
+                if (action != null) _BandeauAction(message: action),
               ],
             ),
           ),
         ),
       ),
     );
+  }
+
+  /// Action contextuelle attendue côté transporteur.
+  String? _actionRequise(ShipmentStatus s) {
+    switch (s) {
+      case ShipmentStatus.requested:
+        return 'À accepter ou refuser';
+      case ShipmentStatus.accepted:
+        return 'À récupérer chez le producteur';
+      case ShipmentStatus.loading:
+        return 'Chargement en cours';
+      case ShipmentStatus.inTransit:
+        return 'En transit — confirmer la livraison';
+      default:
+        return null;
+    }
   }
 
   String _scheduleLabel(Livraison m) {
@@ -220,117 +228,114 @@ class _LienDetails extends StatelessWidget {
   }
 }
 
-class _ChipPaiement extends StatelessWidget {
-  const _ChipPaiement({required this.label});
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          label,
-          style: AppTextStyles.labelSmall.copyWith(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        const SizedBox(width: 6),
-        Container(
-          width: 3,
-          height: 18,
-          decoration: BoxDecoration(
-            color: AppColors.primary,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _Ligne extends StatelessWidget {
-  const _Ligne({required this.label, required this.valeur});
-
-  final String label;
-  final String valeur;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            label,
-            style: AppTextStyles.bodySmall.copyWith(
-              fontSize: 13,
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-        Text(
-          valeur,
-          style: AppTextStyles.bodyMedium.copyWith(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            color: AppColors.text,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _StatutLigne extends StatelessWidget {
-  const _StatutLigne({required this.status});
+/// Chip statut compact partagé visuellement avec les cartes acheteur et
+/// producteur. Couleurs progressives :
+/// - 🔵 Bleu : à accepter / acceptée (en attente d'action transporteur)
+/// - 🟠 Orange : chargement / en transit (transporteur en mouvement)
+/// - 🟢 Vert : livrée (mission terminée)
+/// - ⚪ Gris : annulée / inconnu
+class _ChipStatut extends StatelessWidget {
+  const _ChipStatut({required this.status});
   final ShipmentStatus status;
 
   @override
   Widget build(BuildContext context) {
-    final (label, color) = _spec(status);
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            'Statut transaction',
-            style: AppTextStyles.bodySmall.copyWith(
-              fontSize: 13,
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w500,
+    final (label, color, fond) = _spec(status);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: fond,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color,
             ),
           ),
-        ),
-        Text(
-          label,
-          style: AppTextStyles.bodyMedium.copyWith(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            color: color,
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: AppTextStyles.labelMedium.copyWith(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  (String, Color) _spec(ShipmentStatus s) {
+  (String, Color, Color) _spec(ShipmentStatus s) {
+    const bleu = Color(0xFF1E40AF);
+    const fondBleu = Color(0xFFDBEAFE);
+    const orange = Color(0xFFB45309);
+    const fondOrange = Color(0xFFFFF3CD);
+    const fondVert = Color(0xFFE8F5E9);
+    const fondGris = AppColors.surfaceSoft;
     switch (s) {
       case ShipmentStatus.requested:
-        return ('À accepter', const Color(0xFFB45309));
+        return ('À accepter', bleu, fondBleu);
       case ShipmentStatus.accepted:
-        return ('Acceptée', AppColors.primary);
+        return ('Acceptée', bleu, fondBleu);
       case ShipmentStatus.loading:
-        return ('Chargement', AppColors.primary);
+        return ('Chargement', orange, fondOrange);
       case ShipmentStatus.inTransit:
-        return ('En transit', AppColors.primary);
+        return ('En transit', orange, fondOrange);
       case ShipmentStatus.delivered:
-        return ('Livrée', AppColors.primary);
+        return ('Livrée', AppColors.primary, fondVert);
       case ShipmentStatus.cancelled:
-        return ('Annulée', AppColors.textSecondary);
+        return ('Annulée', AppColors.textSecondary, fondGris);
       case ShipmentStatus.unknown:
-        return ('—', AppColors.textSubtle);
+        return ('—', AppColors.textSubtle, fondGris);
     }
+  }
+}
+
+class _BandeauAction extends StatelessWidget {
+  const _BandeauAction({required this.message});
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: const BoxDecoration(
+        color: Color(0xFFFFF8E1),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(14),
+          bottomRight: Radius.circular(14),
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.arrow_circle_right_outlined,
+            size: 16,
+            color: Color(0xFFB45309),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              message,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.bodySmall.copyWith(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFFB45309),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

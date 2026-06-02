@@ -5,6 +5,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
+import 'features/state/notifications_sse_state.dart';
 import 'features/storage/prefs_storage.dart';
 import 'routing/app_router.dart';
 import 'services/providers.dart';
@@ -60,6 +61,12 @@ class _FarmCashAppState extends ConsumerState<FarmCashApp> {
   @override
   Widget build(BuildContext context) {
     final router = ref.watch(appRouterProvider);
+
+    // Branche le listener SSE temps réel : à chaque notif reçue, on
+    // invalide les providers concernés (badge, listes). Sans ça, les
+    // notifs arrivaient en DB mais l'utilisateur devait pull-to-refresh
+    // pour les voir.
+    brancherListenerNotificationsLive(ref);
 
     return MaterialApp.router(
       title: 'FarmCash',

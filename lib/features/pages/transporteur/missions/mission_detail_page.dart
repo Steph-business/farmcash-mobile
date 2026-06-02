@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../api_client/api_exception.dart';
 import '../../../../models/enums.dart';
 import '../../../../models/livraison.dart';
-import '../../../../routing/route_names.dart';
 import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
@@ -21,6 +19,7 @@ import '../../../widgets/transporteur/missions/carte_timeline_mission.dart';
 import '../../../widgets/transporteur/missions/carte_trajet_mission.dart';
 import '../../../widgets/transporteur/missions/entete_mission_detail.dart';
 import '../../../widgets/transporteur/missions/titre_section_mission.dart';
+import '../scanner_page.dart';
 
 /// Bundle mission + tracking events pour la timeline.
 class _MissionBundle {
@@ -215,10 +214,23 @@ class _MissionDetailPageState extends ConsumerState<MissionDetailPage> {
           );
           break;
         case ShipmentStatus.delivered:
-          context.push(
-            RouteNames.transporteurLivraisonConfirmePathFor(mission.id),
+          // Nouveau flow : on ouvre le scanner en mode delivery pour
+          // que le transporteur scanne le QR de l'acheteur. Le scan
+          // déclenchera DELIVERED + libération escrow TRANSPORT +
+          // commande COMPLETED côté backend. Plus de "Confirmer la
+          // réception" manuelle nécessaire côté acheteur.
+          await Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => ScannerPage(
+                missionId: mission.id,
+                mode: ScannerMode.delivery,
+              ),
+            ),
           );
-          if (mounted) setState(() => _busy = false);
+          if (mounted) {
+            ref.invalidate(_missionBundleProvider(widget.missionId));
+            setState(() => _busy = false);
+          }
           return;
         case ShipmentStatus.cancelled:
           await svc.cancelShipment(mission.id);

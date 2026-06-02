@@ -9,6 +9,7 @@ import '../../../theme/app_dimens.dart';
 import '../../state/auth_state.dart';
 import '../../widgets/communs/chargement.dart';
 import '../../widgets/communs/header_utilisateur.dart';
+import '../../widgets/communs/snackbars.dart';
 import '../../widgets/communs/vue_erreur.dart';
 import '../../widgets/cooperative/publications/barre_onglets_marche.dart';
 import '../../widgets/cooperative/publications/carte_publication_grille.dart';
@@ -61,15 +62,9 @@ class _MarcheCooperativePageState extends ConsumerState<MarcheCooperativePage> {
   OngletMarcheCoop _tab = OngletMarcheCoop.actives;
 
   void _ouvrirPub(PublicationCoop p) {
-    // V1 : pas d'écran "détail publication" coop. On informe.
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text('Détail publication ${p.titre} — à venir'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+    // V1 : pas d'écran "détail publication" coop. On informe via le
+    // snackbar unifié style apps pro (fond sombre + icône colorée).
+    Snackbars.showInfo(context, 'Détail publication ${p.titre} — à venir');
   }
 
   @override
