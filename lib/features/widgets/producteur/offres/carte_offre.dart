@@ -1,28 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../../../models/enums.dart';
+import '../../../../routing/route_names.dart';
 import '../../../../theme/app_colors.dart';
-import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
 import 'chip_statut_offre.dart';
 import 'offre_modeles.dart';
 
-/// Carte d'une offre côté FARMER : type + quantité + prix + total + date +
-/// message libre, plus actions Accepter/Refuser quand pertinent.
+/// Carte d'une offre côté FARMER — type + quantité + prix + total + date
+/// + statut. Tap → page discussion (l'utilisateur y trouve : le contexte,
+/// la conversation, les boutons Accepter / Refuser / Annuler).
+///
+/// Refonte 2026-06-04 : on a retiré les boutons Accepter/Refuser inline
+/// (ils sont maintenant dans la page discussion). La carte devient un
+/// **preview tappable** qui ouvre toujours la discussion — UX cohérente
+/// avec l'acheteur (qui a aussi un détail séparé).
 class CarteOffre extends StatelessWidget {
-  const CarteOffre({
-    super.key,
-    required this.offre,
-    required this.busy,
-    required this.onAccepter,
-    required this.onRefuser,
-  });
+  const CarteOffre({super.key, required this.offre});
 
   final OffreUnifiee offre;
-  final bool busy;
-  final VoidCallback onAccepter;
-  final VoidCallback onRefuser;
 
   @override
   Widget build(BuildContext context) {
@@ -34,182 +31,192 @@ class CarteOffre extends StatelessWidget {
     final montantTotal = '${nfOffres.format(
       (offre.quantiteKg * offre.prixProposeKg).round(),
     )} F';
-    final kindLabel = offre.kind == OffreKind.candidature
-        ? 'Candidature acheteur'
-        : 'Proposition envoyée';
+    final isCandidature = offre.kind == OffreKind.candidature;
+    final kindLabel = isCandidature
+        ? "Candidature d'un acheteur"
+        : 'Ma proposition à un acheteur';
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: AppColors.background,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: AppColors.border,
-            width: AppDimens.borderThin,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          onTap: () => _ouvrirDiscussion(context),
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.border),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // En-tête : icône kind + label + chip statut
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: kPrimarySoft,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      alignment: Alignment.center,
+                      child: Icon(
+                        isCandidature
+                            ? Icons.call_received_rounded
+                            : Icons.call_made_rounded,
+                        size: 19,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            kindLabel,
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              fontFamily: 'Poppins',
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.text,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '$qte · $prix',
+                            style: AppTextStyles.bodySmall.copyWith(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ChipStatutOffre(status: offre.status),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Bandeau total + date
                 Container(
-                  width: 36,
-                  height: 36,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
-                    color: kPrimarySoft,
+                    color: AppColors.surfaceSoft,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  alignment: Alignment.center,
-                  child: Icon(
-                    offre.kind == OffreKind.candidature
-                        ? Icons.call_received
-                        : Icons.call_made,
-                    size: 18,
-                    color: AppColors.primary,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
+                  child: Row(
                     children: [
                       Text(
-                        kindLabel,
-                        style: AppTextStyles.bodyMedium.copyWith(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '$qte · $prix',
+                        'Total estimé',
                         style: AppTextStyles.bodySmall.copyWith(
                           fontSize: 12,
                           color: AppColors.textSecondary,
                         ),
                       ),
+                      const Spacer(),
+                      Text(
+                        montantTotal,
+                        style: AppTextStyles.titleSmall.copyWith(
+                          fontFamily: 'Poppins',
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.primary,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
                     ],
                   ),
                 ),
-                ChipStatutOffre(status: offre.status),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Total : $montantTotal',
-                    style: AppTextStyles.titleSmall.copyWith(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
-                      fontFamily: 'Poppins',
-                    ),
-                  ),
-                ),
-                Text(
-                  dateLabel,
-                  style: AppTextStyles.labelSmall.copyWith(
-                    fontSize: 11,
-                    color: AppColors.textSubtle,
-                  ),
-                ),
-              ],
-            ),
-            if (offre.message != null && offre.message!.trim().isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceSoft,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  offre.message!,
-                  style: AppTextStyles.bodySmall.copyWith(
-                    fontSize: 12,
-                    color: AppColors.text,
-                    height: 1.5,
-                  ),
-                ),
-              ),
-            ],
-            // Actions disponibles uniquement quand l'offre est PENDING et
-            // que c'est une candidature (le FARMER décide).
-            if (offre.status == NegotiationStatus.pending &&
-                offre.kind == OffreKind.candidature) ...[
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: InkWell(
-                      onTap: busy ? null : onRefuser,
-                      borderRadius: BorderRadius.circular(10),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        decoration: BoxDecoration(
-                          color: AppColors.background,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: AppColors.borderStrong,
-                            width: AppDimens.borderThin,
-                          ),
-                        ),
-                        alignment: Alignment.center,
+                // Message libre (preview 1 ligne)
+                if (offre.message != null &&
+                    offre.message!.trim().isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.chat_bubble_outline_rounded,
+                        size: 14,
+                        color: AppColors.textSecondary,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
                         child: Text(
-                          'Refuser',
-                          style: AppTextStyles.button.copyWith(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
+                          '« ${offre.message!.trim()} »',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextStyles.bodySmall.copyWith(
+                            fontSize: 12.5,
+                            fontStyle: FontStyle.italic,
                             color: AppColors.textSecondary,
                           ),
                         ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: InkWell(
-                      onTap: busy ? null : onAccepter,
-                      borderRadius: BorderRadius.circular(10),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        alignment: Alignment.center,
-                        child: busy
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : Text(
-                                'Accepter',
-                                style: AppTextStyles.button.copyWith(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.onPrimary,
-                                ),
-                              ),
-                      ),
-                    ),
+                    ],
                   ),
                 ],
-              ),
-            ],
-          ],
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.access_time_rounded,
+                      size: 12,
+                      color: AppColors.textSubtle,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      dateLabel,
+                      style: AppTextStyles.labelSmall.copyWith(
+                        fontSize: 11,
+                        color: AppColors.textSubtle,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      'Ouvrir la discussion',
+                      style: AppTextStyles.button.copyWith(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      size: 18,
+                      color: AppColors.primary,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ),
       ),
+    );
+  }
+
+  void _ouvrirDiscussion(BuildContext context) {
+    final kind = offre.kind == OffreKind.candidature ? 'cand' : 'prop';
+    context.push(
+      RouteNames.producteurOffreDiscussionPathFor(offre.id, kind: kind),
+      extra: offre,
     );
   }
 }

@@ -4,7 +4,10 @@ import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
 
-/// Header simple de la page "Offres reçues" : bouton retour + titre.
+/// Header simple de la page « Mes négociations » : bouton retour + titre.
+/// La page liste les candidatures REÇUES et les propositions ENVOYÉES
+/// dans une vue unifiée — d'où le nom « négociations » plutôt que
+/// « offres reçues » (qui ne couvrait que la moitié du parcours).
 class HeaderOffres extends StatelessWidget {
   const HeaderOffres({super.key});
 
@@ -38,7 +41,7 @@ class HeaderOffres extends StatelessWidget {
           ),
           Expanded(
             child: Text(
-              'Offres reçues',
+              'Mes négociations',
               style: AppTextStyles.titleSmall.copyWith(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,

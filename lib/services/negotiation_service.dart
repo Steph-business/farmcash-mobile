@@ -1,3 +1,8 @@
+import 'dart:io';
+
+import 'package:dio/dio.dart';
+import 'package:http_parser/http_parser.dart';
+
 import '../api_client/api_client.dart';
 import '../api_client/api_endpoints.dart';
 import '../models/models.dart';
@@ -87,11 +92,49 @@ class NegotiationService {
 
   // ─── Propositions (FARMER/COOP sur annonce achat) ────────────────────
 
+  /// Uploade UNE photo (multipart) vers MinIO via le backend et retourne
+  /// l'URL publique. À appeler 1× par image avant `createProposition`,
+  /// puis passer la liste d'URLs dans `photos:`. Limite 3 côté DTO.
+  Future<String> uploadPropositionPhoto(File file) async {
+    final filename = file.path.split(Platform.pathSeparator).last;
+    final lower = filename.toLowerCase();
+    // Devine le content-type — Dio + multer s'en servent pour la valid.
+    final String mime;
+    if (lower.endsWith('.png')) {
+      mime = 'image/png';
+    } else if (lower.endsWith('.webp')) {
+      mime = 'image/webp';
+    } else if (lower.endsWith('.heic')) {
+      mime = 'image/heic';
+    } else {
+      mime = 'image/jpeg';
+    }
+    final form = FormData.fromMap({
+      'file': await MultipartFile.fromFile(
+        file.path,
+        filename: filename,
+        contentType: MediaType.parse(mime),
+      ),
+    });
+    final json = await _api.upload<Map<String, dynamic>>(
+      ApiEndpoints.propositionPhotoUpload,
+      formData: form,
+    );
+    final url = json['url'];
+    if (url is! String || url.isEmpty) {
+      throw StateError('Réponse upload sans URL.');
+    }
+    return url;
+  }
+
   Future<Proposition> createProposition({
     required String annonceAchatId,
     required double quantiteKg,
     required double prixProposeKg,
     String? message,
+    int? delaiLivraisonJ,
+    String? lieuLivraison,
+    List<String>? photos,
   }) async {
     final json = await _api.post<Map<String, dynamic>>(
       ApiEndpoints.propositions,
@@ -100,6 +143,9 @@ class NegotiationService {
         'quantite_kg': quantiteKg,
         'prix_propose_kg': prixProposeKg,
         if (message != null) 'message': message,
+        if (delaiLivraisonJ != null) 'delai_livraison_j': delaiLivraisonJ,
+        if (lieuLivraison != null) 'lieu_livraison': lieuLivraison,
+        if (photos != null && photos.isNotEmpty) 'photos': photos,
       },
     );
     return Proposition.fromJson(json);

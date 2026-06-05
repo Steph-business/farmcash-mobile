@@ -45,6 +45,7 @@ class PeseePage extends ConsumerStatefulWidget {
 
 class _PeseePageState extends ConsumerState<PeseePage> {
   final _poidsCtrl = TextEditingController();
+  final _prixCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
   ProductQuality _qualite = ProductQuality.standard;
   bool _hydrated = false;
@@ -61,6 +62,7 @@ class _PeseePageState extends ConsumerState<PeseePage> {
   @override
   void dispose() {
     _poidsCtrl.dispose();
+    _prixCtrl.dispose();
     _noteCtrl.dispose();
     super.dispose();
   }
@@ -69,9 +71,16 @@ class _PeseePageState extends ConsumerState<PeseePage> {
     if (_hydrated) return;
     _hydrated = true;
     _poidsCtrl.text = a.quantiteKg.round().toString();
+    _prixCtrl.text = a.prixParKg.round().toString();
     _qualite = a.qualite == ProductQuality.unknown
         ? ProductQuality.standard
         : a.qualite;
+  }
+
+  double? get _prixSaisi {
+    final raw = _prixCtrl.text.trim().replaceAll(',', '.');
+    if (raw.isEmpty) return null;
+    return double.tryParse(raw);
   }
 
   double? get _poidsMesure {
@@ -98,8 +107,13 @@ class _PeseePageState extends ConsumerState<PeseePage> {
   Future<void> _valider(AnnonceVente a) async {
     if (_busy) return;
     final poids = _poidsMesure;
+    final prix = _prixSaisi;
     if (poids == null || poids <= 0) {
       Snackbars.showErreur(context, 'Saisis un poids mesuré valide.');
+      return;
+    }
+    if (prix == null || prix <= 0) {
+      Snackbars.showErreur(context, 'Saisis un prix valide.');
       return;
     }
     setState(() => _busy = true);
@@ -107,6 +121,7 @@ class _PeseePageState extends ConsumerState<PeseePage> {
       await ref.read(cooperativesServiceProvider).validateAnnonceVente(
             id: a.id,
             quantiteKgReelle: poids,
+            prixValideKg: prix,
             qualiteReelle: _qualite,
             notesPesee: _noteCtrl.text.trim().isEmpty
                 ? null
@@ -249,6 +264,29 @@ class _PeseePageState extends ConsumerState<PeseePage> {
                 controller: _poidsCtrl,
                 ecartLabel: _ecartLabel(annonceQte),
                 ecartColor: _ecartColor(annonceQte),
+              ),
+              const SizedBox(height: 22),
+              const EtiquettePesee('Prix unitaire fixé (FCFA/kg)'),
+              const SizedBox(height: 10),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: TextField(
+                  controller: _prixCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  decoration: const InputDecoration(
+                    hintText: 'Ex: 2500',
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  ),
+                ),
               ),
               const SizedBox(height: 22),
               const EtiquettePesee('Qualité observée'),

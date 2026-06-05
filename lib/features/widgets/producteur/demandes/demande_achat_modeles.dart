@@ -41,6 +41,9 @@ class MockDemande {
   final String produitThumb;
   final String quantite;
   final String prixMaxLabel;
+
+  /// Libellé valeur totale max (qté × prix max), ex: « soit max 450 000 F ».
+  final String valeurTotaleLabel;
   final String publieIlYa;
   final String livraisonLabel;
   final bool urgent;
@@ -55,6 +58,7 @@ class MockDemande {
     required this.produitThumb,
     required this.quantite,
     required this.prixMaxLabel,
+    required this.valeurTotaleLabel,
     required this.publieIlYa,
     required this.livraisonLabel,
     required this.urgent,
@@ -80,11 +84,22 @@ const List<FiltreCulture> kFiltresCultures = [
 /// Convertit une `AnnonceAchat` backend (avec ses relations jointes) en
 /// modèle d'affichage local. Utilise le nom du buyer et la région réels
 /// quand le back les fournit.
+/// Formate un nombre en F CFA façon fr-CI : « 450 000 », « 1 250 000 ».
+String _fmtNombre(double v) {
+  final s = v.round().toString();
+  final buf = StringBuffer();
+  for (var i = 0; i < s.length; i++) {
+    if (i > 0 && (s.length - i) % 3 == 0) buf.write(' ');
+    buf.write(s[i]);
+  }
+  return buf.toString();
+}
+
 MockDemande annonceAchatToMock(AnnonceAchat a) {
   final produitNom = a.produitLabel;
-  final qte = a.quantiteKg.toStringAsFixed(0);
-  final prixMax = a.prixMaxKg.toStringAsFixed(0);
-  final total = (a.prixMaxKg * a.quantiteKg).toStringAsFixed(0);
+  final qteFmt = _fmtNombre(a.quantiteKg);
+  final prixFmt = _fmtNombre(a.prixMaxKg);
+  final totalFmt = _fmtNombre(a.prixMaxKg * a.quantiteKg);
   return MockDemande(
     id: a.id,
     buyerNom: a.buyerNom ?? 'Acheteur',
@@ -93,8 +108,10 @@ MockDemande annonceAchatToMock(AnnonceAchat a) {
     viaCoop: a.targetCooperativeId != null,
     produitNom: produitNom,
     produitThumb: thumbForProduit(produitNom),
-    quantite: '$qte kg de $produitNom',
-    prixMaxLabel: 'jusqu\'à $prixMax F/kg · soit max $total F',
+    // Titre affiché en gros sur la carte : « 500 kg de Maïs grain blanc ».
+    quantite: '$qteFmt kg de $produitNom',
+    prixMaxLabel: 'jusqu\'à $prixFmt F/kg',
+    valeurTotaleLabel: 'soit max $totalFmt F',
     publieIlYa: a.createdAt != null ? 'Publié récemment' : '—',
     livraisonLabel:
         a.dateLimiteLivraison != null ? 'Livraison sous délai' : 'À convenir',

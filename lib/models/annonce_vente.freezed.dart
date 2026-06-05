@@ -46,6 +46,14 @@ mixin _$AnnonceVente {
   @JsonKey(unknownEnumValue: CoopAnnonceStatus.unknown)
   CoopAnnonceStatus? get coopStatus => throw _privateConstructorUsedError;
 
+  /// Motif renseigné par la coopérative quand elle a refusé cette
+  /// annonce (`coopStatus == REJECTED`). Renvoyé tel quel par Prisma
+  /// dans la colonne `rejected_reason` — d'où le `@JsonKey(name:...)`.
+  /// Affiché au producteur dans une bannière rouge soft pour qu'il
+  /// sache quoi corriger avant de re-publier.
+  @JsonKey(name: 'rejected_reason')
+  String? get rejectedReason => throw _privateConstructorUsedError;
+
   /// Le backend renvoie les photos dans la table `medias` jointe :
   /// `medias: [{url, thumbnail_url}]`. On extrait l'URL utilisable et on
   /// retombe sur un `photos: [...]` plat utilisé par les widgets.
@@ -122,6 +130,7 @@ abstract class $AnnonceVenteCopyWith<$Res> {
     String? assignedToCooperativeId,
     @JsonKey(unknownEnumValue: CoopAnnonceStatus.unknown)
     CoopAnnonceStatus? coopStatus,
+    @JsonKey(name: 'rejected_reason') String? rejectedReason,
     @JsonKey(name: 'medias', fromJson: mediasToPhotos, toJson: photosToMedias)
     List<String> photos,
     DateTime? disponibleJusqu,
@@ -185,6 +194,7 @@ class _$AnnonceVenteCopyWithImpl<$Res, $Val extends AnnonceVente>
     Object? viewsCount = null,
     Object? assignedToCooperativeId = freezed,
     Object? coopStatus = freezed,
+    Object? rejectedReason = freezed,
     Object? photos = null,
     Object? disponibleJusqu = freezed,
     Object? dateRecolte = freezed,
@@ -266,6 +276,10 @@ class _$AnnonceVenteCopyWithImpl<$Res, $Val extends AnnonceVente>
                 ? _value.coopStatus
                 : coopStatus // ignore: cast_nullable_to_non_nullable
                       as CoopAnnonceStatus?,
+            rejectedReason: freezed == rejectedReason
+                ? _value.rejectedReason
+                : rejectedReason // ignore: cast_nullable_to_non_nullable
+                      as String?,
             photos: null == photos
                 ? _value.photos
                 : photos // ignore: cast_nullable_to_non_nullable
@@ -340,6 +354,7 @@ abstract class _$$AnnonceVenteImplCopyWith<$Res>
     String? assignedToCooperativeId,
     @JsonKey(unknownEnumValue: CoopAnnonceStatus.unknown)
     CoopAnnonceStatus? coopStatus,
+    @JsonKey(name: 'rejected_reason') String? rejectedReason,
     @JsonKey(name: 'medias', fromJson: mediasToPhotos, toJson: photosToMedias)
     List<String> photos,
     DateTime? disponibleJusqu,
@@ -402,6 +417,7 @@ class __$$AnnonceVenteImplCopyWithImpl<$Res>
     Object? viewsCount = null,
     Object? assignedToCooperativeId = freezed,
     Object? coopStatus = freezed,
+    Object? rejectedReason = freezed,
     Object? photos = null,
     Object? disponibleJusqu = freezed,
     Object? dateRecolte = freezed,
@@ -483,6 +499,10 @@ class __$$AnnonceVenteImplCopyWithImpl<$Res>
             ? _value.coopStatus
             : coopStatus // ignore: cast_nullable_to_non_nullable
                   as CoopAnnonceStatus?,
+        rejectedReason: freezed == rejectedReason
+            ? _value.rejectedReason
+            : rejectedReason // ignore: cast_nullable_to_non_nullable
+                  as String?,
         photos: null == photos
             ? _value._photos
             : photos // ignore: cast_nullable_to_non_nullable
@@ -551,6 +571,7 @@ class _$AnnonceVenteImpl extends _AnnonceVente {
     @FlexInt() this.viewsCount = 0,
     this.assignedToCooperativeId,
     @JsonKey(unknownEnumValue: CoopAnnonceStatus.unknown) this.coopStatus,
+    @JsonKey(name: 'rejected_reason') this.rejectedReason,
     @JsonKey(name: 'medias', fromJson: mediasToPhotos, toJson: photosToMedias)
     final List<String> photos = const <String>[],
     this.disponibleJusqu,
@@ -637,6 +658,15 @@ class _$AnnonceVenteImpl extends _AnnonceVente {
   @JsonKey(unknownEnumValue: CoopAnnonceStatus.unknown)
   final CoopAnnonceStatus? coopStatus;
 
+  /// Motif renseigné par la coopérative quand elle a refusé cette
+  /// annonce (`coopStatus == REJECTED`). Renvoyé tel quel par Prisma
+  /// dans la colonne `rejected_reason` — d'où le `@JsonKey(name:...)`.
+  /// Affiché au producteur dans une bannière rouge soft pour qu'il
+  /// sache quoi corriger avant de re-publier.
+  @override
+  @JsonKey(name: 'rejected_reason')
+  final String? rejectedReason;
+
   /// Le backend renvoie les photos dans la table `medias` jointe :
   /// `medias: [{url, thumbnail_url}]`. On extrait l'URL utilisable et on
   /// retombe sur un `photos: [...]` plat utilisé par les widgets.
@@ -711,7 +741,7 @@ class _$AnnonceVenteImpl extends _AnnonceVente {
 
   @override
   String toString() {
-    return 'AnnonceVente(id: $id, farmerId: $farmerId, produitId: $produitId, titre: $titre, quantiteKg: $quantiteKg, prixParKg: $prixParKg, quantiteMinKg: $quantiteMinKg, qualite: $qualite, description: $description, certifications: $certifications, regionId: $regionId, villeId: $villeId, adresseDetail: $adresseDetail, status: $status, viewsCount: $viewsCount, assignedToCooperativeId: $assignedToCooperativeId, coopStatus: $coopStatus, photos: $photos, disponibleJusqu: $disponibleJusqu, dateRecolte: $dateRecolte, createdAt: $createdAt, updatedAt: $updatedAt, produitNom: $produitNom, vendeur: $vendeur, regionNom: $regionNom, villeNom: $villeNom, traitements: $traitements)';
+    return 'AnnonceVente(id: $id, farmerId: $farmerId, produitId: $produitId, titre: $titre, quantiteKg: $quantiteKg, prixParKg: $prixParKg, quantiteMinKg: $quantiteMinKg, qualite: $qualite, description: $description, certifications: $certifications, regionId: $regionId, villeId: $villeId, adresseDetail: $adresseDetail, status: $status, viewsCount: $viewsCount, assignedToCooperativeId: $assignedToCooperativeId, coopStatus: $coopStatus, rejectedReason: $rejectedReason, photos: $photos, disponibleJusqu: $disponibleJusqu, dateRecolte: $dateRecolte, createdAt: $createdAt, updatedAt: $updatedAt, produitNom: $produitNom, vendeur: $vendeur, regionNom: $regionNom, villeNom: $villeNom, traitements: $traitements)';
   }
 
   @override
@@ -753,6 +783,8 @@ class _$AnnonceVenteImpl extends _AnnonceVente {
                 other.assignedToCooperativeId == assignedToCooperativeId) &&
             (identical(other.coopStatus, coopStatus) ||
                 other.coopStatus == coopStatus) &&
+            (identical(other.rejectedReason, rejectedReason) ||
+                other.rejectedReason == rejectedReason) &&
             const DeepCollectionEquality().equals(other._photos, _photos) &&
             (identical(other.disponibleJusqu, disponibleJusqu) ||
                 other.disponibleJusqu == disponibleJusqu) &&
@@ -796,6 +828,7 @@ class _$AnnonceVenteImpl extends _AnnonceVente {
     viewsCount,
     assignedToCooperativeId,
     coopStatus,
+    rejectedReason,
     const DeepCollectionEquality().hash(_photos),
     disponibleJusqu,
     dateRecolte,
@@ -844,6 +877,7 @@ abstract class _AnnonceVente extends AnnonceVente {
     final String? assignedToCooperativeId,
     @JsonKey(unknownEnumValue: CoopAnnonceStatus.unknown)
     final CoopAnnonceStatus? coopStatus,
+    @JsonKey(name: 'rejected_reason') final String? rejectedReason,
     @JsonKey(name: 'medias', fromJson: mediasToPhotos, toJson: photosToMedias)
     final List<String> photos,
     final DateTime? disponibleJusqu,
@@ -919,6 +953,15 @@ abstract class _AnnonceVente extends AnnonceVente {
   @override
   @JsonKey(unknownEnumValue: CoopAnnonceStatus.unknown)
   CoopAnnonceStatus? get coopStatus;
+
+  /// Motif renseigné par la coopérative quand elle a refusé cette
+  /// annonce (`coopStatus == REJECTED`). Renvoyé tel quel par Prisma
+  /// dans la colonne `rejected_reason` — d'où le `@JsonKey(name:...)`.
+  /// Affiché au producteur dans une bannière rouge soft pour qu'il
+  /// sache quoi corriger avant de re-publier.
+  @override
+  @JsonKey(name: 'rejected_reason')
+  String? get rejectedReason;
 
   /// Le backend renvoie les photos dans la table `medias` jointe :
   /// `medias: [{url, thumbnail_url}]`. On extrait l'URL utilisable et on

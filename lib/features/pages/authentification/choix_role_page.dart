@@ -4,16 +4,16 @@ import 'package:go_router/go_router.dart';
 import '../../../models/enums.dart';
 import '../../../routing/route_names.dart';
 import '../../../theme/app_colors.dart';
-import '../../../theme/app_dimens.dart';
 import '../../../theme/app_text_styles.dart';
+import '../../widgets/authentification/auth_premium_bg.dart';
 import '../../widgets/authentification/carte_role.dart';
+import '../../widgets/authentification/cta_auth_premium.dart';
+import '../../widgets/authentification/logo_farmcash.dart';
 import '../../widgets/authentification/selecteur_langue.dart';
-import '../../widgets/communs/bouton_principal.dart';
-import '../../widgets/communs/bouton_secondaire.dart';
 
-/// Choix du rôle utilisateur avant l'inscription.
-///
-/// Les rôles ADMIN et EXPORTER ne sont pas exposés sur mobile.
+/// Choix du rôle utilisateur avant l'inscription — version premium
+/// (mesh-gradient, logo brand, CTA flèche). Les rôles ADMIN/EXPORTER
+/// ne sont pas exposés sur mobile.
 class ChoixRolePage extends StatefulWidget {
   const ChoixRolePage({super.key});
 
@@ -75,78 +75,111 @@ class _ChoixRolePageState extends State<ChoixRolePage> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppDimens.space32,
-              ),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight,
-                ),
-                child: IntrinsicHeight(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      AppDimens.vGap8,
-                      Row(
+      body: Stack(
+        children: [
+          const AuthPremiumBg(),
+          SafeArea(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
+                    ),
+                    child: IntrinsicHeight(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          _BoutonRetour(onTap: _retour),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              _BoutonRetourPremium(onTap: _retour),
+                              const Spacer(),
+                              const SelecteurLangue(),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          const LogoFarmcash(),
+                          const SizedBox(height: 28),
+                          Text(
+                            'Quel est ton rôle ?',
+                            style: AppTextStyles.displayLarge.copyWith(
+                              fontSize: 28,
+                              height: 1.2,
+                              letterSpacing: -0.6,
+                              color: AppColors.text,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Choisis le profil qui correspond à ton activité.',
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              color: AppColors.textSecondary,
+                              fontSize: 14.5,
+                              height: 1.4,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          for (var i = 0; i < _options.length; i++) ...[
+                            if (i > 0) const SizedBox(height: 12),
+                            CarteRole(
+                              title: _options[i].title,
+                              description: _options[i].description,
+                              icon: _options[i].icon,
+                              selected: _selectedRole == _options[i].role,
+                              onTap: () => _selectRole(_options[i].role),
+                            ),
+                          ],
                           const Spacer(),
-                          const SelecteurLangue(),
+                          const SizedBox(height: 24),
+                          CtaAuthPremium(
+                            label: 'Continuer',
+                            onTap: canContinue ? _continuer : null,
+                            enabled: canContinue,
+                          ),
+                          const SizedBox(height: 16),
+                          Center(
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () =>
+                                  context.go(RouteNames.connexionPath),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                child: RichText(
+                                  text: TextSpan(
+                                    style: AppTextStyles.bodyMedium.copyWith(
+                                      fontSize: 14,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                    children: [
+                                      const TextSpan(text: 'Déjà un compte ?  '),
+                                      TextSpan(
+                                        text: 'Se connecter',
+                                        style: TextStyle(
+                                          color: AppColors.primary,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
                         ],
                       ),
-                      AppDimens.vGap24,
-                      const _Logo(),
-                      AppDimens.vGap32,
-                      Text(
-                        'Quel est ton rôle ?',
-                        style: AppTextStyles.displaySmall,
-                      ),
-                      AppDimens.vGap8,
-                      Text(
-                        'Choisis le profil qui correspond à ton activité.',
-                        style: AppTextStyles.bodyMedium.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                      AppDimens.vGap32,
-                      for (var i = 0; i < _options.length; i++) ...[
-                        if (i > 0) AppDimens.vGap12,
-                        CarteRole(
-                          title: _options[i].title,
-                          description: _options[i].description,
-                          icon: _options[i].icon,
-                          selected: _selectedRole == _options[i].role,
-                          onTap: () => _selectRole(_options[i].role),
-                        ),
-                      ],
-                      const Spacer(),
-                      AppDimens.vGap32,
-                      BoutonPrincipal(
-                        label: 'Continuer',
-                        onPressed: canContinue ? _continuer : null,
-                        enabled: canContinue,
-                      ),
-                      AppDimens.vGap16,
-                      Center(
-                        child: LienTexte(
-                          prefixe: 'Déjà un compte ?',
-                          lien: 'Se connecter',
-                          onPressed: () =>
-                              context.go(RouteNames.connexionPath),
-                        ),
-                      ),
-                      AppDimens.vGap16,
-                    ],
+                    ),
                   ),
-                ),
-              ),
-            );
-          },
-        ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -166,51 +199,31 @@ class _RoleOption {
   final IconData icon;
 }
 
-class _BoutonRetour extends StatelessWidget {
-  const _BoutonRetour({required this.onTap});
+// Bouton retour rond avec subtil fond blanc + bord — plus premium que
+// l'icône fil sur fond transparent.
+class _BoutonRetourPremium extends StatelessWidget {
+  const _BoutonRetourPremium({required this.onTap});
 
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
-      child: const Padding(
-        padding: EdgeInsets.all(AppDimens.space4),
-        child: Icon(
-          Icons.arrow_back,
-          size: 22,
-          color: AppColors.text,
-        ),
-      ),
-    );
-  }
-}
-
-class _Logo extends StatelessWidget {
-  const _Logo();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Icon(
-          Icons.eco_outlined,
-          size: 28,
-          color: AppColors.primary,
-        ),
-        const SizedBox(width: 10),
-        Text(
-          'FarmCash',
-          style: AppTextStyles.titleLarge.copyWith(
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.3,
-            fontSize: 20,
+    return Material(
+      color: Colors.white,
+      shape: const CircleBorder(side: BorderSide(color: AppColors.border)),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: const SizedBox(
+          width: 40,
+          height: 40,
+          child: Icon(
+            Icons.arrow_back_rounded,
+            size: 20,
+            color: AppColors.text,
           ),
         ),
-      ],
+      ),
     );
   }
 }

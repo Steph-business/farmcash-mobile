@@ -7,14 +7,13 @@ import '../../../../models/produit.dart';
 import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
+import '../../../widgets/communs/produit/selecteur_choix_premium.dart';
 import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/cooperative/membres/bouton_sticky_enregistrer_managed.dart';
 import '../../../widgets/cooperative/membres/carte_info_managed.dart';
 import '../../../widgets/cooperative/membres/champ_texte_managed.dart';
 import '../../../widgets/cooperative/membres/entete_enregistrer_managed.dart';
 import '../../../widgets/cooperative/membres/libelle_champ_managed.dart';
-import '../../../widgets/cooperative/membres/selecteur_produit_managed.dart';
-import '../../../widgets/cooperative/publications/feuille_choix_produit.dart';
 
 /// Catalogue produit — utilisé par le sélecteur. Best effort : si
 /// l'endpoint échoue, le selecteur affichera simplement "indisponible".
@@ -57,27 +56,6 @@ class _EnregistrerManagedPageState
     _nomCtrl.dispose();
     _villageCtrl.dispose();
     super.dispose();
-  }
-
-  Future<void> _choisirProduit(List<Produit> produits) async {
-    if (produits.isEmpty) {
-      Snackbars.showInfo(context, 'Catalogue produit indisponible.');
-      return;
-    }
-    final selected = await showModalBottomSheet<Produit>(
-      context: context,
-      backgroundColor: AppColors.background,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) => FeuilleChoixProduit(
-        produits: produits,
-        selectedId: _produit?.id,
-      ),
-    );
-    if (selected != null && mounted) {
-      setState(() => _produit = selected);
-    }
   }
 
   Future<void> _enregistrer() async {
@@ -158,10 +136,16 @@ class _EnregistrerManagedPageState
                   AppDimens.vGap16,
                   const LibelleChampManaged('Produit principal (optionnel)'),
                   AppDimens.vGap8,
-                  SelecteurProduitManaged(
-                    produit: _produit,
+                  SelecteurChoixPremium<Produit>(
+                    items: produits,
+                    itemActuel: _produit,
+                    onChanged: (p) => setState(() => _produit = p),
+                    titreOf: (p) => p.nom,
+                    sousTitreOf: (p) => 'Catalogue · ${p.slug}',
+                    idOf: (p) => p.id,
+                    placeholder: 'Choisir un produit',
+                    titreSheet: 'Choisis le produit',
                     enabled: !_busy,
-                    onTap: () => _choisirProduit(produits),
                   ),
                 ],
               ),

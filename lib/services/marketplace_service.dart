@@ -873,6 +873,20 @@ class MarketplaceService {
     return _asList(raw, Reservation.fromJson);
   }
 
+  /// Liste les ACHETEURS ayant réservé une prévision donnée — vue côté
+  /// FARMER propriétaire (le backend vérifie l'ownership).
+  ///
+  /// Inclut le buyer joint (nom + photo) pour l'affichage immédiat sans
+  /// 2e round-trip. Endpoint `GET /marketplace/previsions/:id/reservations`.
+  Future<List<ReservationAcheteurInfo>> listReservationsParPrevision(
+    String previsionId,
+  ) async {
+    final raw = await _api.get<dynamic>(
+      ApiEndpoints.previsionReservations(previsionId),
+    );
+    return _asList(raw, ReservationAcheteurInfo.fromJson);
+  }
+
   /// Convertit une prévision en annonce de vente officielle.
   ///
   /// Aligné sur `ConvertPrevisionDto` (previsions.dto.ts) — exige

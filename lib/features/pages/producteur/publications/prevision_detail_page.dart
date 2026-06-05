@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../../api_client/api_exception.dart';
 import '../../../../models/enums.dart';
 import '../../../../models/prevision.dart';
+import '../../../../models/reservation_acheteur_info.dart';
 import '../../../../routing/route_names.dart';
 import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
@@ -15,12 +16,14 @@ import '../../../widgets/communs/chargement.dart';
 import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/communs/vue_erreur.dart';
 import '../../../widgets/producteur/publications/convertir_prevision_dialog.dart';
+import '../../../widgets/producteur/publications/banniere_motif_rejet.dart';
 import '../../../widgets/producteur/publications/coop_lock_banner.dart';
 import '../../../widgets/producteur/publications/editer_prevision_dialog.dart';
 import '../../../widgets/producteur/publications/header_prevision_detail.dart';
 import '../../../widgets/producteur/publications/hero_prevision.dart';
 import '../../../widgets/producteur/publications/info_card_prevision.dart';
 import '../../../widgets/producteur/publications/section_actions_prevision.dart';
+import '../../../widgets/producteur/publications/section_reservations_prevision.dart';
 import '../../../widgets/producteur/publications/sticky_convertir.dart';
 
 /// Provider familial. Comme `MarketplaceService.getPrevision(id)` n'existe
@@ -30,6 +33,16 @@ final _previsionDetailProvider = FutureProvider.autoDispose
     .family<Prevision?, String>((ref, id) async {
   final list = await ref.read(marketplaceServiceProvider).listPrevisions();
   return list.where((e) => e.id == id).firstOrNull;
+});
+
+/// Réservations des acheteurs sur cette prévision (vue propriétaire).
+/// Le backend vérifie l'ownership ; en cas d'erreur, le widget affichera
+/// un état d'erreur avec bouton Réessayer.
+final _previsionReservationsProvider = FutureProvider.autoDispose
+    .family<List<ReservationAcheteurInfo>, String>((ref, id) async {
+  return ref
+      .read(marketplaceServiceProvider)
+      .listReservationsParPrevision(id);
 });
 
 /// Détail d'une prévision producteur — hero, info card, progression
@@ -119,6 +132,34 @@ class _Content extends ConsumerWidget {
             children: [
               HeroPrevision(prevision: prevision),
               const InfoCardPrevision(),
+              // Motif de rejet coop — affiché en priorité haute juste sous
+              // le hero pour que le producteur le voie immédiatement et
+              // comprenne quoi corriger avant de re-publier.
+              if (prevision.coopStatus == 'REJECTED') ...[
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppDimens.pagePaddingH,
+                  ),
+                  child: BanniereMotifRejet(motif: prevision.rejectedReason),
+                ),
+              ],
+              const SizedBox(height: 6),
+              // Acheteurs qui ont réservé cette prévision — vue propriétaire
+              // (l'endpoint backend vérifie l'ownership ; sinon 403).
+              Consumer(
+                builder: (ctx, ref, _) {
+                  final async = ref.watch(
+                    _previsionReservationsProvider(prevision.id),
+                  );
+                  return SectionReservationsPrevision(
+                    async: async,
+                    onRetry: () => ref.invalidate(
+                      _previsionReservationsProvider(prevision.id),
+                    ),
+                  );
+                },
+              ),
               // Banner d'info quand la coop a verrouillé la prévision —
               // le farmer voit clairement pourquoi il ne peut plus la
               // modifier (au lieu de cliquer dans le vide).

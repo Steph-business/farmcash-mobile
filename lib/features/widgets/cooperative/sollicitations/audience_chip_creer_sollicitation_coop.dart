@@ -34,12 +34,19 @@ class AudienceChipCreerSollicitationCoop extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: selected ? _kPrimarySoft : AppColors.background,
+          color: selected ? _kPrimarySoft : Colors.white,
           borderRadius: BorderRadius.circular(AppDimens.radiusCard),
           border: Border.all(
             color: selected ? AppColors.primary : AppColors.border,
-            width: AppDimens.borderThin,
+            width: selected ? 1.5 : AppDimens.borderThin,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Row(
           children: [

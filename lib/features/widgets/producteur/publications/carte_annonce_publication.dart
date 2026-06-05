@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../models/annonce_vente.dart';
+import '../../../../models/enums.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
@@ -94,6 +95,31 @@ class CarteAnnoncePublication extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 6),
+                  // Pill rouge compact si la coop a refusé — discret mais
+                  // assez visible pour pousser le tap → détail (motif).
+                  if (annonce.coopStatus == CoopAnnonceStatus.rejected) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEE2E2),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'Rejetée par la coop',
+                        style: AppTextStyles.labelSmall.copyWith(
+                          fontFamily: 'Poppins',
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.error,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                  ],
                   Text(
                     '👁 ${annonce.viewsCount} vues · 0 msg',
                     style: AppTextStyles.labelSmall.copyWith(

@@ -7,6 +7,7 @@ import '../../../../models/prevision.dart';
 import '../../../../routing/route_names.dart';
 import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
+import '../../../../theme/app_text_styles.dart';
 import '../../../state/auth_state.dart';
 import '../../../widgets/producteur/publications/body_annonces_publications.dart';
 import '../../../widgets/producteur/publications/body_previsions_publications.dart';
@@ -109,6 +110,10 @@ class _MesPublicationsPageState extends ConsumerState<MesPublicationsPage> {
               ),
               onChanged: (i) => setState(() => _index = i),
             ),
+            // Bandeau accès rapide « Réservations reçues » — visible
+            // UNIQUEMENT sur l'onglet Prévisions, c'est là que c'est
+            // pertinent (les prévisions reçoivent des réservations).
+            if (_index == 1) const _BandeauReservationsRecues(),
             Expanded(
               child: _index == 0
                   ? BodyAnnoncesPublications(
@@ -121,6 +126,90 @@ class _MesPublicationsPageState extends ConsumerState<MesPublicationsPage> {
                     ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Bandeau d'accès « Réservations reçues » ──────────────────────
+
+/// Bandeau cliquable affiché en haut de l'onglet Prévisions — emmène
+/// vers la page agrégée des réservations faites par les acheteurs sur
+/// les prévisions du producteur. C'est la seule porte d'entrée pour
+/// cette vue (l'accueil et la grille d'actions sont déjà saturés).
+class _BandeauReservationsRecues extends StatelessWidget {
+  const _BandeauReservationsRecues();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+      child: Material(
+        color: AppColors.primary.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          onTap: () =>
+              context.push(RouteNames.producteurReservationsRecuesPath),
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.25),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    Icons.inbox_outlined,
+                    size: 17,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Réservations reçues',
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          fontFamily: 'Poppins',
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.text,
+                        ),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        'Qui a réservé sur tes prévisions ?',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          fontSize: 11.5,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 22,
+                  color: AppColors.primary,
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

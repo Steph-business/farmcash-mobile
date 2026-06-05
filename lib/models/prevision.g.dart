@@ -43,6 +43,10 @@ _$PrevisionImpl _$$PrevisionImplFromJson(Map<String, dynamic> json) =>
             (v) => v as String?,
           ),
           coopStatus: $checkedConvert('coop_status', (v) => v as String?),
+          rejectedReason: $checkedConvert(
+            'rejected_reason',
+            (v) => v as String?,
+          ),
           saison: $checkedConvert('saison', (v) => v as String?),
           notes: $checkedConvert('notes', (v) => v as String?),
           createdAt: $checkedConvert(
@@ -65,6 +69,7 @@ _$PrevisionImpl _$$PrevisionImplFromJson(Map<String, dynamic> json) =>
         'prixCibleKg': 'prix_cible_kg',
         'assignedToCooperativeId': 'assigned_to_cooperative_id',
         'coopStatus': 'coop_status',
+        'rejectedReason': 'rejected_reason',
         'createdAt': 'created_at',
         'updatedAt': 'updated_at',
       },
@@ -86,6 +91,7 @@ Map<String, dynamic> _$$PrevisionImplToJson(_$PrevisionImpl instance) =>
       if (instance.assignedToCooperativeId case final value?)
         'assigned_to_cooperative_id': value,
       if (instance.coopStatus case final value?) 'coop_status': value,
+      if (instance.rejectedReason case final value?) 'rejected_reason': value,
       if (instance.saison case final value?) 'saison': value,
       if (instance.notes case final value?) 'notes': value,
       if (instance.createdAt?.toIso8601String() case final value?)

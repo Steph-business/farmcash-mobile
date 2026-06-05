@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../api_client/api_exception.dart';
 import '../../../../models/enums.dart';
 import '../../../../models/negociation.dart';
-import '../../../../services/negotiation_service.dart';
 import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../widgets/communs/chargement.dart';
-import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/communs/vue_erreur.dart';
 import '../../../widgets/producteur/offres/carte_offre.dart';
 import '../../../widgets/producteur/offres/etat_vide_offres.dart';
@@ -58,7 +55,6 @@ class OffresRecuesPage extends ConsumerStatefulWidget {
 
 class _OffresRecuesPageState extends ConsumerState<OffresRecuesPage> {
   StatusFilter _filter = StatusFilter.toutes;
-  String? _busyId;
 
   Future<void> _refresh() async {
     ref.invalidate(_offresProvider);
@@ -83,33 +79,6 @@ class _OffresRecuesPageState extends ConsumerState<OffresRecuesPage> {
                 o.status == NegotiationStatus.rejected ||
                 o.status == NegotiationStatus.cancelled)
             .toList();
-    }
-  }
-
-  Future<void> _traiter(OffreUnifiee offre, NegotiationAction action) async {
-    if (_busyId != null) return;
-    setState(() => _busyId = offre.id);
-    try {
-      final svc = ref.read(negotiationServiceProvider);
-      if (offre.kind == OffreKind.candidature) {
-        await svc.traiterCandidature(id: offre.id, action: action);
-      } else {
-        await svc.traiterProposition(id: offre.id, action: action);
-      }
-      await _refresh();
-      if (!mounted) return;
-      Snackbars.showSucces(
-        context,
-        action == NegotiationAction.accept
-            ? 'Offre acceptée'
-            : 'Offre refusée',
-      );
-    } on ApiException catch (e) {
-      if (mounted) Snackbars.showErreur(context, e.message);
-    } catch (e) {
-      if (mounted) Snackbars.showErreur(context, 'Erreur : $e');
-    } finally {
-      if (mounted) setState(() => _busyId = null);
     }
   }
 
@@ -172,14 +141,7 @@ class _OffresRecuesPageState extends ConsumerState<OffresRecuesPage> {
           if (filtered.isEmpty)
             const EtatVideOffres()
           else
-            ...filtered.map(
-              (o) => CarteOffre(
-                offre: o,
-                busy: _busyId == o.id,
-                onAccepter: () => _traiter(o, NegotiationAction.accept),
-                onRefuser: () => _traiter(o, NegotiationAction.reject),
-              ),
-            ),
+            ...filtered.map((o) => CarteOffre(offre: o)),
         ],
       ),
     );

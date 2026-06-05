@@ -8,7 +8,7 @@ import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
 import '../../widgets/communs/chargement.dart';
-import '../../widgets/communs/header_utilisateur.dart';
+import '../../widgets/communs/entete_page_compacte_coop.dart';
 import '../../widgets/communs/vue_erreur.dart';
 import '../../widgets/cooperative/membres/banniere_adhesions.dart';
 import '../../widgets/cooperative/membres/carte_liste_membres.dart';
@@ -16,7 +16,6 @@ import '../../widgets/cooperative/membres/etat_vide_membres.dart';
 import '../../widgets/cooperative/membres/fab_enregistrer_managed.dart';
 import '../../widgets/cooperative/membres/fab_inviter_membre.dart';
 import '../../widgets/cooperative/membres/resume_membres.dart';
-import '../../widgets/cooperative/membres/titre_membres.dart';
 
 /// Bundle membres + nombre de demandes d'adhésion en attente.
 class _MembresData {
@@ -59,8 +58,13 @@ class MembresCooperativePage extends ConsumerWidget {
           children: [
             Column(
               children: [
-                const HeaderUtilisateur(variant: HeaderVariant.cooperative),
-                const TitreMembres(),
+                // Header compact : back + titre + cloche/messages.
+                // Avant on avait `HeaderUtilisateur + TitreMembres` (avatar
+                // coop + « Bienvenue Coop X » + titre). Sur cette page
+                // secondaire hors-shell, l'identité coop n'apporte rien et
+                // il manquait le bouton retour. Le mini-header règle les
+                // deux d'un coup.
+                const EntetePageCompacteCoop(title: 'Membres'),
                 Expanded(
                   child: async.when(
                     loading: () => const Padding(

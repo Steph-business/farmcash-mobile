@@ -51,7 +51,9 @@ import '../features/pages/producteur/demandes/demande_achat_repondre_page.dart';
 import '../features/pages/producteur/demandes/demandes_achat_page.dart';
 import '../features/pages/producteur/documents_kyc_page.dart'
     as prod_kyc;
+import '../features/pages/producteur/offres/discussion_offre_page.dart';
 import '../features/pages/producteur/offres/offres_recues_page.dart';
+import '../features/widgets/producteur/offres/offre_modeles.dart';
 import '../features/pages/producteur/parcelles/mes_parcelles_page.dart';
 import '../features/pages/producteur/parcelles/parcelle_detail_page.dart';
 import '../features/pages/producteur/profil_editer_page.dart'
@@ -61,6 +63,7 @@ import '../features/pages/producteur/profil_settings_page.dart'
     as prod_profil_settings;
 import '../features/pages/producteur/publications/annonce_detail_page.dart';
 import '../features/pages/producteur/publications/mes_publications_page.dart';
+import '../features/pages/producteur/publications/mes_reservations_recues_page.dart';
 import '../features/pages/producteur/publications/prevision_detail_page.dart';
 import '../features/pages/producteur/publications/publication_coop_detail_page.dart';
 import '../features/pages/producteur/publier/annonce_express_page.dart';
@@ -139,6 +142,8 @@ import '../features/pages/cooperative/previsions_membres_page.dart';
 import '../features/pages/cooperative/profil_page.dart' as coop_profil;
 import '../features/pages/cooperative/profil_settings_page.dart'
     as coop_profil_settings;
+import '../features/pages/cooperative/publications/publication_coop_detail_page.dart'
+    as coop_pub_detail;
 import '../features/pages/cooperative/publications/publication_creer_page.dart';
 import '../features/pages/cooperative/sollicitations/sollicitation_creer_page.dart';
 import '../features/pages/cooperative/sollicitations/sollicitation_suivi_page.dart';
@@ -291,10 +296,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
 
       // ─── Pages métier coopérative (push hors shell, ajoutées récemment) ─
+      // Membres : push hors-shell (anciennement onglet) — le 2026-06-04
+      // l'onglet a été remplacé par Marché ; Membres reste accessible
+      // depuis la grille d'actions de l'accueil + le profil.
       GoRoute(
-        path: RouteNames.cooperativeCommandesPath,
-        name: RouteNames.cooperativeCommandes,
-        builder: (_, _) => const coop_commandes.CommandesCooperativePage(),
+        path: RouteNames.cooperativeMembresPath,
+        name: RouteNames.cooperativeMembres,
+        builder: (_, _) => const MembresCooperativePage(),
       ),
       GoRoute(
         path: RouteNames.cooperativeIdentitePath,
@@ -747,10 +755,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
 
       // ─── Coopérative — Marché (publication, offres, sollicit., prévisions) ─
+      // ATTENTION : la route littérale `/publications/creer` doit être
+      // déclarée AVANT `/publications/:id` pour éviter que GoRouter
+      // n'interprète "creer" comme un UUID et casse le ParseUUIDPipe
+      // côté détail.
       GoRoute(
         path: RouteNames.cooperativePublicationCreerPath,
         name: RouteNames.cooperativePublicationCreer,
         builder: (_, _) => const PublicationCreerPage(),
+      ),
+      GoRoute(
+        path: RouteNames.cooperativePublicationCoopDetailPath,
+        name: RouteNames.cooperativePublicationCoopDetail,
+        builder: (_, state) => coop_pub_detail.PublicationCoopDetailPage(
+          id: state.pathParameters['id'] ?? '',
+        ),
       ),
       GoRoute(
         path: RouteNames.cooperativeOffresRecuesPath,
@@ -873,6 +892,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return PrevisionDetailPage(previsionId: id);
         },
       ),
+      // ─── Producteur — Réservations reçues sur mes prévisions ───────
+      GoRoute(
+        path: RouteNames.producteurReservationsRecuesPath,
+        name: RouteNames.producteurReservationsRecues,
+        builder: (_, _) => const MesReservationsRecuesPage(),
+      ),
       GoRoute(
         path: RouteNames.producteurWalletPath,
         name: RouteNames.producteurWallet,
@@ -943,6 +968,35 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: RouteNames.producteurOffresRecuesPath,
         name: RouteNames.producteurOffresRecues,
         builder: (_, _) => const OffresRecuesPage(),
+      ),
+      // ─── Producteur — Discussion sur une offre reçue ───────────────
+      // Lecture seule de l'offre passée en `extra` (objet OffreUnifiee) —
+      // fallback minimal si l'extra manque (deep-link direct sans
+      // contexte). Le `kind` permet de router vers le bon endpoint
+      // backend (candidature vs proposition).
+      GoRoute(
+        path: RouteNames.producteurOffreDiscussionPath,
+        name: RouteNames.producteurOffreDiscussion,
+        builder: (_, state) {
+          final extra = state.extra;
+          if (extra is OffreUnifiee) {
+            return DiscussionOffrePage(offre: extra);
+          }
+          // Fallback : extra manquant → page d'erreur courte.
+          return const Scaffold(
+            body: SafeArea(
+              child: Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text(
+                    'Offre introuvable — réouvre-la depuis la liste.',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
       ),
       // ─── Producteur — Aperçu de la coopérative (push hors shell) ───
       GoRoute(
@@ -1030,28 +1084,36 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
         ),
         branches: [
+          // Branche 1 — Accueil
           StatefulShellBranch(routes: [
             GoRoute(
               path: RouteNames.accueilCooperativePath,
               builder: (_, _) => const coop_accueil.AccueilPage(),
             ),
           ]),
+          // Branche 2 — Marché (anciennement 4e, maintenant 2e à la place
+          // de Membres). Membres reste accessible mais hors-shell, ouvert
+          // depuis la grille d'actions de l'accueil + le profil.
           StatefulShellBranch(routes: [
             GoRoute(
-              path: RouteNames.cooperativeMembresPath,
-              builder: (_, _) => const MembresCooperativePage(),
+              path: RouteNames.cooperativeMarchePath,
+              builder: (_, _) => const MarcheCooperativePage(),
             ),
           ]),
+          // Branche 3 — Stock
           StatefulShellBranch(routes: [
             GoRoute(
               path: RouteNames.cooperativeStockPath,
               builder: (_, _) => const StockCooperativePage(),
             ),
           ]),
+          // Branche 4 — Commandes (anciennement hors-shell, maintenant
+          // onglet dédié pour suivre les ventes reçues sur ses publications).
           StatefulShellBranch(routes: [
             GoRoute(
-              path: RouteNames.cooperativeMarchePath,
-              builder: (_, _) => const MarcheCooperativePage(),
+              path: RouteNames.cooperativeCommandesPath,
+              builder: (_, _) =>
+                  const coop_commandes.CommandesCooperativePage(),
             ),
           ]),
         ],
@@ -1244,11 +1306,16 @@ const _acheteurItems = [
   ItemNavigation(label: 'Profil', icon: Icons.person_outline, iconSelected: Icons.person),
 ];
 
+// Bottom-nav coop : Accueil | Marché | Stock | Commandes.
+// Membres n'est plus un onglet (déjà accessible depuis la grille
+// d'actions de l'accueil + le profil) → la place a été cédée à Marché.
+// Commandes a remplacé Marché (4e position) pour donner à la coop un
+// accès direct à ses ventes reçues sur ses publications.
 const _cooperativeItems = [
   ItemNavigation(label: 'Accueil', icon: Icons.home_outlined, iconSelected: Icons.home),
-  ItemNavigation(label: 'Membres', icon: Icons.groups_outlined, iconSelected: Icons.groups),
-  ItemNavigation(label: 'Stock', icon: Icons.inventory_2_outlined, iconSelected: Icons.inventory_2),
   ItemNavigation(label: 'Marché', icon: Icons.storefront_outlined, iconSelected: Icons.storefront),
+  ItemNavigation(label: 'Stock', icon: Icons.inventory_2_outlined, iconSelected: Icons.inventory_2),
+  ItemNavigation(label: 'Commandes', icon: Icons.receipt_long_outlined, iconSelected: Icons.receipt_long),
 ];
 
 const _transporteurItems = [

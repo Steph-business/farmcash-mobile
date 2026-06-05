@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import '../../../../routing/route_names.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../communs/carte_solde_hero.dart';
-import '../../communs/entete_bonjour.dart';
 import '../../communs/grille_actions.dart';
 import '../../communs/snackbars.dart';
 import '_constantes_accueil_transporteur.dart';
@@ -54,12 +53,6 @@ class ContenuAccueilTransporteur extends StatelessWidget {
         AppDimens.space16,
       ),
       children: [
-        // 0a. Entête personnalisé « Bonjour, [Prénom] 👋 »
-        EnteteBonjour(
-          prenom: prenom,
-          question: 'Quelles courses aujourd\'hui ?',
-        ),
-        AppDimens.vGap16,
         // 0a-bis. Alerte si aucun itinéraire actif déclaré. Sans route,
         //         le backend ne push aucune mission au transporteur
         //         (catch-22). On force la visibilité du problème + CTA.

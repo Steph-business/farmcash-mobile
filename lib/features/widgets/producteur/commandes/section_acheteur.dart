@@ -21,8 +21,6 @@ const Color _kPastelVert = Color(0xFFE8F5E9);
 ///   - Vrai nom de l'acheteur (depuis le join backend), avec icône chat
 ///     **inline** à droite (sur la même ligne) pour démarrer une conv 1-1
 ///   - Adresse de livraison juste sous le nom
-///   - Petit texte discret en pied : « Coordonnées partagées avec le
-///     transporteur uniquement » — pour rassurer sans encombrer
 ///
 /// **Pas de bouton « Appeler »** : volontaire pour éviter le contournement
 /// de la plateforme (un farmer + acheteur qui s'échangent leurs numéros

@@ -39,6 +39,13 @@ mixin _$Prevision {
   /// modification dès que c'est VALIDATED ou INCLUDED. Côté UI on
   /// désactive les boutons "Modifier" / "Supprimer" en conséquence.
   String? get coopStatus => throw _privateConstructorUsedError;
+
+  /// Motif renseigné par la coopérative quand elle a refusé cette
+  /// prévision (`coopStatus == REJECTED`). Backend column =
+  /// `rejected_reason`. Affiché au producteur dans une bannière
+  /// rouge soft sur la page détail prévision.
+  @JsonKey(name: 'rejected_reason')
+  String? get rejectedReason => throw _privateConstructorUsedError;
   String? get saison => throw _privateConstructorUsedError;
   String? get notes => throw _privateConstructorUsedError;
   DateTime? get createdAt => throw _privateConstructorUsedError;
@@ -70,6 +77,7 @@ abstract class $PrevisionCopyWith<$Res> {
     @JsonKey(unknownEnumValue: PrevisionStatus.unknown) PrevisionStatus status,
     String? assignedToCooperativeId,
     String? coopStatus,
+    @JsonKey(name: 'rejected_reason') String? rejectedReason,
     String? saison,
     String? notes,
     DateTime? createdAt,
@@ -102,6 +110,7 @@ class _$PrevisionCopyWithImpl<$Res, $Val extends Prevision>
     Object? status = null,
     Object? assignedToCooperativeId = freezed,
     Object? coopStatus = freezed,
+    Object? rejectedReason = freezed,
     Object? saison = freezed,
     Object? notes = freezed,
     Object? createdAt = freezed,
@@ -149,6 +158,10 @@ class _$PrevisionCopyWithImpl<$Res, $Val extends Prevision>
                 ? _value.coopStatus
                 : coopStatus // ignore: cast_nullable_to_non_nullable
                       as String?,
+            rejectedReason: freezed == rejectedReason
+                ? _value.rejectedReason
+                : rejectedReason // ignore: cast_nullable_to_non_nullable
+                      as String?,
             saison: freezed == saison
                 ? _value.saison
                 : saison // ignore: cast_nullable_to_non_nullable
@@ -191,6 +204,7 @@ abstract class _$$PrevisionImplCopyWith<$Res>
     @JsonKey(unknownEnumValue: PrevisionStatus.unknown) PrevisionStatus status,
     String? assignedToCooperativeId,
     String? coopStatus,
+    @JsonKey(name: 'rejected_reason') String? rejectedReason,
     String? saison,
     String? notes,
     DateTime? createdAt,
@@ -222,6 +236,7 @@ class __$$PrevisionImplCopyWithImpl<$Res>
     Object? status = null,
     Object? assignedToCooperativeId = freezed,
     Object? coopStatus = freezed,
+    Object? rejectedReason = freezed,
     Object? saison = freezed,
     Object? notes = freezed,
     Object? createdAt = freezed,
@@ -269,6 +284,10 @@ class __$$PrevisionImplCopyWithImpl<$Res>
             ? _value.coopStatus
             : coopStatus // ignore: cast_nullable_to_non_nullable
                   as String?,
+        rejectedReason: freezed == rejectedReason
+            ? _value.rejectedReason
+            : rejectedReason // ignore: cast_nullable_to_non_nullable
+                  as String?,
         saison: freezed == saison
             ? _value.saison
             : saison // ignore: cast_nullable_to_non_nullable
@@ -305,6 +324,7 @@ class _$PrevisionImpl extends _Prevision {
     this.status = PrevisionStatus.unknown,
     this.assignedToCooperativeId,
     this.coopStatus,
+    @JsonKey(name: 'rejected_reason') this.rejectedReason,
     this.saison,
     this.notes,
     this.createdAt,
@@ -342,6 +362,14 @@ class _$PrevisionImpl extends _Prevision {
   /// désactive les boutons "Modifier" / "Supprimer" en conséquence.
   @override
   final String? coopStatus;
+
+  /// Motif renseigné par la coopérative quand elle a refusé cette
+  /// prévision (`coopStatus == REJECTED`). Backend column =
+  /// `rejected_reason`. Affiché au producteur dans une bannière
+  /// rouge soft sur la page détail prévision.
+  @override
+  @JsonKey(name: 'rejected_reason')
+  final String? rejectedReason;
   @override
   final String? saison;
   @override
@@ -353,7 +381,7 @@ class _$PrevisionImpl extends _Prevision {
 
   @override
   String toString() {
-    return 'Prevision(id: $id, farmerId: $farmerId, produitId: $produitId, quantitePrevKg: $quantitePrevKg, parcelleId: $parcelleId, dateRecoltePrev: $dateRecoltePrev, prixCibleKg: $prixCibleKg, status: $status, assignedToCooperativeId: $assignedToCooperativeId, coopStatus: $coopStatus, saison: $saison, notes: $notes, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'Prevision(id: $id, farmerId: $farmerId, produitId: $produitId, quantitePrevKg: $quantitePrevKg, parcelleId: $parcelleId, dateRecoltePrev: $dateRecoltePrev, prixCibleKg: $prixCibleKg, status: $status, assignedToCooperativeId: $assignedToCooperativeId, coopStatus: $coopStatus, rejectedReason: $rejectedReason, saison: $saison, notes: $notes, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -382,6 +410,8 @@ class _$PrevisionImpl extends _Prevision {
                 other.assignedToCooperativeId == assignedToCooperativeId) &&
             (identical(other.coopStatus, coopStatus) ||
                 other.coopStatus == coopStatus) &&
+            (identical(other.rejectedReason, rejectedReason) ||
+                other.rejectedReason == rejectedReason) &&
             (identical(other.saison, saison) || other.saison == saison) &&
             (identical(other.notes, notes) || other.notes == notes) &&
             (identical(other.createdAt, createdAt) ||
@@ -404,6 +434,7 @@ class _$PrevisionImpl extends _Prevision {
     status,
     assignedToCooperativeId,
     coopStatus,
+    rejectedReason,
     saison,
     notes,
     createdAt,
@@ -437,6 +468,7 @@ abstract class _Prevision extends Prevision {
     final PrevisionStatus status,
     final String? assignedToCooperativeId,
     final String? coopStatus,
+    @JsonKey(name: 'rejected_reason') final String? rejectedReason,
     final String? saison,
     final String? notes,
     final DateTime? createdAt,
@@ -475,6 +507,14 @@ abstract class _Prevision extends Prevision {
   /// désactive les boutons "Modifier" / "Supprimer" en conséquence.
   @override
   String? get coopStatus;
+
+  /// Motif renseigné par la coopérative quand elle a refusé cette
+  /// prévision (`coopStatus == REJECTED`). Backend column =
+  /// `rejected_reason`. Affiché au producteur dans une bannière
+  /// rouge soft sur la page détail prévision.
+  @override
+  @JsonKey(name: 'rejected_reason')
+  String? get rejectedReason;
   @override
   String? get saison;
   @override

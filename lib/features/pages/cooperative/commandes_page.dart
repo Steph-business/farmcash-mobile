@@ -9,7 +9,7 @@ import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
 import '../../../theme/app_text_styles.dart';
-import '../../widgets/communs/profil_settings/entete_profil_settings.dart';
+import '../../widgets/communs/entete_page_compacte_coop.dart';
 // Réutilise les widgets vendeur du producteur — la coop est vendeuse au
 // même titre quand un acheteur commande directement sur ses publications.
 import '../../widgets/producteur/commandes/carte_commande_liste.dart';
@@ -65,9 +65,10 @@ class _CommandesCooperativePageState
         bottom: false,
         child: Column(
           children: [
-            const EnteteProfilSettings(
-              fallbackPath: RouteNames.cooperativeProfilPath,
-              titre: 'Mes commandes',
+            // Header compact onglet — pas de back (onglet bottom-nav).
+            const EntetePageCompacteCoop(
+              title: 'Commandes',
+              showBack: false,
             ),
             OngletsCommandes(
               current: _tab,

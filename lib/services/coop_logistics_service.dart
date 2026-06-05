@@ -130,6 +130,38 @@ class CoopLogisticsService {
     await _api.delete<dynamic>(ApiEndpoints.coopCollectionById(id));
   }
 
+  // ─── Demandes de transport tiers ────────────────────────────────────
+
+  /// Liste les commandes coop éligibles à une demande de transport :
+  /// statut payé (ACCEPTED / IN_PROGRESS) et aucun shipment rattaché.
+  /// Le backend renvoie un payload aplati [CoopEligibleCommande] avec
+  /// le buyer, le produit (via annonce ou publication coop), la quantité
+  /// et l'adresse de livraison.
+  Future<List<CoopEligibleCommande>> listEligibleTransportCommandes() async {
+    final raw =
+        await _api.get<dynamic>(ApiEndpoints.coopTransportRequestsEligible);
+    return _asList(raw, CoopEligibleCommande.fromJson);
+  }
+
+  /// Crée une demande de transport tiers pour une commande coop. Le
+  /// backend délègue à `LogisticsService.createShipmentForOrder` qui
+  /// crée un shipment REQUESTED et notifie les transporteurs éligibles
+  /// via leurs routes déclarées (matching automatique).
+  Future<void> requestTransport({
+    required String commandeId,
+    String? pickupAddress,
+    String? notes,
+  }) async {
+    await _api.post<Map<String, dynamic>>(
+      ApiEndpoints.coopTransportRequests,
+      body: {
+        'commande_id': commandeId,
+        if (pickupAddress != null) 'pickup_address': pickupAddress,
+        if (notes != null) 'notes': notes,
+      },
+    );
+  }
+
   List<T> _asList<T>(dynamic raw, T Function(Map<String, dynamic>) from) {
     if (raw is List) {
       return raw

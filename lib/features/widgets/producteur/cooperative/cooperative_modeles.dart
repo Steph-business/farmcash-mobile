@@ -37,44 +37,12 @@ class SollicitationMock {
   });
 }
 
-const List<PubMock> kPubsMockCoop = [
-  PubMock(
-    id: 'PUB-001',
-    titre: 'Maïs grain blanc',
-    quantite: '4 500 kg agrégés',
-    prix: '350 F/kg',
-  ),
-  PubMock(
-    id: 'PUB-002',
-    titre: 'Manioc frais',
-    quantite: '6 200 kg agrégés',
-    prix: '200 F/kg',
-  ),
-  PubMock(
-    id: 'PUB-003',
-    titre: 'Cacao fèves',
-    quantite: '1 800 kg agrégés',
-    prix: '1 250 F/kg',
-  ),
-];
-
-const List<SollicitationMock> kSollicitationsMockCoop = [
-  SollicitationMock(
-    id: 'SOL-001',
-    titre: 'Cacao fèves · 500 kg demandés',
-    date: 'il y a 2 j',
-  ),
-  SollicitationMock(
-    id: 'SOL-002',
-    titre: 'Maïs blanc · 300 kg demandés',
-    date: 'il y a 5 j',
-  ),
-  SollicitationMock(
-    id: 'SOL-003',
-    titre: 'Manioc · 800 kg demandés',
-    date: 'il y a 1 sem',
-  ),
-];
+// NB : les listes mock `kPubsMockCoop` / `kSollicitationsMockCoop` ont
+// été supprimées le 2026-06-02. La page « Ma coopérative » fetche
+// désormais les vraies données via `CooperativesService` (cf.
+// `cooperative_page.dart` → `_coopBundleProvider`). Les classes
+// `PubMock` / `SollicitationMock` ci-dessus restent comme DTOs
+// d'affichage légers consommés par les widgets de liste.
 
 /// Renvoie les initiales d'une chaîne (1 ou 2 caractères majuscules).
 String initialesCoop(String s) {

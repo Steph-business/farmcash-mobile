@@ -98,6 +98,31 @@ class CartePrevisionPublication extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 6),
+                  // Pill rouge compact si la coop a refusé — discret mais
+                  // assez visible pour pousser le tap → détail (motif).
+                  if (prevision.coopStatus == 'REJECTED') ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEE2E2),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'Rejetée par la coop',
+                        style: AppTextStyles.labelSmall.copyWith(
+                          fontFamily: 'Poppins',
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.error,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                  ],
                   Text(
                     'Statut : ${_statusLabel(prevision)}',
                     style: AppTextStyles.labelSmall.copyWith(

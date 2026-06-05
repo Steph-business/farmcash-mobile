@@ -14,10 +14,9 @@ import '../../../routing/route_names.dart';
 import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
-import '../../state/auth_state.dart';
+import '../../../theme/app_text_styles.dart';
 import '../../widgets/communs/carte_solde_hero.dart';
 import '../../widgets/communs/chargement.dart';
-import '../../widgets/communs/entete_bonjour.dart';
 import '../../widgets/communs/grille_actions.dart';
 import '../../widgets/communs/header_utilisateur.dart';
 import '../../widgets/communs/vue_erreur.dart';
@@ -161,10 +160,6 @@ class _AccueilContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final actions = data.actionsTotal;
-    final user = ref.watch(currentUserProvider);
-    // La coop a souvent un nom d'organisation comme fullName ; on prend
-    // le premier mot pour rester court dans l'entête.
-    final prenom = (user?.fullName ?? '').trim().split(RegExp(r'\s+')).first;
 
     return Column(
       children: [
@@ -193,16 +188,10 @@ class _AccueilContent extends ConsumerWidget {
                       AppDimens.pagePaddingH,
                       AppDimens.space8,
                       AppDimens.pagePaddingH,
-                      AppDimens.space16,
+                      AppDimens.space24,
                     ),
                     children: [
-                      // A. Hero personnalisé « Bonjour, [nom coop] 👋 »
-                      EnteteBonjour(
-                        prenom: prenom,
-                        question: 'Quelle action aujourd\'hui ?',
-                      ),
-                      AppDimens.vGap16,
-                      // B. Carte solde — trésorerie coopérative
+                      // Trésorerie coopérative
                       CarteSoldeHero(
                         solde: data.solde,
                         onOuvrirWallet: () => context.push(
@@ -211,9 +200,96 @@ class _AccueilContent extends ConsumerWidget {
                         titre: 'Trésorerie coopérative',
                         labelBouton: 'Voir la trésorerie',
                       ),
-                      AppDimens.vGap16,
-                      // C. Grille 2×3 d'actions rapides — toutes les pages
-                      //    clés du rôle coop (Membres, Publications, etc.)
+                      AppDimens.vGap24,
+
+                      // Synthèse (KPIs)
+                      Text(
+                        'Synthèse',
+                        style: AppTextStyles.titleMedium.copyWith(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      AppDimens.vGap12,
+                      Row(
+                        children: [
+                          _KpiCard(
+                            label: 'Stock (kg)',
+                            value: data.stockKg.toStringAsFixed(0),
+                            icon: Icons.inventory_2_outlined,
+                          ),
+                          const SizedBox(width: 12),
+                          _KpiCard(
+                            label: 'Membres',
+                            value: data.nbMembres.toString(),
+                            icon: Icons.groups_outlined,
+                          ),
+                        ],
+                      ),
+                      AppDimens.vGap24,
+
+                      // À traiter (Alertes)
+                      if (data.nbAnnoncesAValider > 0) ...[
+                        Text(
+                          'À traiter',
+                          style: AppTextStyles.titleMedium.copyWith(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        AppDimens.vGap12,
+                        InkWell(
+                          onTap: () => context.push(RouteNames.cooperativeCollectePath),
+                          borderRadius: BorderRadius.circular(14),
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF3E0), // Orange très léger
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: const Color(0xFFFFCC80), width: 1),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.warning_amber_rounded, color: Color(0xFFE65100), size: 28),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '${data.nbAnnoncesAValider} livraisons en attente',
+                                        style: AppTextStyles.titleSmall.copyWith(
+                                          fontWeight: FontWeight.w700,
+                                          color: const Color(0xFFE65100),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Pesée et validation requises',
+                                        style: AppTextStyles.bodySmall.copyWith(
+                                          color: const Color(0xFFE65100).withOpacity(0.8),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(Icons.arrow_forward_ios, color: Color(0xFFE65100), size: 16),
+                              ],
+                            ),
+                          ),
+                        ),
+                        AppDimens.vGap24,
+                      ],
+
+                      // Raccourcis rapides
+                      Text(
+                        'Raccourcis rapides',
+                        style: AppTextStyles.titleMedium.copyWith(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      AppDimens.vGap12,
                       GrilleActions(actions: _actions(context)),
                     ],
                   ),
@@ -223,21 +299,21 @@ class _AccueilContent extends ConsumerWidget {
     );
   }
 
-  /// Liste des 6 actions de la grille accueil coopérative — alignée
-  /// sur le pattern maquette FarmCash AI : 6 portes d'entrée évidentes
-  /// vers les pages clés du rôle coop. Ordre conservé pour cohérence
-  /// cross-session.
+  /// Liste des 6 actions de la grille accueil coopérative.
   List<ActionRapide> _actions(BuildContext context) => [
+        ActionRapide(
+          icone: Icons.inventory_2_outlined,
+          label: 'Collecte',
+          onTap: () => context.push(RouteNames.cooperativeCollectePath),
+        ),
         ActionRapide(
           icone: Icons.groups_outlined,
           label: 'Membres',
-          // Onglet shell → go pour activer la branche bottom nav.
           onTap: () => context.go(RouteNames.cooperativeMembresPath),
         ),
         ActionRapide(
           icone: Icons.campaign_outlined,
           label: 'Publications',
-          // Onglet shell Marché → go.
           onTap: () => context.go(RouteNames.cooperativeMarchePath),
         ),
         ActionRapide(
@@ -256,11 +332,65 @@ class _AccueilContent extends ConsumerWidget {
           label: 'Logistique',
           onTap: () => context.push(RouteNames.cooperativeLogistiquePath),
         ),
-        ActionRapide(
-          icone: Icons.more_horiz,
-          label: 'Plus',
-          onTap: () => context.push(RouteNames.cooperativeProfilPath),
-        ),
       ];
+}
+
+class _KpiCard extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+
+  const _KpiCard({required this.label, required this.value, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.border, width: AppDimens.borderThin),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: AppColors.primary, size: 20),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              value,
+              style: AppTextStyles.titleMedium.copyWith(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                fontFamily: 'Poppins',
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 

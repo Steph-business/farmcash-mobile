@@ -9,8 +9,8 @@ import '../../../../models/produit.dart';
 import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
-import '../../../../theme/app_text_styles.dart';
 import '../../../state/auth_state.dart';
+import '../../../widgets/communs/produit/selecteur_choix_premium.dart';
 import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/cooperative/stock/bouton_sticky_lot.dart';
 import '../../../widgets/cooperative/stock/champ_date_lot.dart';
@@ -18,7 +18,6 @@ import '../../../widgets/cooperative/stock/champ_unite_lot.dart';
 import '../../../widgets/cooperative/stock/chip_lot.dart';
 import '../../../widgets/cooperative/stock/entete_reception_lot.dart';
 import '../../../widgets/cooperative/stock/etiquette_champ_lot.dart';
-import '../../../widgets/cooperative/stock/selecteur_produit_lot.dart';
 import '../../../widgets/cooperative/stock/titre_section_lot.dart';
 
 /// Sources possibles → mappées sur le champ `type` du lot.
@@ -92,50 +91,6 @@ class _ReceptionLotPageState extends ConsumerState<ReceptionLotPage> {
     }
   }
 
-  Future<void> _choisirProduit() async {
-    final produits = await ref.read(_produitsProvider.future);
-    if (!mounted) return;
-    final selected = await showModalBottomSheet<Produit>(
-      context: context,
-      backgroundColor: AppColors.background,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) {
-        return SafeArea(
-          top: false,
-          child: ListView(
-            shrinkWrap: true,
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                child: Text(
-                  'Choisir un produit',
-                  style: AppTextStyles.titleSmall.copyWith(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              for (final p in produits)
-                ListTile(
-                  title: Text(p.nom),
-                  onTap: () => Navigator.of(ctx).pop(p),
-                ),
-            ],
-          ),
-        );
-      },
-    );
-    if (selected != null && mounted) {
-      setState(() => _produit = selected);
-    }
-  }
-
   Future<void> _enregistrer() async {
     if (_busy) return;
     final user = ref.read(currentUserProvider);
@@ -194,6 +149,9 @@ class _ReceptionLotPageState extends ConsumerState<ReceptionLotPage> {
 
   @override
   Widget build(BuildContext context) {
+    final asyncProduits = ref.watch(_produitsProvider);
+    final produits = asyncProduits.value ?? const <Produit>[];
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -229,9 +187,16 @@ class _ReceptionLotPageState extends ConsumerState<ReceptionLotPage> {
                   const SizedBox(height: 12),
                   const EtiquetteChampLot('Produit'),
                   const SizedBox(height: 6),
-                  SelecteurProduitLot(
-                    produit: _produit,
-                    onTap: _busy ? null : _choisirProduit,
+                  SelecteurChoixPremium<Produit>(
+                    items: produits,
+                    itemActuel: _produit,
+                    onChanged: (p) => setState(() => _produit = p),
+                    titreOf: (p) => p.nom,
+                    sousTitreOf: (p) => 'Catalogue · ${p.slug}',
+                    idOf: (p) => p.id,
+                    placeholder: 'Choisir un produit',
+                    titreSheet: 'Choisis le produit',
+                    enabled: !_busy,
                   ),
                   const SizedBox(height: 14),
                   const EtiquetteChampLot('Quantité réceptionnée'),

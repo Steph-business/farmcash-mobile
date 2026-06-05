@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../models/annonce_achat.dart';
 import '../../../../models/enums.dart';
 import '../../../../models/negociation.dart';
+import '../../../../routing/route_names.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
+import '../offres/offre_modeles.dart';
 import 'demande_recap_card.dart';
 import 'demande_repondre_header.dart';
 
@@ -113,7 +116,7 @@ class DemandeDejaCandidateView extends StatelessWidget {
               AppDimens.vGap16,
               SizedBox(
                 height: 48,
-                child: ElevatedButton(
+                child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: AppColors.onPrimary,
@@ -122,17 +125,36 @@ class DemandeDejaCandidateView extends StatelessWidget {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    // TODO(offres-route): pousser vers la page "Offres
-                    // reçues" du producteur ; le router actuel n'expose
-                    // pas encore une route directe → on pop simplement.
-                  },
-                  child: Text(
-                    'Voir mes offres',
+                  onPressed: () => _ouvrirDiscussion(context),
+                  icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+                  label: Text(
+                    'Voir ma proposition',
                     style: AppTextStyles.button.copyWith(
                       color: AppColors.onPrimary,
                       fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+              AppDimens.vGap8,
+              SizedBox(
+                height: 44,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.text,
+                    side: const BorderSide(color: AppColors.borderStrong),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  onPressed: () =>
+                      context.push(RouteNames.producteurOffresRecuesPath),
+                  icon: const Icon(Icons.inbox_outlined, size: 18),
+                  label: Text(
+                    'Voir toutes mes offres',
+                    style: AppTextStyles.button.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.text,
                     ),
                   ),
                 ),
@@ -151,6 +173,17 @@ class DemandeDejaCandidateView extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  /// Pousse vers la page discussion de cette proposition — c'est la
+  /// porte d'entrée principale pour voir le statut, chatter avec
+  /// l'acheteur, ou annuler sa proposition.
+  void _ouvrirDiscussion(BuildContext context) {
+    final offre = OffreUnifiee.fromProposition(proposition);
+    context.push(
+      RouteNames.producteurOffreDiscussionPathFor(offre.id, kind: 'prop'),
+      extra: offre,
     );
   }
 

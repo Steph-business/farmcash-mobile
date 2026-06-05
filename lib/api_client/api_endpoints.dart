@@ -72,6 +72,15 @@ class ApiEndpoints {
   static String coopCollectionComplete(String id) =>
       '/coop/logistics/collections/$id/complete';
 
+  // ─── LOGISTIQUE COOP — demandes de transport tiers ──────────────────
+  // Endpoint pour lister les commandes coop éligibles (payées sans
+  // shipment) et envoyer une demande de transport. Le backend broadcast
+  // la notif aux transporteurs dont une route matche.
+  static const String coopTransportRequestsEligible =
+      '/coop/logistics/transport-requests/eligible';
+  static const String coopTransportRequests =
+      '/coop/logistics/transport-requests';
+
   // ─── MARKETPLACE — catalogue public ──────────────────────────────────
   static const String produits = '/marketplace/produits';
   static const String categories = '/marketplace/categories';
@@ -120,6 +129,10 @@ class ApiEndpoints {
   static const String previsionsReserver = '/marketplace/previsions/reserver';
   static String previsionConvert(String id) =>
       '/marketplace/previsions/$id/convert';
+  /// Réservations effectuées par les acheteurs sur UNE prévision donnée
+  /// — vue côté FARMER propriétaire (ownership backend).
+  static String previsionReservations(String id) =>
+      '/marketplace/previsions/$id/reservations';
 
   // ─── ORDERS ──────────────────────────────────────────────────────────
   static const String orders = '/orders';
@@ -194,6 +207,10 @@ class ApiEndpoints {
   static String candidatureMessages(String id) =>
       '/negotiation/candidatures/$id/messages';
   static const String propositions = '/negotiation/propositions';
+  /// Upload d'une photo (multipart) avant de créer la proposition.
+  /// Retourne `{ url, key, size }` — le FARMER appelle 1× par image.
+  static const String propositionPhotoUpload =
+      '/negotiation/propositions/upload-photo';
   static String propositionTraiter(String id) =>
       '/negotiation/propositions/$id/traiter';
   static String propositionMessages(String id) =>
@@ -265,6 +282,12 @@ class ApiEndpoints {
   static String coopPublicationById(String id) => '/coop/publications/$id';
   // Chantier 2 — Sollicitations multi-audience (MEMBRES/COOPS_VOISINES/INDEPENDANTS).
   static const String sollicitations = '/coop/sollicitations';
+  /// Liste des sollicitations dont l'utilisateur est destinataire
+  /// (FARMER membre d'une coop ou COOP destinataire d'une autre coop).
+  /// Endpoint sans `:id` à la fin → doit être déclaré avant les
+  /// routes paramétrées dans le router Nest (déjà fait côté backend).
+  static const String sollicitationsForRecipient =
+      '/coop/sollicitations/for-recipient';
   static String sollicitationById(String id) => '/coop/sollicitations/$id';
   static String sollicitationRespond(String id) =>
       '/coop/sollicitations/$id/respond';

@@ -4,11 +4,18 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../routing/route_names.dart';
 import '../../../../theme/app_dimens.dart';
+import 'package:intl/intl.dart';
+
+import '../../../../models/enums.dart';
+import '../../../../models/negociation.dart';
+import '../../../../theme/app_colors.dart';
+import '../../../../theme/app_text_styles.dart';
 import '../../communs/alertes_prix_section.dart';
 import '../../communs/carte_solde_hero.dart';
-import '../../communs/entete_bonjour.dart';
 import '../../communs/grille_actions.dart';
 import '../../communs/snackbars.dart';
+import '../demandes/carte_demande_achat.dart';
+import '../demandes/demande_achat_modeles.dart';
 import 'accueil_producteur_data.dart';
 import 'etat_vide.dart';
 import 'section_conseils.dart';
@@ -53,10 +60,12 @@ class ContenuAccueil extends StatelessWidget {
     Snackbars.showInfo(context, message);
   }
 
-  /// Liste des 6 actions rapides côté producteur (grid 2×3). Ordre pensé
-  /// pour un farmer low-tech : ses outils métier (parcelles, annonces,
-  /// commandes) puis IA, coop, et **offres d'achat** (les demandes des
-  /// acheteurs auxquelles le producteur peut répondre).
+  /// Actions rapides côté producteur (grille 2×3 dynamique). « Offres
+  /// d'achat » a été déplacée en SECTION INLINE plus bas (cartes des
+  /// vraies annonces d'achat des acheteurs), pour permettre au farmer
+  /// de candidater en 1 tap sans passer par un écran intermédiaire.
+  /// On remplit la 6e case par « Sollicitations coop » qui complète
+  /// le hub de demandes entrantes.
   List<ActionRapide> _actions(BuildContext context) => [
         ActionRapide(
           icone: Icons.eco_outlined,
@@ -88,16 +97,14 @@ class ContenuAccueil extends StatelessWidget {
           label: 'Coopérative',
           onTap: () => context.push(RouteNames.producteurCooperativePath),
         ),
-        // Tuile « Offres d'achat » : pointe vers les demandes d'achat
-        // publiées par les acheteurs. Le producteur peut y répondre via
-        // `demande_achat_repondre_page` (négociation). Remplace l'ancien
-        // « Plus » qui ne servait à rien (le profil est déjà accessible
-        // via l'avatar dans le HeaderUtilisateur).
+        // Sollicitations coop — l'autre voie d'entrée des demandes
+        // (groupage d'achat coopérative). Visuellement parallèle à la
+        // section « Offres des acheteurs » plus bas.
         ActionRapide(
-          icone: Icons.shopping_basket_outlined,
-          label: 'Offres d\'achat',
+          icone: Icons.notifications_active_outlined,
+          label: 'Sollicitations',
           onTap: () =>
-              context.push(RouteNames.producteurDemandesAchatPath),
+              context.push(RouteNames.producteurSollicitationsPath),
         ),
       ];
 
@@ -120,9 +127,6 @@ class ContenuAccueil extends StatelessWidget {
         AppDimens.space16,
       ),
       children: [
-        // A. Hero personnalisé « Bonjour, [Prénom] 👋 »
-        EnteteBonjour(prenom: prenom),
-        AppDimens.vGap16,
         // B. Carte solde wallet — CTA « Mon wallet », label « Mes gains »
         CarteSoldeHero(
           solde: data.wallet?.balance,
@@ -134,18 +138,331 @@ class ContenuAccueil extends StatelessWidget {
         AppDimens.vGap16,
         // C. Grille 2×3 d'actions rapides
         GrilleActions(actions: _actions(context)),
-        AppDimens.vGap16,
-        // D. Alertes prix
+        AppDimens.vGap24,
+        // D. Offres des acheteurs — annonces d'achat publiques, listées
+        //    directement sur l'accueil pour candidater en 1 tap (avant,
+        //    c'était une tuile qui forçait un écran intermédiaire).
+        if (data.acheteursQuiCherchent.isNotEmpty)
+          _SectionOffresAcheteurs(
+            demandes: data.acheteursQuiCherchent.take(3).toList(),
+            onVoirTout: () =>
+                context.push(RouteNames.producteurDemandesAchatPath),
+          ),
+        if (data.acheteursQuiCherchent.isNotEmpty) AppDimens.vGap24,
+        // D-bis. Offres REÇUES — candidatures acheteurs sur les annonces
+        //        de vente du producteur, en attente d'action. Symétrique
+        //        de la section précédente. La page « offres reçues »
+        //        existait sans point d'entrée — voilà l'entrée.
+        if (_offresActionnables(data.offresIncoming).isNotEmpty)
+          _SectionOffresRecues(
+            offres: _offresActionnables(data.offresIncoming).take(3).toList(),
+            onVoirTout: () =>
+                context.push(RouteNames.producteurOffresRecuesPath),
+          ),
+        if (_offresActionnables(data.offresIncoming).isNotEmpty)
+          AppDimens.vGap24,
+        // E. Alertes prix
         AlertesPrixSection(
           alertes: alertesPrix,
           onVoirTout: () => _showSoon(context, 'Alertes prix — à venir'),
         ),
         AppDimens.vGap24,
-        // E. Conseil du jour (depuis l'IA insights, masqué si absent)
+        // F. Conseil du jour (depuis l'IA insights, masqué si absent)
         if (data.insights != null && data.insights!.tendances.isNotEmpty)
           SectionConseils(tendance: data.insights!.tendances.first),
         if (data.isEmpty) const EtatVide(),
       ],
+    );
+  }
+}
+
+// ─── Helpers privés ──────────────────────────────────────────────
+
+/// Filtre les candidatures REÇUES qui méritent encore une action du
+/// producteur (PENDING ou COUNTER_OFFERED). Les ACCEPTED/REJECTED sont
+/// masquées — il n'y a plus rien à faire dessus.
+List<Candidature> _offresActionnables(List<Candidature> all) {
+  return all
+      .where((c) =>
+          c.status == NegotiationStatus.pending ||
+          c.status == NegotiationStatus.counterOffered)
+      .toList();
+}
+
+final NumberFormat _nfFr = NumberFormat('#,##0', 'fr_FR');
+
+String? _formatRelatif(DateTime? d) {
+  if (d == null) return null;
+  final diff = DateTime.now().difference(d);
+  if (diff.inMinutes < 1) return 'à l’instant';
+  if (diff.inMinutes < 60) return 'il y a ${diff.inMinutes} min';
+  if (diff.inHours < 24) return 'il y a ${diff.inHours} h';
+  if (diff.inDays < 7) return 'il y a ${diff.inDays} j';
+  final semaines = (diff.inDays / 7).floor();
+  if (semaines < 5) return 'il y a $semaines sem';
+  return 'il y a ${(diff.inDays / 30).floor()} mois';
+}
+
+// ─── Section : Offres des acheteurs (inline accueil) ──────────────
+
+/// Affiche en colonne les 3 dernières annonces d'achat publiques —
+/// le producteur peut candidater en 1 tap (la carte navigue déjà vers
+/// `producteurDemandeAchatRepondrePath`). En-tête avec lien « Voir tout »
+/// vers la liste complète.
+class _SectionOffresAcheteurs extends StatelessWidget {
+  const _SectionOffresAcheteurs({
+    required this.demandes,
+    required this.onVoirTout,
+  });
+
+  /// Annonces d'achat brutes — on les convertit en `MockDemande`
+  /// (format attendu par `CarteDemandeAchat`).
+  final List<dynamic> demandes;
+  final VoidCallback onVoirTout;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Header section : titre gros + sous-titre + lien « Voir tout »
+        // sur la droite. Pattern repris de la maquette client.
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Offres des acheteurs',
+                    style: AppTextStyles.displayLarge.copyWith(
+                      fontFamily: 'Poppins',
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
+                      color: AppColors.text,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Explorez les offres exclusives pour vos récoltes.',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            InkWell(
+              onTap: onVoirTout,
+              borderRadius: BorderRadius.circular(6),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 4,
+                  vertical: 4,
+                ),
+                child: Text(
+                  'VOIR\nTOUT',
+                  textAlign: TextAlign.right,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    fontFamily: 'Poppins',
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.6,
+                    color: AppColors.primary,
+                    height: 1.2,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        // Trait de séparation discret (vert très pâle).
+        Container(
+          height: 1,
+          color: AppColors.primary.withValues(alpha: 0.18),
+        ),
+        const SizedBox(height: 16),
+        for (var i = 0; i < demandes.length; i++) ...[
+          if (i > 0) const SizedBox(height: 14),
+          CarteDemandeAchat(demande: annonceAchatToMock(demandes[i])),
+        ],
+      ],
+    );
+  }
+}
+
+// ─── Section : Offres reçues sur mes annonces ─────────────────────
+
+/// Liste compacte des candidatures d'acheteurs en attente d'action
+/// (PENDING / COUNTER_OFFERED) sur les annonces de vente du producteur.
+/// Tap → page complète « Offres reçues » pour gérer (accepter / refuser
+/// / contre-offre). Avant ce widget, cette page n'avait aucun point
+/// d'entrée depuis l'accueil — elle existait sans être joignable.
+class _SectionOffresRecues extends StatelessWidget {
+  const _SectionOffresRecues({
+    required this.offres,
+    required this.onVoirTout,
+  });
+
+  final List<Candidature> offres;
+  final VoidCallback onVoirTout;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Offres reçues sur tes annonces',
+                style: AppTextStyles.titleLarge.copyWith(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.2,
+                ),
+              ),
+            ),
+            InkWell(
+              onTap: onVoirTout,
+              borderRadius: BorderRadius.circular(6),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 6,
+                  vertical: 4,
+                ),
+                child: Text(
+                  'Voir tout',
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Accepte, refuse ou contre-propose en 1 tap.',
+          style: AppTextStyles.bodySmall.copyWith(
+            fontSize: 12.5,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 12),
+        for (var i = 0; i < offres.length; i++) ...[
+          if (i > 0) const SizedBox(height: 8),
+          _CarteOffreRecue(
+            candidature: offres[i],
+            onTap: onVoirTout,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Carte compacte d'une candidature reçue. Le producteur voit l'essentiel
+/// (quantité, prix proposé, fraîcheur, statut) sans qu'on charge encore
+/// la jointure buyer/annonce — le tap mène à la page détaillée.
+class _CarteOffreRecue extends StatelessWidget {
+  const _CarteOffreRecue({required this.candidature, required this.onTap});
+  final Candidature candidature;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = candidature;
+    final qte = _nfFr.format(c.quantiteKg.round());
+    final prix = _nfFr.format(c.prixProposeKg.round());
+    final relatif = _formatRelatif(c.createdAt) ?? '';
+    final isCounter = c.status == NegotiationStatus.counterOffered;
+
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              // Pastille statut : ambre = à traiter, primary = contre-offre
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: isCounter
+                      ? AppColors.primary.withValues(alpha: 0.12)
+                      : const Color(0xFFB45309).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                alignment: Alignment.center,
+                child: Icon(
+                  isCounter
+                      ? Icons.swap_horiz_rounded
+                      : Icons.mark_email_unread_outlined,
+                  size: 18,
+                  color: isCounter
+                      ? AppColors.primary
+                      : const Color(0xFFB45309),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '$qte kg · $prix F/kg',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.titleSmall.copyWith(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.text,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      isCounter
+                          ? 'Contre-offre reçue · $relatif'
+                          : 'Nouvelle offre · $relatif',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
+                color: AppColors.textSubtle,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

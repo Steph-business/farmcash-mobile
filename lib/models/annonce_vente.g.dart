@@ -75,6 +75,7 @@ _$AnnonceVenteImpl _$$AnnonceVenteImplFromJson(
           unknownValue: CoopAnnonceStatus.unknown,
         ),
       ),
+      rejectedReason: $checkedConvert('rejected_reason', (v) => v as String?),
       photos: $checkedConvert(
         'medias',
         (v) => v == null ? const <String>[] : mediasToPhotos(v),
@@ -119,6 +120,7 @@ _$AnnonceVenteImpl _$$AnnonceVenteImplFromJson(
     'viewsCount': 'views_count',
     'assignedToCooperativeId': 'assigned_to_cooperative_id',
     'coopStatus': 'coop_status',
+    'rejectedReason': 'rejected_reason',
     'photos': 'medias',
     'disponibleJusqu': 'disponible_jusqu',
     'dateRecolte': 'date_recolte',
@@ -158,6 +160,7 @@ Map<String, dynamic> _$$AnnonceVenteImplToJson(
     'assigned_to_cooperative_id': value,
   if (_$CoopAnnonceStatusEnumMap[instance.coopStatus] case final value?)
     'coop_status': value,
+  if (instance.rejectedReason case final value?) 'rejected_reason': value,
   'medias': photosToMedias(instance.photos),
   if (instance.disponibleJusqu?.toIso8601String() case final value?)
     'disponible_jusqu': value,

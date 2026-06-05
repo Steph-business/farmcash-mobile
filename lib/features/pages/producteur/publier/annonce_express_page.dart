@@ -23,6 +23,7 @@ import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
 import '../../../state/auth_state.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/produit/selecteur_choix_premium.dart';
 import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/producteur/publier/_couleurs_publier.dart';
 import '../../../widgets/producteur/publier/apercu_prix_net.dart';
@@ -1023,27 +1024,18 @@ class _AnnonceExpressPageState extends ConsumerState<AnnonceExpressPage> {
               ),
               AppDimens.vGap24,
 
-              // 1. Sélection de la culture
+              // 1. Sélection de la culture (sheet premium emoji + recherche)
               const TitreSection('Culture détectée'),
               AppDimens.vGap12,
-              DropdownButtonFormField<Culture>(
-                initialValue: _culture,
-                isExpanded: true,
-                decoration: const InputDecoration(
-                  contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                ),
-                items: _cultures.map((c) {
-                  final p = _parcelleDeLaCulture(c);
-                  final extraStr = p != null ? ' (${p.nom})' : '';
-                  return DropdownMenuItem<Culture>(
-                    value: c,
-                    child: Text(
-                      '${c.produitNom ?? "Produit"}$extraStr',
-                      style: AppTextStyles.bodyMedium,
-                    ),
-                  );
-                }).toList(),
-                onChanged: (val) => setState(() => _culture = val),
+              SelecteurChoixPremium<Culture>(
+                items: _cultures,
+                itemActuel: _culture,
+                onChanged: (c) => setState(() => _culture = c),
+                titreOf: (c) => c.produitNom ?? 'Produit',
+                sousTitreOf: (c) => _parcelleDeLaCulture(c)?.nom,
+                idOf: (c) => c.id,
+                placeholder: 'Choisir une culture',
+                titreSheet: 'Choisis ta culture',
               ),
               const SizedBox(height: 20),
 

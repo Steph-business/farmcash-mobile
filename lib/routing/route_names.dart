@@ -140,6 +140,18 @@ class RouteNames {
   // Offres reçues sur mes annonces (propositions pending)
   static const producteurOffresRecues = 'producteur-offres-recues';
   static const producteurOffresRecuesPath = '/producteur/offres-recues';
+  // Détail/discussion sur une offre reçue (candidature ou proposition).
+  // L'id identifie la candidature OU la proposition ; le kind (kind=cand|prop)
+  // est passé en query pour router vers le bon endpoint backend.
+  static const producteurOffreDiscussion = 'producteur-offre-discussion';
+  static const producteurOffreDiscussionPath =
+      '/producteur/offres-recues/:id/discussion';
+  static String producteurOffreDiscussionPathFor(String id, {required String kind}) =>
+      '/producteur/offres-recues/$id/discussion?kind=$kind';
+  // Réservations reçues sur mes prévisions de récolte — vue agrégée.
+  static const producteurReservationsRecues = 'producteur-reservations-recues';
+  static const producteurReservationsRecuesPath =
+      '/producteur/reservations-recues';
   // Aperçu de ma coopérative (vue côté membre)
   static const producteurCooperative = 'producteur-cooperative';
   static const producteurCooperativePath = '/producteur/cooperative';
@@ -296,6 +308,7 @@ class RouteNames {
       '/acheteur/vendeurs/$farmerId';
 
   // ─── Onglets COOPÉRATIVE ─────────────────────────────────────────────
+  static const cooperativeMembres = 'cooperative-membres';
   static const cooperativeMembresPath = '/cooperative/membres';
   static const cooperativeStockPath = '/cooperative/stock';
   static const cooperativeMarchePath = '/cooperative/marche';
@@ -371,6 +384,16 @@ class RouteNames {
   static const cooperativePublicationCreer = 'cooperative-publication-creer';
   static const cooperativePublicationCreerPath =
       '/cooperative/publications/creer';
+  // Détail d'une publication coop (vue COOP propriétaire : stats,
+  // commandes reçues, action « fermer la publication »). Distinct de la
+  // vue PRODUCTEUR/membre, qui montre la quote-part du membre dans
+  // l'agrégat.
+  static const cooperativePublicationCoopDetail =
+      'cooperative-publication-coop-detail';
+  static const cooperativePublicationCoopDetailPath =
+      '/cooperative/publications/:id';
+  static String cooperativePublicationCoopDetailPathFor(String id) =>
+      '/cooperative/publications/$id';
   // Offres d'achat reçues (acheteurs côté coop)
   static const cooperativeOffresRecues = 'cooperative-offres-recues';
   static const cooperativeOffresRecuesPath = '/cooperative/offres-recues';

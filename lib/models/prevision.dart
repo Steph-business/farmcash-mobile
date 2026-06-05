@@ -29,6 +29,11 @@ class Prevision with _$Prevision {
     /// modification dès que c'est VALIDATED ou INCLUDED. Côté UI on
     /// désactive les boutons "Modifier" / "Supprimer" en conséquence.
     String? coopStatus,
+    /// Motif renseigné par la coopérative quand elle a refusé cette
+    /// prévision (`coopStatus == REJECTED`). Backend column =
+    /// `rejected_reason`. Affiché au producteur dans une bannière
+    /// rouge soft sur la page détail prévision.
+    @JsonKey(name: 'rejected_reason') String? rejectedReason,
     String? saison,
     String? notes,
     DateTime? createdAt,

@@ -18,11 +18,12 @@ import '../../widgets/authentification/champ_telephone.dart';
 import '../../widgets/authentification/champs_inscription_buyer.dart';
 import '../../widgets/authentification/champs_inscription_cooperative.dart';
 import '../../widgets/authentification/champs_inscription_farmer.dart';
+import '../../widgets/authentification/auth_premium_bg.dart';
 import '../../widgets/authentification/champs_inscription_transporter.dart';
+import '../../widgets/authentification/cta_auth_premium.dart';
 import '../../widgets/authentification/label_champ_inscription.dart';
 import '../../widgets/authentification/logo_farmcash.dart';
 import '../../widgets/authentification/selecteur_langue.dart';
-import '../../widgets/communs/bouton_principal.dart';
 import '../../widgets/communs/bouton_secondaire.dart';
 import '../../widgets/communs/vue_erreur.dart';
 
@@ -378,50 +379,88 @@ class _InscriptionPageState extends ConsumerState<InscriptionPage> {
     final role = _userRole;
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, size: AppDimens.iconL),
-          onPressed: () => context.go(RouteNames.choixRolePath),
-        ),
-      ),
-      body: SafeArea(
-        top: false,
-        child: role == null ? _buildEmptyState() : _buildForm(role),
+      body: Stack(
+        children: [
+          const AuthPremiumBg(),
+          SafeArea(
+            child: Column(
+              children: [
+                // Barre supérieure : back rond premium + langue.
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                  child: Row(
+                    children: [
+                      Material(
+                        color: Colors.white,
+                        shape: const CircleBorder(
+                          side: BorderSide(color: AppColors.border),
+                        ),
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: () =>
+                              context.go(RouteNames.choixRolePath),
+                          child: const SizedBox(
+                            width: 40,
+                            height: 40,
+                            child: Icon(
+                              Icons.arrow_back_rounded,
+                              size: 20,
+                              color: AppColors.text,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      const SelecteurLangue(),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: role == null
+                      ? _buildEmptyState()
+                      : _buildForm(role),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildEmptyState() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: AppDimens.space32),
+      padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          AppDimens.vGap16,
-          const Align(
-            alignment: Alignment.centerRight,
-            child: SelecteurLangue(),
-          ),
-          AppDimens.vGap24,
+          const SizedBox(height: 20),
           const LogoFarmcash(),
-          AppDimens.vGap32,
-          Text('Créer un compte', style: AppTextStyles.displaySmall),
-          AppDimens.vGap8,
+          const SizedBox(height: 28),
           Text(
-            'Choisis d\'abord ton rôle pour continuer.',
-            style: AppTextStyles.bodyMedium.copyWith(
-              color: AppColors.textSecondary,
+            'Créer un compte',
+            style: AppTextStyles.displayLarge.copyWith(
+              fontSize: 28,
+              height: 1.2,
+              letterSpacing: -0.6,
+              color: AppColors.text,
             ),
           ),
-          AppDimens.vGap24,
-          BoutonPrincipal(
-            label: 'Choisir un rôle',
-            onPressed: () => context.go(RouteNames.choixRolePath),
+          const SizedBox(height: 6),
+          Text(
+            "Choisis d'abord ton rôle pour continuer.",
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: AppColors.textSecondary,
+              fontSize: 14.5,
+              height: 1.4,
+            ),
           ),
-          AppDimens.vGap24,
+          const SizedBox(height: 24),
+          CtaAuthPremium(
+            label: 'Choisir un rôle',
+            onTap: () => context.go(RouteNames.choixRolePath),
+          ),
+          const SizedBox(height: 18),
           Center(
             child: LienTexte(
               prefixe: 'Déjà un compte ?',
@@ -436,27 +475,32 @@ class _InscriptionPageState extends ConsumerState<InscriptionPage> {
 
   Widget _buildForm(UserRole role) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: AppDimens.space32),
+      padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          AppDimens.vGap8,
-          const Align(
-            alignment: Alignment.centerRight,
-            child: SelecteurLangue(),
-          ),
-          AppDimens.vGap16,
+          const SizedBox(height: 16),
           const LogoFarmcash(),
-          AppDimens.vGap32,
-          Text('Créer un compte', style: AppTextStyles.displaySmall),
-          AppDimens.vGap8,
+          const SizedBox(height: 28),
+          Text(
+            'Créer un compte',
+            style: AppTextStyles.displayLarge.copyWith(
+              fontSize: 28,
+              height: 1.2,
+              letterSpacing: -0.6,
+              color: AppColors.text,
+            ),
+          ),
+          const SizedBox(height: 6),
           Text(
             'Profil ${_roleLabel(role)}.',
             style: AppTextStyles.bodyMedium.copyWith(
               color: AppColors.textSecondary,
+              fontSize: 14.5,
+              height: 1.4,
             ),
           ),
-          AppDimens.vGap24,
+          const SizedBox(height: 24),
 
           // ── Champs communs ───────────────────────────────────────────
           LabelChampInscription(
@@ -518,10 +562,10 @@ class _InscriptionPageState extends ConsumerState<InscriptionPage> {
           ],
 
           AppDimens.vGap24,
-          BoutonPrincipal(
+          CtaAuthPremium(
             label: 'Créer mon compte',
-            onPressed: _canSubmit ? _soumettre : null,
-            isLoading: _loading,
+            onTap: _canSubmit ? _soumettre : null,
+            loading: _loading,
             enabled: _canSubmit,
           ),
           AppDimens.vGap16,

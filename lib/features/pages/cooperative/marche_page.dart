@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../models/enums.dart';
 import '../../../models/publication_coop.dart';
+import '../../../routing/route_names.dart';
 import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
 import '../../state/auth_state.dart';
 import '../../widgets/communs/chargement.dart';
-import '../../widgets/communs/header_utilisateur.dart';
-import '../../widgets/communs/snackbars.dart';
+import '../../widgets/communs/entete_page_compacte_coop.dart';
 import '../../widgets/communs/vue_erreur.dart';
 import '../../widgets/cooperative/publications/barre_onglets_marche.dart';
 import '../../widgets/cooperative/publications/carte_publication_grille.dart';
@@ -17,7 +18,6 @@ import '../../widgets/cooperative/publications/etat_sans_cooperative.dart';
 import '../../widgets/cooperative/publications/etat_vide_marche.dart';
 import '../../widgets/cooperative/publications/hero_compteur_marche.dart';
 import '../../widgets/cooperative/publications/onglet_marche_publications.dart';
-import '../../widgets/cooperative/publications/titre_marche.dart';
 
 /// Bundle pour la page : publications actives + archivées (filtrées
 /// côté client) + total kg pour le compteur hero.
@@ -62,9 +62,18 @@ class _MarcheCooperativePageState extends ConsumerState<MarcheCooperativePage> {
   OngletMarcheCoop _tab = OngletMarcheCoop.actives;
 
   void _ouvrirPub(PublicationCoop p) {
-    // V1 : pas d'écran "détail publication" coop. On informe via le
-    // snackbar unifié style apps pro (fond sombre + icône colorée).
-    Snackbars.showInfo(context, 'Détail publication ${p.titre} — à venir');
+    // Push hors-shell vers la fiche détail (vue COOP propriétaire :
+    // stats, commandes reçues, action « fermer la publication »).
+    context.push(RouteNames.cooperativePublicationCoopDetailPathFor(p.id))
+        .then((_) {
+      // Au retour de la fiche (fermeture, refresh…), on rafraîchit la
+      // grille pour refléter les éventuelles bascules de statut.
+      final user = ref.read(currentUserProvider);
+      final coopId = user?.cooperativeId;
+      if (coopId != null) {
+        ref.invalidate(_marcheCoopProvider(coopId));
+      }
+    });
   }
 
   @override
@@ -78,8 +87,12 @@ class _MarcheCooperativePageState extends ConsumerState<MarcheCooperativePage> {
         bottom: false,
         child: Column(
           children: [
-            const HeaderUtilisateur(variant: HeaderVariant.cooperative),
-            const TitreMarche(),
+            // Header compact onglet — pas de back (c'est un onglet
+            // bottom-nav), juste le titre + notifs/messages.
+            const EntetePageCompacteCoop(
+              title: 'Marché',
+              showBack: false,
+            ),
             Expanded(
               child: coopId == null
                   ? const EtatSansCooperative()

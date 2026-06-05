@@ -10,7 +10,6 @@ import '../../../../theme/app_dimens.dart';
 import '../../../widgets/acheteur/demandes/champ_date_demande.dart';
 import '../../../widgets/acheteur/demandes/chips_qualite_demande.dart';
 import '../../../widgets/acheteur/demandes/dropdown_coop_demande.dart';
-import '../../../widgets/acheteur/demandes/feuille_selection_produit_demande.dart';
 import '../../../widgets/acheteur/demandes/header_publier_demande.dart';
 import '../../../widgets/acheteur/demandes/hero_photo_demande.dart';
 import '../../../widgets/acheteur/demandes/input_unite_demande.dart';
@@ -18,7 +17,8 @@ import '../../../widgets/acheteur/demandes/publier_demande_constants.dart';
 import '../../../widgets/acheteur/demandes/sticky_publier_demande.dart';
 import '../../../widgets/acheteur/demandes/titre_section_demande.dart';
 import '../../../widgets/acheteur/demandes/tuile_cible_demande.dart';
-import '../../../widgets/acheteur/demandes/tuile_selection_produit_demande.dart';
+// Sélecteur produit générique partagé (cohérence cross-acteurs).
+import '../../../widgets/communs/produit/selecteur_choix_premium.dart';
 import '../../../widgets/communs/snackbars.dart';
 
 /// Transforme un `Produit` backend en `PublierDemandeProduitOption`
@@ -77,30 +77,6 @@ class _PublierDemandePageState extends ConsumerState<PublierDemandePage> {
     _qteCtrl.dispose();
     _prixCtrl.dispose();
     super.dispose();
-  }
-
-  void _ouvrirSelectionProduit(List<PublierDemandeProduitOption> produits) {
-    if (produits.isEmpty) {
-      Snackbars.showInfo(context, 'Catalogue produit indisponible');
-      return;
-    }
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: AppColors.background,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) {
-        return FeuilleSelectionProduitDemande(
-          produits: produits,
-          selectedId: _produit?.id,
-          onPick: (p) {
-            setState(() => _produit = p);
-            Navigator.of(ctx).pop();
-          },
-        );
-      },
-    );
   }
 
   Future<void> _ouvrirDatePicker() async {
@@ -206,10 +182,14 @@ class _PublierDemandePageState extends ConsumerState<PublierDemandePage> {
                 children: [
                   const TitreSectionDemande(title: 'Que cherches-tu ?'),
                   AppDimens.vGap12,
-                  TuileSelectionProduitDemande(
-                    produit: produit,
-                    qualite: _qualite,
-                    onTap: () => _ouvrirSelectionProduit(produits),
+                  SelecteurChoixPremium<PublierDemandeProduitOption>(
+                    items: produits,
+                    itemActuel: produit,
+                    onChanged: (p) => setState(() => _produit = p),
+                    titreOf: (p) => p.nom,
+                    idOf: (p) => p.id,
+                    placeholder: 'Choisir un produit',
+                    titreSheet: 'Choisis ton produit',
                   ),
                   AppDimens.vGap12,
                   if (produit != null) HeroPhotoDemande(photoUrl: produit.photoUrl),

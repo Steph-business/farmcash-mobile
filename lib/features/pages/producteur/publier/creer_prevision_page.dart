@@ -10,6 +10,7 @@ import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/produit/selecteur_choix_premium.dart';
 import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/communs/vue_erreur.dart';
 import '../../../widgets/producteur/publier/date_picker_prevision.dart';
@@ -17,7 +18,6 @@ import '../../../widgets/producteur/publier/help_text_prevision.dart';
 import '../../../widgets/producteur/publier/input_unit_prevision.dart';
 import '../../../widgets/producteur/publier/intro_help_prevision.dart';
 import '../../../widgets/producteur/publier/parcelle_selector_prevision.dart';
-import '../../../widgets/producteur/publier/produit_selector_prevision.dart';
 import '../../../widgets/producteur/publier/sticky_creer_prevision.dart';
 import '../../../widgets/producteur/publier/titre_section_prevision.dart';
 
@@ -207,11 +207,23 @@ class _CreerPrevisionPageState extends ConsumerState<CreerPrevisionPage> {
               AppDimens.vGap16,
               const TitreSectionPrevision(title: 'Quel produit ?'),
               AppDimens.vGap8,
-              ProduitSelectorPrevision(
-                produits: bundle.produits,
-                selectedId: _produitId,
+              SelecteurChoixPremium<Produit>(
+                items: bundle.produits,
+                // Le state est id-based ; on retrouve l'objet pour
+                // l'afficher dans le tap-target premium.
+                itemActuel: _produitId == null
+                    ? null
+                    : bundle.produits.firstWhere(
+                        (p) => p.id == _produitId,
+                        orElse: () => bundle.produits.first,
+                      ),
+                onChanged: (p) => setState(() => _produitId = p.id),
+                titreOf: (p) => p.nom,
+                sousTitreOf: (p) => 'Catalogue · ${p.slug}',
+                idOf: (p) => p.id,
+                placeholder: 'Choisir un produit',
+                titreSheet: 'Choisis le produit prévu',
                 enabled: !_isSubmitting,
-                onChanged: (id) => setState(() => _produitId = id),
               ),
               AppDimens.vGap16,
               const TitreSectionPrevision(title: 'Quantité estimée'),

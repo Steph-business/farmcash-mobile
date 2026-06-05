@@ -16,9 +16,8 @@ import '../../../widgets/cooperative/publications/champ_multiligne_publication.d
 import '../../../widgets/cooperative/publications/champ_titre_publication.dart';
 import '../../../widgets/cooperative/publications/chip_qualite_publication.dart';
 import '../../../widgets/cooperative/publications/entete_publication_creer.dart';
-import '../../../widgets/cooperative/publications/feuille_choix_produit.dart';
+import '../../../widgets/communs/produit/selecteur_choix_premium.dart';
 import '../../../widgets/cooperative/publications/libelle_section_publication.dart';
-import '../../../widgets/cooperative/publications/selecteur_produit_publication.dart';
 
 /// Bundle de chargement : catalogue produits (pour le dropdown).
 final _publicationBundleProvider =
@@ -72,30 +71,14 @@ class _PublicationCreerPageState extends ConsumerState<PublicationCreerPage> {
     super.dispose();
   }
 
-  Future<void> _choisirProduit(List<Produit> produits) async {
-    if (produits.isEmpty) {
-      Snackbars.showInfo(context, 'Catalogue produit indisponible');
-      return;
-    }
-    final selected = await showModalBottomSheet<Produit>(
-      context: context,
-      backgroundColor: AppColors.background,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) => FeuilleChoixProduit(
-        produits: produits,
-        selectedId: _produit?.id,
-      ),
-    );
-    if (selected != null && mounted) {
-      setState(() {
-        _produit = selected;
-        if (_titreCtrl.text.trim().isEmpty) {
-          _titreCtrl.text = selected.nom;
-        }
-      });
-    }
+  /// Callback du sélecteur premium : applique la sélection + auto-titre.
+  void _onProduitChange(Produit p) {
+    setState(() {
+      _produit = p;
+      if (_titreCtrl.text.trim().isEmpty) {
+        _titreCtrl.text = p.nom;
+      }
+    });
   }
 
   Future<void> _publier() async {
@@ -175,9 +158,15 @@ class _PublicationCreerPageState extends ConsumerState<PublicationCreerPage> {
                 children: [
                   const LibelleSectionPublication(label: 'Produit à publier'),
                   AppDimens.vGap8,
-                  SelecteurProduitPublication(
-                    produit: _produit,
-                    onTap: () => _choisirProduit(produits),
+                  SelecteurChoixPremium<Produit>(
+                    items: produits,
+                    itemActuel: _produit,
+                    onChanged: _onProduitChange,
+                    titreOf: (p) => p.nom,
+                    sousTitreOf: (p) => 'Catalogue · ${p.slug}',
+                    idOf: (p) => p.id,
+                    placeholder: 'Choisir un produit',
+                    titreSheet: 'Choisis le produit',
                   ),
                   AppDimens.vGap24,
                   const LibelleSectionPublication(label: 'Titre de l\'annonce'),

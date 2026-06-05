@@ -254,8 +254,11 @@ class CooperativesService {
   }) async {
     final raw = await _api.get<dynamic>(
       ApiEndpoints.coopAnnoncesVenteAssigned,
+      // Backend DTO `ListPendingAnnoncesQueryDto` attend `status` (pas
+      // `coop_status`) — sinon 400 « property coop_status should not
+      // exist » (whitelist+forbidNonWhitelisted activés côté NestJS).
       query: {
-        if (coopStatus != null) 'coop_status': coopStatus.apiValue,
+        if (coopStatus != null) 'status': coopStatus.apiValue,
       },
     );
     return _asList(raw, AnnonceVente.fromJson);
@@ -269,6 +272,7 @@ class CooperativesService {
   Future<AnnonceVente> validateAnnonceVente({
     required String id,
     required double quantiteKgReelle,
+    double? prixValideKg,
     ProductQuality? qualiteReelle,
     String? notesPesee,
   }) async {
@@ -276,6 +280,7 @@ class CooperativesService {
       ApiEndpoints.coopAnnonceVenteValidate(id),
       body: {
         'quantite_kg_reelle': quantiteKgReelle,
+        if (prixValideKg != null) 'prix_valide_kg': prixValideKg,
         if (qualiteReelle != null) 'qualite_reelle': qualiteReelle.apiValue,
         if (notesPesee != null) 'notes_pesee': notesPesee,
       },
@@ -310,8 +315,9 @@ class CooperativesService {
   }) async {
     final raw = await _api.get<dynamic>(
       ApiEndpoints.coopPrevisionsAssigned,
+      // Idem `listAssignedAnnoncesVente` : backend attend `status`.
       query: {
-        if (coopStatus != null) 'coop_status': coopStatus.apiValue,
+        if (coopStatus != null) 'status': coopStatus.apiValue,
       },
     );
     return _asList(raw, Prevision.fromJson);
@@ -528,6 +534,13 @@ class CooperativesService {
     required List<String> audiences,
     int? rayonKm,
     int? dureeJours,
+    /// Prix minimum F/kg que la coop garantit aux fournisseurs. Si null,
+    /// pas de prix imposé (négocié individuellement à chaque réponse).
+    double? prixMinKg,
+    /// Si true, les fournisseurs peuvent répondre « Je fournirai dans X
+    /// jours » (engagement futur). Sinon (défaut), la coop attend du
+    /// stock immédiatement disponible.
+    bool? permetEngagementsAVenir,
   }) async {
     return _api.post<Map<String, dynamic>>(
       ApiEndpoints.sollicitations,
@@ -537,11 +550,16 @@ class CooperativesService {
         'audiences': audiences,
         if (rayonKm != null) 'rayon_km': rayonKm,
         if (dureeJours != null) 'duree_jours': dureeJours,
+        if (prixMinKg != null) 'prix_min_kg': prixMinKg,
+        if (permetEngagementsAVenir != null)
+          'permet_engagements_a_venir': permetEngagementsAVenir,
       },
     );
   }
 
   /// Liste paginée des sollicitations émises par la coop courante.
+  /// **Réservé COOPERATIVE.** Pour la vue côté FARMER (destinataire),
+  /// utiliser [listSollicitationsPourMoi].
   Future<Paginated<Sollicitation>> listSollicitations({
     String? status,
     int page = 1,
@@ -549,6 +567,28 @@ class CooperativesService {
   }) async {
     final raw = await _api.get<dynamic>(
       ApiEndpoints.sollicitations,
+      query: {
+        if (status != null) 'status': status,
+        'page': page,
+        'limit': limit,
+      },
+    );
+    return Paginated.fromJsonOrList(raw, Sollicitation.fromJson);
+  }
+
+  /// Sollicitations dont l'utilisateur courant est **destinataire** —
+  /// vue FARMER (ou COOP destinataire d'une autre coop).
+  ///
+  /// Backend : `GET /coop/sollicitations/for-recipient` (filtre via
+  /// `sollicitation_recipients.user_id`). Avant cette méthode, les pages
+  /// producteur tapaient l'endpoint COOP-only et recevaient un 403.
+  Future<Paginated<Sollicitation>> listSollicitationsPourMoi({
+    String? status,
+    int page = 1,
+    int limit = 20,
+  }) async {
+    final raw = await _api.get<dynamic>(
+      ApiEndpoints.sollicitationsForRecipient,
       query: {
         if (status != null) 'status': status,
         'page': page,

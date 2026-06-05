@@ -13,6 +13,7 @@ import '../../../../theme/app_dimens.dart';
 import '../../../widgets/communs/chargement.dart';
 import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/communs/vue_erreur.dart';
+import '../../../widgets/producteur/publications/banniere_motif_rejet.dart';
 import '../../../widgets/producteur/publications/header_annonce_detail.dart';
 import '../../../widgets/producteur/publications/hero_annonce_detail.dart';
 import '../../../widgets/producteur/publications/kpi_row_annonce.dart';
@@ -179,6 +180,18 @@ class _Content extends ConsumerWidget {
             padding: const EdgeInsets.only(bottom: 100),
             children: [
               HeroAnnonceDetail(annonce: annonce),
+              // Motif de rejet coop — sous le hero pour visibilité max
+              // quand l'annonce a été refusée par la coopérative.
+              if (annonce.coopStatus == CoopAnnonceStatus.rejected) ...[
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppDimens.pagePaddingH,
+                  ),
+                  child: BanniereMotifRejet(motif: annonce.rejectedReason),
+                ),
+                const SizedBox(height: 8),
+              ],
               KpiRowAnnonce(
                 vues: annonce.viewsCount,
                 messages: candidatures.length,

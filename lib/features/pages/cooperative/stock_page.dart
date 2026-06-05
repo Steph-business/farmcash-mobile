@@ -9,13 +9,12 @@ import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../widgets/communs/chargement.dart';
-import '../../widgets/communs/header_utilisateur.dart';
+import '../../widgets/communs/entete_page_compacte_coop.dart';
 import '../../widgets/communs/vue_erreur.dart';
 import '../../widgets/cooperative/stock/carte_entrepot.dart';
 import '../../widgets/cooperative/stock/carte_lots_recents.dart';
 import '../../widgets/cooperative/stock/resume_stock.dart';
 import '../../widgets/cooperative/stock/titre_section_stock.dart';
-import '../../widgets/cooperative/stock/titre_stock.dart';
 
 /// Bundle entrepôts + lots récents pour cette page d'accueil stock.
 class _StockBundle {
@@ -54,8 +53,11 @@ class StockCooperativePage extends ConsumerWidget {
         bottom: false,
         child: Column(
           children: [
-            const HeaderUtilisateur(variant: HeaderVariant.cooperative),
-            const TitreStock(),
+            // Header compact onglet — pas de back (onglet bottom-nav).
+            const EntetePageCompacteCoop(
+              title: 'Stock',
+              showBack: false,
+            ),
             Expanded(
               child: async.when(
                 loading: () => const Padding(

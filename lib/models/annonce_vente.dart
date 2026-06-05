@@ -43,6 +43,12 @@ class AnnonceVente with _$AnnonceVente {
     String? assignedToCooperativeId,
     @JsonKey(unknownEnumValue: CoopAnnonceStatus.unknown)
     CoopAnnonceStatus? coopStatus,
+    /// Motif renseigné par la coopérative quand elle a refusé cette
+    /// annonce (`coopStatus == REJECTED`). Renvoyé tel quel par Prisma
+    /// dans la colonne `rejected_reason` — d'où le `@JsonKey(name:...)`.
+    /// Affiché au producteur dans une bannière rouge soft pour qu'il
+    /// sache quoi corriger avant de re-publier.
+    @JsonKey(name: 'rejected_reason') String? rejectedReason,
     /// Le backend renvoie les photos dans la table `medias` jointe :
     /// `medias: [{url, thumbnail_url}]`. On extrait l'URL utilisable et on
     /// retombe sur un `photos: [...]` plat utilisé par les widgets.

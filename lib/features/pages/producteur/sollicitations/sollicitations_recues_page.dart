@@ -11,13 +11,14 @@ import '../../../widgets/communs/vue_erreur.dart';
 import '../../../widgets/producteur/sollicitations/header_sollicitations_recues.dart';
 import '../../../widgets/producteur/sollicitations/liste_sollicitations_recues.dart';
 
-/// Récupère la liste des sollicitations actives ciblant le producteur courant
-/// via `CooperativesService.listSollicitations`.
+/// Récupère la liste des sollicitations actives **dont le producteur est
+/// destinataire** (table `sollicitation_recipients`).
+/// L'ancien appel `listSollicitations` est COOP-only → 403 pour FARMER.
 final _sollicitationsProvider =
     FutureProvider.autoDispose<List<Sollicitation>>((ref) async {
   final paginated = await ref
       .watch(cooperativesServiceProvider)
-      .listSollicitations(status: 'OPEN', limit: 50);
+      .listSollicitationsPourMoi(status: 'OPEN', limit: 50);
   return paginated.data;
 });
 
