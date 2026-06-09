@@ -88,7 +88,7 @@ class _VehiculeAjouterTransporteurPageState
     } on ApiException catch (e) {
       if (mounted) Snackbars.showErreur(context, e.message);
     } catch (e) {
-      if (mounted) Snackbars.showErreur(context, 'Erreur : $e');
+      if (mounted) Snackbars.showErreurInattendue(context, e);
     } finally {
       if (mounted) setState(() => _busy = false);
     }

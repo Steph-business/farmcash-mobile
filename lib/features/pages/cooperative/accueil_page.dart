@@ -319,7 +319,13 @@ class _AccueilContent extends ConsumerWidget {
         ActionRapide(
           icone: Icons.payments_outlined,
           label: 'Avances',
-          onTap: () => context.push(RouteNames.cooperativeAvancesPath),
+          // Fix 2026-06-06 : `cooperativeAvancesPath` ('/cooperative/avances')
+          // était une constante orpheline (pas de GoRoute enregistré),
+          // d'où le "no routes for location" 404. La page « Verser une
+          // avance » est l'écran principal d'avances — on pointe dessus
+          // directement (de toute façon il n'y a pas de page liste
+          // d'avances séparée pour l'instant).
+          onTap: () => context.push(RouteNames.cooperativeVerserAvancePath),
         ),
         ActionRapide(
           icone: Icons.support_agent_outlined,

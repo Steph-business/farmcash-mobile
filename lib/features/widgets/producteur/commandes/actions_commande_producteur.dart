@@ -95,19 +95,35 @@ class _ActionsCommandeProducteurState
   Widget build(BuildContext context) {
     final shipEnabled = _canShip && !_busy;
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.background,
-        border: Border(
+        // Légère ombre haute pour décoller la barre du contenu — donne
+        // l'effet « plateau flottant » premium plutôt qu'un simple trait.
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, -4),
+          ),
+        ],
+        border: const Border(
           top: BorderSide(
             color: AppColors.border,
             width: AppDimens.borderThin,
           ),
         ),
       ),
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
+      // SafeArea bottom — sans ça, sur iPhone avec home indicator, le
+      // bouton est collé au bord inférieur (pas de respiration, et la
+      // zone de tap déborde sur le swipe-home).
+      child: SafeArea(
+        top: false,
+        minimum: const EdgeInsets.only(bottom: 8),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
           // CTA principal : QR d'enlèvement (statut ACCEPTED). C'est le
           // déclencheur du flow — montrer ce QR au transporteur qui
           // arrive. Pas de "Confirmer" à taper côté producteur : le
@@ -117,38 +133,41 @@ class _ActionsCommandeProducteurState
           if (_canShowQr)
             SizedBox(
               width: double.infinity,
-              child: InkWell(
-                onTap: () => context.push(
-                  RouteNames
-                      .producteurCommandeEnlevementQrPathFor(widget.commande.id),
-                ),
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  height: 54,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(12),
+              child: Material(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(14),
+                elevation: 0,
+                child: InkWell(
+                  onTap: () => context.push(
+                    RouteNames.producteurCommandeEnlevementQrPathFor(
+                      widget.commande.id,
+                    ),
                   ),
-                  alignment: Alignment.center,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.qr_code_2,
-                        size: 22,
-                        color: AppColors.onPrimary,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Voir mon QR d\'enlèvement',
-                        style: AppTextStyles.button.copyWith(
-                          fontSize: 15,
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    height: 56,
+                    alignment: Alignment.center,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.qr_code_2_rounded,
+                          size: 22,
                           color: AppColors.onPrimary,
-                          fontWeight: FontWeight.w700,
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 10),
+                        Text(
+                          'Voir mon QR d\'enlèvement',
+                          style: AppTextStyles.button.copyWith(
+                            fontSize: 15,
+                            color: AppColors.onPrimary,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -158,47 +177,47 @@ class _ActionsCommandeProducteurState
               width: double.infinity,
               child: Opacity(
                 opacity: shipEnabled ? 1 : 0.5,
-                child: InkWell(
-                  onTap: shipEnabled ? _markShipped : null,
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    height: 54,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    alignment: Alignment.center,
-                    child: _busy
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              color: Colors.white,
-                            ),
-                          )
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.local_shipping_outlined,
-                                size: 20,
-                                color: AppColors.onPrimary,
+                child: Material(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(14),
+                  child: InkWell(
+                    onTap: shipEnabled ? _markShipped : null,
+                    borderRadius: BorderRadius.circular(14),
+                    child: Container(
+                      height: 56,
+                      alignment: Alignment.center,
+                      child: _busy
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                color: Colors.white,
                               ),
-                              const SizedBox(width: 8),
-                              Text(
-                                shipEnabled
-                                    ? 'Marquer comme expédiée'
-                                    : 'Déjà expédiée',
-                                style: AppTextStyles.button.copyWith(
-                                  fontSize: 15,
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.local_shipping_outlined,
+                                  size: 20,
                                   color: AppColors.onPrimary,
-                                  fontWeight: FontWeight.w700,
                                 ),
-                              ),
-                            ],
-                          ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  shipEnabled
+                                      ? 'Marquer comme expédiée'
+                                      : 'Déjà expédiée',
+                                  style: AppTextStyles.button.copyWith(
+                                    fontSize: 15,
+                                    color: AppColors.onPrimary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                    ),
                   ),
                 ),
               ),
@@ -239,6 +258,8 @@ class _ActionsCommandeProducteurState
             ),
           ],
         ],
+      ),
+        ),
       ),
     );
   }

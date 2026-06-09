@@ -6,7 +6,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../api_client/api_exception.dart';
 import '../../../../models/annonce_vente.dart';
+import '../../../../models/buyer_address.dart';
 import '../../../../models/enums.dart';
+import '../../../../models/livraison.dart';
 import '../../../../models/wallet_with_transactions.dart';
 import '../../../../routing/route_names.dart';
 import '../../../../services/orders_service.dart' show OrderSourceType;
@@ -14,6 +16,7 @@ import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../state/badges_state.dart';
+import '../../../widgets/acheteur/commandes/bandeau_confiance_escrow.dart';
 import '../../../widgets/acheteur/commandes/bandeau_solde_insuffisant.dart';
 import '../../../widgets/acheteur/commandes/carte_adresse_livraison.dart';
 import '../../../widgets/acheteur/commandes/carte_montants_paiement.dart';
@@ -32,22 +35,35 @@ import '../../../widgets/communs/vue_erreur.dart';
 // ─── Provider ─────────────────────────────────────────────────────────
 
 class _PaiementBundle {
-  const _PaiementBundle({required this.annonce, required this.wallet});
+  const _PaiementBundle({
+    required this.annonce,
+    required this.wallet,
+    required this.addresses,
+  });
   final AnnonceVente annonce;
   final WalletWithTransactions? wallet;
+  /// Adresses de livraison enregistrées par le buyer. Vide si aucune.
+  /// Utilisée pour pré-remplir `delivery_address` au paiement (et donc
+  /// permettre au backend de faire le matching auto transporteur).
+  final List<BuyerAddress> addresses;
 }
 
 final _paiementBundleProvider = FutureProvider.autoDispose
     .family<_PaiementBundle, String>((ref, annonceId) async {
   final svc = ref.read(marketplaceServiceProvider);
   final finance = ref.read(financeServiceProvider);
+  final buyer = ref.read(buyerServiceProvider);
   final results = await Future.wait<dynamic>([
     svc.getAnnonceVente(annonceId),
     finance.getWallet(limit: 1).then<Object?>((v) => v).catchError((_) => null),
+    buyer.listAddresses().then<Object?>((v) => v).catchError(
+          (_) => const <BuyerAddress>[],
+        ),
   ]);
   return _PaiementBundle(
     annonce: results[0] as AnnonceVente,
     wallet: results[1] as WalletWithTransactions?,
+    addresses: results[2] as List<BuyerAddress>,
   );
 });
 
@@ -72,6 +88,11 @@ class _PaiementCommandePageState extends ConsumerState<PaiementCommandePage> {
   ModeLivraisonPaiement _livraison = ModeLivraisonPaiement.auto;
   final TextEditingController _noteCtrl = TextEditingController();
   bool _busy = false;
+
+  /// Quote (route + transporteur + prix) sélectionnée quand l'acheteur
+  /// est passé sur la page « Choisir mon transporteur » en mode manuel.
+  /// Null si pas encore choisi OU si mode = auto.
+  TransportQuote? _quoteChoisie;
 
   @override
   void dispose() {
@@ -142,17 +163,37 @@ class _PaiementCommandePageState extends ConsumerState<PaiementCommandePage> {
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
             children: [
               CarteRecapPaiement(annonce: annonce, quantiteKg: qte),
+              const SizedBox(height: 12),
+              // Bandeau confiance escrow — premium (3 puces) si total
+              // >= 500 000 F, compact sinon. Réduit l'hésitation de
+              // l'acheteur sur le paiement 100% upfront, surtout pour
+              // les gros volumes coopérative (5T = 4-5 M F).
+              BandeauConfianceEscrow(montantTotal: total),
               const SizedBox(height: 18),
               const TitreSectionPaiement('Mode de livraison'),
               const SizedBox(height: 10),
               OptionsLivraison(
                 selection: _livraison,
-                onChange: (mode) {
-                  setState(() => _livraison = mode);
+                onChange: (mode) async {
+                  setState(() {
+                    _livraison = mode;
+                    // Switch vers auto → on oublie la quote précédemment
+                    // choisie (sinon on enverrait l'ID au backend alors
+                    // que l'user a changé d'avis).
+                    if (mode == ModeLivraisonPaiement.auto) {
+                      _quoteChoisie = null;
+                    }
+                  });
                   if (mode == ModeLivraisonPaiement.choisir) {
-                    context.push(
+                    // Push la page liste de transporteurs. Le tap sur
+                    // une carte pop la quote choisie → on la stocke
+                    // pour l'envoyer au backend lors du paiement.
+                    final result = await context.push<TransportQuote>(
                       RouteNames.acheteurChoisirTransporteurPath,
                     );
+                    if (result != null && mounted) {
+                      setState(() => _quoteChoisie = result);
+                    }
                   }
                 },
               ),
@@ -247,12 +288,47 @@ class _PaiementCommandePageState extends ConsumerState<PaiementCommandePage> {
         orElse: () => moyens.first,
       );
 
-      // 2) Crée la commande avec le payment_method_id explicite.
+      // 2) Résoud l'adresse de livraison : par défaut, la 1re adresse
+      //    `is_default` du buyer (sinon la 1re tout court). Sans
+      //    delivery_address, le backend ne peut PAS faire le matching
+      //    auto transporteur — le shipment ne sera pas créé.
+      final bundle = ref.read(_paiementBundleProvider(annonce.id)).value;
+      BuyerAddress? defaultAdd;
+      if (bundle != null && bundle.addresses.isNotEmpty) {
+        defaultAdd = bundle.addresses.firstWhere(
+          (a) => a.isDefault,
+          orElse: () => bundle.addresses.first,
+        );
+      }
+      final deliveryAddress =
+          defaultAdd != null && defaultAdd.adresseComplete.isNotEmpty
+              ? defaultAdd.adresseComplete
+              : null;
+
+      // 3) Branche transport selon le mode choisi :
+      //   - choisir + quote sélectionnée → on envoie l'ID de la route
+      //   - auto                          → on envoie auto_assign = true
+      //                                     le backend trouvera la route
+      //   - choisir SANS quote (l'user n'a pas validé la liste)
+      //                                   → fallback auto
+      String? transporterRouteId;
+      bool autoAssign = false;
+      if (_livraison == ModeLivraisonPaiement.choisir &&
+          _quoteChoisie != null) {
+        transporterRouteId = _quoteChoisie!.routeId;
+      } else {
+        autoAssign = true;
+      }
+
+      // 4) Crée la commande avec tous les paramètres logistique.
       final commande = await ref.read(ordersServiceProvider).createOrder(
             sourceType: OrderSourceType.directAnnonceVente,
             annonceVenteId: annonce.id,
             quantiteKg: qte.toDouble(),
             paymentMethodId: defaultMp.id,
+            transporterRouteId: transporterRouteId,
+            autoAssignTransporter: autoAssign,
+            deliveryAddress: deliveryAddress,
             idempotencyKey: idempotencyKey,
           );
 
@@ -288,7 +364,7 @@ class _PaiementCommandePageState extends ConsumerState<PaiementCommandePage> {
     } on ApiException catch (e) {
       if (mounted) Snackbars.showErreur(context, e.message);
     } catch (e) {
-      if (mounted) Snackbars.showErreur(context, 'Erreur : $e');
+      if (mounted) Snackbars.showErreurInattendue(context, e);
     } finally {
       if (mounted) setState(() => _busy = false);
     }

@@ -7,6 +7,8 @@ import '../../../../routing/route_names.dart';
 import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
+import '../../../../theme/app_text_styles.dart';
+import '../../../state/auth_state.dart';
 import '../../../widgets/communs/chargement.dart';
 import '../../../widgets/communs/vue_erreur.dart';
 import '../../../widgets/communs/wallet/wallet_widgets.dart';
@@ -117,6 +119,17 @@ class _WalletPageState extends ConsumerState<WalletPage> {
             ),
           ],
         ),
+        // Tuile d'accès « Mes ventes coop » — visible UNIQUEMENT si le
+        // producteur est rattaché à une coopérative. Permet de voir le
+        // détail des contributions à des publications coop avec leur
+        // breakdown brut/FarmCash/commission/avances/net.
+        if (ref.watch(currentUserProvider)?.cooperativeId != null) ...[
+          AppDimens.vGap12,
+          _TuileVentesCoop(
+            onTap: () =>
+                context.push(RouteNames.producteurVentesCoopPath),
+          ),
+        ],
         AppDimens.vGap16,
         ChipsFiltreTx(
           options: const [
@@ -145,3 +158,81 @@ Widget walletErrorView(VoidCallback onRetry) => Padding(
         onRetry: onRetry,
       ),
     );
+
+/// Tuile premium d'accès à la page « Mes ventes coop ». Style pleine
+/// largeur avec icône pastille verte, titre + sous-titre, chevron.
+/// Pattern aligné sur les autres CTA secondaires de l'app.
+class _TuileVentesCoop extends StatelessWidget {
+  const _TuileVentesCoop({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.border),
+          ),
+          padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.groups_outlined,
+                  size: 22,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Mes ventes coop',
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        fontFamily: 'Poppins',
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.text,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Voir tes contributions aux publications coop',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 22,
+                color: AppColors.textSubtle,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

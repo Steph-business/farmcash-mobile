@@ -139,20 +139,11 @@ class ContenuAccueil extends StatelessWidget {
         // C. Grille 2×3 d'actions rapides
         GrilleActions(actions: _actions(context)),
         AppDimens.vGap24,
-        // D. Offres des acheteurs — annonces d'achat publiques, listées
-        //    directement sur l'accueil pour candidater en 1 tap (avant,
-        //    c'était une tuile qui forçait un écran intermédiaire).
-        if (data.acheteursQuiCherchent.isNotEmpty)
-          _SectionOffresAcheteurs(
-            demandes: data.acheteursQuiCherchent.take(3).toList(),
-            onVoirTout: () =>
-                context.push(RouteNames.producteurDemandesAchatPath),
-          ),
-        if (data.acheteursQuiCherchent.isNotEmpty) AppDimens.vGap24,
-        // D-bis. Offres REÇUES — candidatures acheteurs sur les annonces
-        //        de vente du producteur, en attente d'action. Symétrique
-        //        de la section précédente. La page « offres reçues »
-        //        existait sans point d'entrée — voilà l'entrée.
+        // D. Offres REÇUES (urgent — TOI tu dois répondre) — remontée
+        //    en priorité 2026-06-05 pour s'aligner sur la logique
+        //    « ce que tu DOIS faire avant ce que tu PEUX faire ».
+        //    Symétrique du bandeau « offres à traiter » sur l'accueil
+        //    acheteur — pattern cross-acteur cohérent.
         if (_offresActionnables(data.offresIncoming).isNotEmpty)
           _SectionOffresRecues(
             offres: _offresActionnables(data.offresIncoming).take(3).toList(),
@@ -161,6 +152,18 @@ class ContenuAccueil extends StatelessWidget {
           ),
         if (_offresActionnables(data.offresIncoming).isNotEmpty)
           AppDimens.vGap24,
+        // E. Offres des acheteurs — annonces d'achat publiques, listées
+        //    directement sur l'accueil pour candidater en 1 tap (avant,
+        //    c'était une tuile qui forçait un écran intermédiaire).
+        //    Vient APRÈS les offres reçues : ce sont des opportunités,
+        //    pas des actions urgentes.
+        if (data.acheteursQuiCherchent.isNotEmpty)
+          _SectionOffresAcheteurs(
+            demandes: data.acheteursQuiCherchent.take(3).toList(),
+            onVoirTout: () =>
+                context.push(RouteNames.producteurDemandesAchatPath),
+          ),
+        if (data.acheteursQuiCherchent.isNotEmpty) AppDimens.vGap24,
         // E. Alertes prix
         AlertesPrixSection(
           alertes: alertesPrix,

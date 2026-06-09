@@ -224,6 +224,14 @@ class _Liste extends StatelessWidget {
           ),
         AppDimens.vGap24,
 
+        // Accès rapide à la page « Mes ventes coop » — montre les
+        // contributions du producteur aux publications coop avec leur
+        // breakdown brut / FarmCash / commission / avances / net.
+        _TuileMesVentesCoop(
+          onTap: () =>
+              context.push(RouteNames.producteurVentesCoopPath),
+        ),
+        AppDimens.vGap12,
         BoutonMembresCoop(
           onTap: () => Snackbars.showInfo(
             context,
@@ -308,6 +316,54 @@ class _EtatPasDeCoop extends StatelessWidget {
               height: 1.4,
             ),
           ),
+          const SizedBox(height: 20),
+          // CTA primaire : annuaire public des coopératives + demande
+          // d'adhésion. C'est la porte d'entrée du flow d'adhésion
+          // côté producteur (Phase 1 — 2026-06-06).
+          SizedBox(
+            width: double.infinity,
+            height: AppDimens.buttonHeight,
+            child: ElevatedButton.icon(
+              onPressed: () =>
+                  context.push(RouteNames.producteurTrouverCoopPath),
+              icon: const Icon(Icons.search_rounded, size: 18),
+              label: Text(
+                'Trouver une coopérative',
+                style: AppTextStyles.button.copyWith(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: AppDimens.brButton,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          // Lien secondaire : page invitations & demandes en cours.
+          TextButton.icon(
+            onPressed: () =>
+                context.push(RouteNames.producteurInvitationsCoopPath),
+            icon: const Icon(
+              Icons.mail_outline_rounded,
+              size: 16,
+              color: AppColors.primary,
+            ),
+            label: Text(
+              'Voir mes invitations & demandes',
+              style: AppTextStyles.button.copyWith(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -365,4 +421,82 @@ String? _formatRelatif(DateTime? date) {
   if (semaines < 5) return 'il y a $semaines sem';
   final mois = (diff.inDays / 30).floor();
   return 'il y a $mois mois';
+}
+
+/// Tuile premium pleine largeur — accès direct à la page « Mes ventes
+/// coop » du producteur. Cohérent visuellement avec la tuile équivalente
+/// sur wallet_page (même style icône pastille + texte + chevron).
+class _TuileMesVentesCoop extends StatelessWidget {
+  const _TuileMesVentesCoop({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.border),
+          ),
+          padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.payments_outlined,
+                  size: 22,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Mes ventes coop',
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        fontFamily: 'Poppins',
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.text,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Détail des paiements reçus via la coop',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 22,
+                color: AppColors.textSubtle,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

@@ -17,6 +17,8 @@ class ItemTransaction {
     required this.titre,
     required this.sousTitre,
     required this.montant,
+    this.badge,
+    this.onTap,
   });
 
   /// Icône affichée dans la bulle (généralement flèche bas / haut).
@@ -33,6 +35,14 @@ class ItemTransaction {
 
   /// Montant déjà formaté (avec préfixe « + » ou « - » et la devise).
   final String montant;
+
+  /// Badge optionnel affiché sous le titre (ex : « Vente coop »). Si
+  /// `null`, aucun badge n'est rendu — comportement legacy.
+  final String? badge;
+
+  /// Callback optionnel quand l'utilisateur tape sur la ligne. Si `null`,
+  /// la ligne reste non-interactive (pas d'effet ripple).
+  final VoidCallback? onTap;
 }
 
 /// Ligne de transaction — bulle icône colorée + titre/sous-titre + montant.
@@ -56,7 +66,7 @@ class TuileTransaction extends StatelessWidget {
     final bubbleBg = item.entree ? _kPrimarySoft : _kBgSoftIcon;
     final bubbleFg = item.entree ? AppColors.primary : AppColors.textSecondary;
     final amountColor = item.entree ? AppColors.primary : AppColors.text;
-    return Container(
+    final row = Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         border: Border(
@@ -81,14 +91,25 @@ class TuileTransaction extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  item.titre,
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        item.titre,
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (item.badge != null) ...[
+                      const SizedBox(width: 6),
+                      _BadgeVenteCoop(label: item.badge!),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -114,6 +135,36 @@ class TuileTransaction extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+    if (item.onTap == null) return row;
+    return InkWell(onTap: item.onTap, child: row);
+  }
+}
+
+/// Petit badge vert tendre affiché à côté du titre d'une transaction
+/// quand le montant provient d'une vente agrégée par la coopérative.
+class _BadgeVenteCoop extends StatelessWidget {
+  const _BadgeVenteCoop({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: _kPrimarySoft,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: AppTextStyles.labelSmall.copyWith(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: AppColors.primary,
+          height: 1.2,
+        ),
       ),
     );
   }

@@ -386,6 +386,12 @@ mixin _$Proposition {
   DateTime? get createdAt => throw _privateConstructorUsedError;
   DateTime? get updatedAt => throw _privateConstructorUsedError;
 
+  /// Vendeur joint backend (nom, rôle, photo, rating + coop si applicable).
+  /// Permet au mobile de basculer en mode « Garanties coop » dès que
+  /// `vendeur?.cooperative != null`.
+  @JsonKey(name: 'users', fromJson: _vendeurFromJson, toJson: _vendeurToJson)
+  VendeurProposition? get vendeur => throw _privateConstructorUsedError;
+
   /// Serializes this Proposition to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
@@ -414,6 +420,8 @@ abstract class $PropositionCopyWith<$Res> {
     String? message,
     DateTime? createdAt,
     DateTime? updatedAt,
+    @JsonKey(name: 'users', fromJson: _vendeurFromJson, toJson: _vendeurToJson)
+    VendeurProposition? vendeur,
   });
 }
 
@@ -441,6 +449,7 @@ class _$PropositionCopyWithImpl<$Res, $Val extends Proposition>
     Object? message = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
+    Object? vendeur = freezed,
   }) {
     return _then(
       _value.copyWith(
@@ -480,6 +489,10 @@ class _$PropositionCopyWithImpl<$Res, $Val extends Proposition>
                 ? _value.updatedAt
                 : updatedAt // ignore: cast_nullable_to_non_nullable
                       as DateTime?,
+            vendeur: freezed == vendeur
+                ? _value.vendeur
+                : vendeur // ignore: cast_nullable_to_non_nullable
+                      as VendeurProposition?,
           )
           as $Val,
     );
@@ -506,6 +519,8 @@ abstract class _$$PropositionImplCopyWith<$Res>
     String? message,
     DateTime? createdAt,
     DateTime? updatedAt,
+    @JsonKey(name: 'users', fromJson: _vendeurFromJson, toJson: _vendeurToJson)
+    VendeurProposition? vendeur,
   });
 }
 
@@ -532,6 +547,7 @@ class __$$PropositionImplCopyWithImpl<$Res>
     Object? message = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
+    Object? vendeur = freezed,
   }) {
     return _then(
       _$PropositionImpl(
@@ -571,6 +587,10 @@ class __$$PropositionImplCopyWithImpl<$Res>
             ? _value.updatedAt
             : updatedAt // ignore: cast_nullable_to_non_nullable
                   as DateTime?,
+        vendeur: freezed == vendeur
+            ? _value.vendeur
+            : vendeur // ignore: cast_nullable_to_non_nullable
+                  as VendeurProposition?,
       ),
     );
   }
@@ -578,7 +598,7 @@ class __$$PropositionImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$PropositionImpl implements _Proposition {
+class _$PropositionImpl extends _Proposition {
   const _$PropositionImpl({
     required this.id,
     required this.annonceAchatId,
@@ -590,7 +610,9 @@ class _$PropositionImpl implements _Proposition {
     this.message,
     this.createdAt,
     this.updatedAt,
-  });
+    @JsonKey(name: 'users', fromJson: _vendeurFromJson, toJson: _vendeurToJson)
+    this.vendeur,
+  }) : super._();
 
   factory _$PropositionImpl.fromJson(Map<String, dynamic> json) =>
       _$$PropositionImplFromJson(json);
@@ -617,9 +639,16 @@ class _$PropositionImpl implements _Proposition {
   @override
   final DateTime? updatedAt;
 
+  /// Vendeur joint backend (nom, rôle, photo, rating + coop si applicable).
+  /// Permet au mobile de basculer en mode « Garanties coop » dès que
+  /// `vendeur?.cooperative != null`.
+  @override
+  @JsonKey(name: 'users', fromJson: _vendeurFromJson, toJson: _vendeurToJson)
+  final VendeurProposition? vendeur;
+
   @override
   String toString() {
-    return 'Proposition(id: $id, annonceAchatId: $annonceAchatId, vendeurId: $vendeurId, quantiteKg: $quantiteKg, prixProposeKg: $prixProposeKg, status: $status, message: $message, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'Proposition(id: $id, annonceAchatId: $annonceAchatId, vendeurId: $vendeurId, quantiteKg: $quantiteKg, prixProposeKg: $prixProposeKg, status: $status, message: $message, createdAt: $createdAt, updatedAt: $updatedAt, vendeur: $vendeur)';
   }
 
   @override
@@ -641,7 +670,8 @@ class _$PropositionImpl implements _Proposition {
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
-                other.updatedAt == updatedAt));
+                other.updatedAt == updatedAt) &&
+            (identical(other.vendeur, vendeur) || other.vendeur == vendeur));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -657,6 +687,7 @@ class _$PropositionImpl implements _Proposition {
     message,
     createdAt,
     updatedAt,
+    vendeur,
   );
 
   /// Create a copy of Proposition
@@ -673,7 +704,7 @@ class _$PropositionImpl implements _Proposition {
   }
 }
 
-abstract class _Proposition implements Proposition {
+abstract class _Proposition extends Proposition {
   const factory _Proposition({
     required final String id,
     required final String annonceAchatId,
@@ -685,7 +716,10 @@ abstract class _Proposition implements Proposition {
     final String? message,
     final DateTime? createdAt,
     final DateTime? updatedAt,
+    @JsonKey(name: 'users', fromJson: _vendeurFromJson, toJson: _vendeurToJson)
+    final VendeurProposition? vendeur,
   }) = _$PropositionImpl;
+  const _Proposition._() : super._();
 
   factory _Proposition.fromJson(Map<String, dynamic> json) =
       _$PropositionImpl.fromJson;
@@ -711,6 +745,13 @@ abstract class _Proposition implements Proposition {
   DateTime? get createdAt;
   @override
   DateTime? get updatedAt;
+
+  /// Vendeur joint backend (nom, rôle, photo, rating + coop si applicable).
+  /// Permet au mobile de basculer en mode « Garanties coop » dès que
+  /// `vendeur?.cooperative != null`.
+  @override
+  @JsonKey(name: 'users', fromJson: _vendeurFromJson, toJson: _vendeurToJson)
+  VendeurProposition? get vendeur;
 
   /// Create a copy of Proposition
   /// with the given fields replaced by the non-null parameter values.

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../routing/route_names.dart';
+import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
+import '../../../../theme/app_text_styles.dart';
 import '../../communs/carte_solde_hero.dart';
 import '../../communs/grille_actions.dart';
 import '../../communs/snackbars.dart';
@@ -120,9 +122,26 @@ class ContenuAccueilTransporteur extends StatelessWidget {
           AppDimens.vGap24,
         ],
         // 7. Outils intelligents (grid 2 cards avec photos)
+        //    Tap → bottom sheet teaser premium « Bientôt disponible »
+        //    avec explication + CTA « Me prévenir au lancement »
+        //    (vs ancien snackbar « à venir » qui était décevant).
         SectionOutilsIa(
-          onAssistant: () => _snack(context, 'Assistant route — à venir'),
-          onOptimisation: () => _snack(context, 'Optimisation — à venir'),
+          onAssistant: () => _afficherTeaserOutilIa(
+            context,
+            titre: 'Assistant route IA',
+            description:
+                'Optimise tes trajets, propose les meilleurs créneaux '
+                'et trouve les chargements complémentaires sur ta route.',
+            icone: Icons.route_rounded,
+          ),
+          onOptimisation: () => _afficherTeaserOutilIa(
+            context,
+            titre: 'Optimisation IA',
+            description:
+                'Maximise tes revenus : combiner missions, éviter les '
+                'retours à vide, suggérer les meilleures zones par jour.',
+            icone: Icons.auto_awesome_rounded,
+          ),
         ),
         AppDimens.vGap24,
         if (data.isEmpty) const EtatVideAccueil(),
@@ -168,10 +187,160 @@ class ContenuAccueilTransporteur extends StatelessWidget {
         ),
       ];
 
-  /// SnackBar discrète "à venir".
+  /// SnackBar discrète "à venir" — gardée pour usages divers.
+  // ignore: unused_element
   void _snack(BuildContext context, String message) {
-    // Délègue au helper unifié — design pro (fond sombre + icône
-    // colorée), cohérent avec le reste de l'app.
     Snackbars.showInfo(context, message);
   }
+}
+
+/// Bottom sheet teaser premium pour une fonctionnalité IA pas encore
+/// dispo. Bien plus engageant qu'un snackbar « à venir » : explique
+/// ce que ça apportera, capte de l'intérêt utilisateur (CTA « Me
+/// prévenir »). Pattern Stripe/Linear.
+void _afficherTeaserOutilIa(
+  BuildContext context, {
+  required String titre,
+  required String description,
+  required IconData icone,
+}) {
+  showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    builder: (_) => SafeArea(
+      top: false,
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(22),
+          ),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle grip
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.border,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Hero icône
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [AppColors.primary, AppColors.primaryHover],
+                ),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.30),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              alignment: Alignment.center,
+              child: Icon(icone, size: 34, color: Colors.white),
+            ),
+            const SizedBox(height: 16),
+            // Badge "Bientôt"
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 4,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                'Bientôt disponible',
+                style: AppTextStyles.labelSmall.copyWith(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              titre,
+              style: AppTextStyles.titleLarge.copyWith(
+                fontFamily: 'Poppins',
+                fontSize: 19,
+                fontWeight: FontWeight.w800,
+                color: AppColors.text,
+                letterSpacing: -0.3,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              description,
+              style: AppTextStyles.bodyMedium.copyWith(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 22),
+            SizedBox(
+              width: double.infinity,
+              height: AppDimens.buttonHeight,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  Snackbars.showSucces(
+                    context,
+                    'Promis, on te prévient dès que c\'est dispo 🚀',
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: AppDimens.brButton,
+                  ),
+                ),
+                child: Text(
+                  'Me prévenir au lancement',
+                  style: AppTextStyles.button.copyWith(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'Plus tard',
+                style: AppTextStyles.button.copyWith(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }

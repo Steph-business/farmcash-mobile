@@ -493,7 +493,7 @@ class _AnnonceExpressPageState extends ConsumerState<AnnonceExpressPage> {
     } on ApiException catch (e) {
       if (mounted) Snackbars.showErreur(context, e.message);
     } catch (e) {
-      if (mounted) Snackbars.showErreur(context, 'Erreur de publication : $e');
+      if (mounted) Snackbars.showErreurInattendue(context, e);
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }

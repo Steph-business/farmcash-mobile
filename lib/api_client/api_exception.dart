@@ -61,22 +61,22 @@ class ApiException implements Exception {
       case DioExceptionType.sendTimeout:
       case DioExceptionType.receiveTimeout:
         return ApiException(
-          message: 'Délai de connexion dépassé. Vérifiez votre réseau.',
+          message: 'Connexion trop lente — vérifie ton réseau et réessaie.',
           type: ApiExceptionType.timeout,
         );
       case DioExceptionType.connectionError:
         return ApiException(
-          message: 'Impossible de joindre le serveur.',
+          message: 'Pas de connexion — vérifie ton réseau.',
           type: ApiExceptionType.network,
         );
       case DioExceptionType.cancel:
         return ApiException(
-          message: 'Requête annulée.',
+          message: 'Action annulée.',
           type: ApiExceptionType.cancel,
         );
       case DioExceptionType.badCertificate:
         return ApiException(
-          message: 'Certificat SSL invalide.',
+          message: 'Connexion sécurisée impossible. Contacte le support.',
           type: ApiExceptionType.network,
         );
       case DioExceptionType.badResponse:
@@ -92,28 +92,33 @@ class ApiException implements Exception {
     }
   }
 
+  /// Messages humanisés pour les status codes HTTP — utilisés UNIQUEMENT
+  /// quand le backend ne fournit pas son propre message. Évite les
+  /// formules techniques (« Bad Request », « Conflict ») qui ne disent
+  /// rien à l'utilisateur final. Toujours actionnable : on indique soit
+  /// ce qu'il faut faire, soit que c'est temporaire.
   static String _defaultMessageForStatus(int? status) {
     switch (status) {
       case 400:
-        return 'Requête invalide.';
+        return 'Données invalides — vérifie les champs et réessaie.';
       case 401:
-        return 'Session expirée, veuillez vous reconnecter.';
+        return 'Session expirée. Reconnecte-toi pour continuer.';
       case 403:
-        return 'Accès refusé.';
+        return 'Tu n\'as pas les droits pour cette action.';
       case 404:
-        return 'Ressource introuvable.';
+        return 'Cet élément n\'existe plus ou a été supprimé.';
       case 409:
-        return 'Conflit avec une ressource existante.';
+        return 'Action déjà effectuée — pas besoin de la refaire.';
       case 422:
-        return 'Données invalides.';
+        return 'Certaines informations sont incorrectes. Corrige et réessaie.';
       case 429:
-        return 'Trop de tentatives. Réessayez plus tard.';
+        return 'Tu vas trop vite — patiente quelques secondes.';
       case 500:
       case 502:
       case 503:
-        return 'Erreur serveur. Réessayez dans un instant.';
+        return 'Le serveur a un souci. Réessaie dans un instant.';
       default:
-        return 'Une erreur est survenue.';
+        return 'Action impossible pour le moment. Réessaie.';
     }
   }
 

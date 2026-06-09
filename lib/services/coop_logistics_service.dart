@@ -162,6 +162,24 @@ class CoopLogisticsService {
     );
   }
 
+  /// **Cas standard du flow logistique** : le shipment a déjà été créé
+  /// au paiement (l'acheteur a choisi un transporteur). La coop, une
+  /// fois le colis prêt, appelle ce endpoint pour ALERTER le
+  /// transporteur (« viens chercher »).
+  ///
+  /// Retour : `{ shipment_id, transporter_notified: bool, message }`
+  ///   - `transporter_notified: true`  → notif directe envoyée
+  ///   - `transporter_notified: false` → matching relancé (pas encore
+  ///     de transporteur assigné mais shipment existe)
+  ///
+  /// Si la commande n'a aucun shipment associé (cas pathologique :
+  /// l'acheteur n'a pas choisi de transporteur), le backend renvoie 404.
+  Future<Map<String, dynamic>> notifyPickupReady(String commandeId) async {
+    return _api.post<Map<String, dynamic>>(
+      ApiEndpoints.coopTransportNotifyPickupReady(commandeId),
+    );
+  }
+
   List<T> _asList<T>(dynamic raw, T Function(Map<String, dynamic>) from) {
     if (raw is List) {
       return raw

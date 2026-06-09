@@ -80,6 +80,10 @@ class ApiEndpoints {
       '/coop/logistics/transport-requests/eligible';
   static const String coopTransportRequests =
       '/coop/logistics/transport-requests';
+  /// Alerter le transporteur déjà assigné qu'il vienne enlever le colis.
+  /// Cas standard : shipment créé au paiement → coop alerte juste.
+  static String coopTransportNotifyPickupReady(String commandeId) =>
+      '/coop/logistics/transport-requests/$commandeId/notify-pickup-ready';
 
   // ─── MARKETPLACE — catalogue public ──────────────────────────────────
   static const String produits = '/marketplace/produits';
@@ -242,6 +246,11 @@ class ApiEndpoints {
       '/coop/join-requests/$id/handle';
   static const String coopInvitations = '/coop/invitations';
   static const String coopInvitationsMy = '/coop/invitations/my';
+  // Coop : historique des invitations envoyées (toutes décisions).
+  // Distinct de `coopInvitationsMy` qui est réservé aux FARMER pour
+  // voir leurs invitations reçues — d'où le 403 quand une coop
+  // appelait `/my` (cf. fix 2026-06-06).
+  static const String coopInvitationsSent = '/coop/invitations/sent';
   static String coopInvitationHandle(String id) =>
       '/coop/invitations/$id/handle';
   static const String coopMembers = '/coop/members';

@@ -10,6 +10,7 @@ import '../../../theme/app_text_styles.dart';
 import '../../state/auth_state.dart';
 import '../../widgets/authentification/auth_premium_bg.dart';
 import '../../widgets/authentification/champ_telephone.dart';
+import '../../widgets/communs/snackbars.dart';
 import '../../widgets/authentification/cta_auth_premium.dart';
 import '../../widgets/authentification/logo_farmcash.dart';
 import '../../widgets/authentification/pave_pin.dart';
@@ -86,12 +87,19 @@ class _ConnexionPageState extends ConsumerState<ConnexionPage> {
       context.go('/');
     } on ApiException catch (e) {
       if (!mounted) return;
+      // ApiException.message est déjà humanisé via api_exception.dart
+      // (cf. #115). On affiche en VueErreur inline pour scannabilité
+      // immédiate au-dessus du formulaire.
       setState(() => _error = e.message);
     } catch (e, st) {
+      // Exception inattendue (réseau down, parser raté, etc.). Évite
+      // d'exposer le stack à l'utilisateur low-tech : helper unifié
+      // humanise vers "Une erreur inattendue est survenue".
       debugPrint('[connexion] exception inattendue : $e');
       debugPrint('$st');
       if (!mounted) return;
-      setState(() => _error = 'Erreur de traitement : $e');
+      Snackbars.showErreurInattendue(context, e);
+      setState(() => _error = null);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -141,11 +149,15 @@ class _ConnexionPageState extends ConsumerState<ConnexionPage> {
                   const SizedBox(height: 28),
 
                   // ── Carte champ téléphone ─────────────────────────
+                  // `showLabel: false` car `_CarteChamp` affiche déjà
+                  // « Numéro de téléphone » — sans ça, le label se
+                  // dupliquait dans la carte (bug 2026-06-06).
                   _CarteChamp(
                     libelle: 'Numéro de téléphone',
                     enfant: ChampTelephone(
                       controller: _phoneCtrl,
                       autofocus: true,
+                      showLabel: false,
                       onSubmitted: (_) => FocusScope.of(context).nextFocus(),
                     ),
                   ),
@@ -159,6 +171,7 @@ class _ConnexionPageState extends ConsumerState<ConnexionPage> {
                         context.go(RouteNames.pinOubliePath),
                     enfant: PavePin(
                       controller: _pinCtrl,
+                      showLabel: false,
                       onSubmitted: (_) {
                         if (_canSubmit) _seConnecter();
                       },

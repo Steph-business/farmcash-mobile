@@ -87,6 +87,33 @@ class CooperativesService {
     return Cooperative.fromJson(json);
   }
 
+  // ─── Découverte des coops (catalogue public) ────────────────────────
+
+  /// Liste publique des coopératives (annuaire). Utilisé par le FARMER
+  /// non rattaché pour découvrir et demander à rejoindre. Backend :
+  /// `GET /cooperatives` (controller `PublicCooperativesController`).
+  ///
+  /// Supporte la recherche par nom + filtre par région côté backend.
+  /// Si l'API tombe ou renvoie un format inattendu, retourne liste vide
+  /// (UX : « Aucune coopérative trouvée » plutôt qu'écran d'erreur).
+  Future<List<Cooperative>> listPublicCoops({
+    String? search,
+    String? regionId,
+  }) async {
+    try {
+      final raw = await _api.get<dynamic>(
+        ApiEndpoints.cooperatives,
+        query: {
+          if (search != null && search.isNotEmpty) 'search': search,
+          if (regionId != null) 'region_id': regionId,
+        },
+      );
+      return _asList(raw, Cooperative.fromJson);
+    } catch (_) {
+      return <Cooperative>[];
+    }
+  }
+
   // ─── Adhésion — FARMER initie ────────────────────────────────────────
 
   Future<CoopJoinRequest> requestToJoin({
@@ -149,6 +176,15 @@ class CooperativesService {
 
   Future<List<CoopInvitation>> listMyInvitations() async {
     final raw = await _api.get<dynamic>(ApiEndpoints.coopInvitationsMy);
+    return _asList(raw, CoopInvitation.fromJson);
+  }
+
+  /// [COOP] Historique des invitations ENVOYÉES par la coopérative
+  /// courante. À utiliser sur la page « Inviter un farmer » côté coop.
+  /// Ne PAS confondre avec [listMyInvitations] qui est destiné au FARMER
+  /// pour voir ses invitations REÇUES (sinon → 403 Forbidden).
+  Future<List<CoopInvitation>> listSentInvitations() async {
+    final raw = await _api.get<dynamic>(ApiEndpoints.coopInvitationsSent);
     return _asList(raw, CoopInvitation.fromJson);
   }
 
@@ -403,6 +439,19 @@ class CooperativesService {
       ApiEndpoints.coopPublicationDistribute(publicationId),
       query: {if (dryRun) 'dry_run': true},
     );
+  }
+
+  /// Aperçu typé de la distribution d'une publication (sans exécuter).
+  /// Appelle `distributePublication(dryRun: true)` puis parse le retour
+  /// en `DistributionPreview`. Utilisé par la carte distribution sur le
+  /// détail commande coop pour afficher la transparence des paiements.
+  Future<DistributionPreview> previewDistribution(
+      String publicationId) async {
+    final raw = await distributePublication(
+      publicationId: publicationId,
+      dryRun: true,
+    );
+    return DistributionPreview.fromJson(raw);
   }
 
   // ─── Vue producteur (mes annonces gérées par coop) ───────────────────

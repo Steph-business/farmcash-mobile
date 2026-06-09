@@ -42,6 +42,8 @@ class ChampTexteCollecte extends StatelessWidget {
         keyboardType: keyboardType,
         inputFormatters: inputFormatters,
         maxLines: maxLines,
+        // Centre verticalement quand maxLines == 1.
+        textAlignVertical: TextAlignVertical.center,
         decoration: InputDecoration(
           hintText: placeholder,
           border: InputBorder.none,

@@ -13,14 +13,17 @@ import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
+import '../../../widgets/communs/carte_bon_de_commande_pdf.dart';
 import '../../../widgets/communs/chargement.dart';
 import '../../../widgets/communs/section_titre.dart';
 import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/communs/suivi_commande.dart';
 import '../../../widgets/communs/tracking/carte_tracking_transporteur.dart';
 import '../../../widgets/communs/vue_erreur.dart';
+import '../../../state/auth_state.dart';
 import '../../../widgets/producteur/commandes/actions_commande_producteur.dart';
 import '../../../widgets/producteur/commandes/carte_acheteur_compacte.dart';
+import '../../../widgets/producteur/commandes/carte_distribution_coop.dart';
 import '../../../widgets/producteur/commandes/carte_resume_commande_producteur.dart';
 import '../../../widgets/producteur/commandes/entete_commande_detail.dart';
 
@@ -59,11 +62,13 @@ final _commandeProvider = FutureProvider.autoDispose
       // L'annonce peut avoir été dépubliée — on garde la commande seule.
     }
   }
-  // Shipment : fetch UNIQUEMENT en livraison — sinon il n'existe pas
-  // ou n'a plus d'intérêt sur cette page. Le service retourne null
-  // proprement quand pas de shipment (cf. logistics_service.dart).
+  // Shipment : fetch en livraison (tracking GPS) ET en ACCEPTED (pour
+  // savoir si la coop a déjà demandé un transporteur — bouton « Demander
+  // un transporteur » caché si shipment déjà créé). Service tolérant
+  // au null (cf. logistics_service.dart).
   Livraison? shipment;
-  if (cmd.status == OrderStatus.inProgress) {
+  if (cmd.status == OrderStatus.inProgress ||
+      cmd.status == OrderStatus.accepted) {
     shipment = await logistics.getShipmentByCommande(id);
   }
   return _CommandeBundle(
@@ -157,6 +162,21 @@ class _Body extends ConsumerWidget {
     // Avant ça il n'y a pas encore de position GPS à montrer.
     final canTrack = commande.status == OrderStatus.inProgress;
 
+    // Rôle viewer — le CTA « Alerter le transporteur » est utile aux
+    // 2 vendeurs (FARMER vente directe ET COOPERATIVE quand un acheteur
+    // commande sur une publication agrégée). Les 2 partagent cette page
+    // détail (la coop redirige vers la route producteur).
+    final viewerRole = ref.watch(currentUserProvider)?.role;
+    final isSellerViewer = viewerRole == UserRole.cooperative ||
+        viewerRole == UserRole.farmer;
+    final shipment = bundle.shipment;
+    final canRequestTransport = isSellerViewer &&
+        commande.status == OrderStatus.accepted &&
+        shipment == null;
+    final transportAlreadyRequested = isSellerViewer &&
+        commande.status == OrderStatus.accepted &&
+        shipment != null;
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
       children: [
@@ -178,6 +198,17 @@ class _Body extends ConsumerWidget {
           ),
         ),
         AppDimens.vGap12,
+        // 1ter. CTA « Demander un transporteur » — visible UNIQUEMENT
+        // pour la coop quand la commande est payée (ACCEPTED) et qu'il
+        // n'y a pas encore de shipment. C'est la porte de sortie pour
+        // alerter les transporteurs éligibles via le matching backend.
+        if (canRequestTransport) ...[
+          _CarteDemanderTransporteur(commandeId: commande.id),
+          AppDimens.vGap12,
+        ] else if (transportAlreadyRequested) ...[
+          _CarteTransporteurSollicite(commandeId: commande.id),
+          AppDimens.vGap12,
+        ],
         // 1bis. Carte tracking transporteur — pour le producteur c'est
         // utile aussi : il voit qui a pris sa marchandise et où elle est.
         if (commande.status == OrderStatus.inProgress) ...[
@@ -212,6 +243,22 @@ class _Body extends ConsumerWidget {
             // « Voir la position du transporteur » au-dessus mène à la
             // même page.
           ),
+          AppDimens.vGap12,
+        ],
+        // Distribution coop — visible UNIQUEMENT pour la coop quand la
+        // commande vient d'une publication agrégée. Affiche la cascade
+        // FarmCash → commission coop → producteurs au prorata, avec
+        // détail nominal de chaque producteur. C'est la garantie
+        // anti-litige interne demandée par l'utilisateur.
+        if (viewerRole == UserRole.cooperative &&
+            commande.publicationCoopId != null) ...[
+          CarteDistributionCoop(
+            publicationCoopId: commande.publicationCoopId!,
+          ),
+          AppDimens.vGap12,
+          // Bon de commande PDF — uniquement coop vendeur ≥ 500 kg.
+          // L'éligibilité est vérifiée côté backend.
+          CarteBonDeCommandePdf(orderId: commande.id),
           AppDimens.vGap12,
         ],
         // 2. Acheteur compact (avatar + nom + CTA Discuter).
@@ -337,6 +384,272 @@ class _SuiviCliquableProducteur extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+// ─── CTA Alerter le transporteur (coop uniquement) ──────────────────
+
+/// Carte verte avec bouton « Alerter le transporteur ». Le shipment est
+/// déjà créé au moment du paiement (l'acheteur a choisi un transporteur
+/// ou matching auto). La coop alerte juste le transporteur que le colis
+/// est prêt à enlever. Si pas de transporteur encore assigné, relance
+/// le matching auto via les routes déclarées.
+class _CarteDemanderTransporteur extends ConsumerStatefulWidget {
+  const _CarteDemanderTransporteur({required this.commandeId});
+  final String commandeId;
+
+  @override
+  ConsumerState<_CarteDemanderTransporteur> createState() =>
+      _CarteDemanderTransporteurState();
+}
+
+class _CarteDemanderTransporteurState
+    extends ConsumerState<_CarteDemanderTransporteur> {
+  bool _isSending = false;
+
+  Future<void> _alerter() async {
+    if (_isSending) return;
+    setState(() => _isSending = true);
+    try {
+      final res = await ref
+          .read(coopLogisticsServiceProvider)
+          .notifyPickupReady(widget.commandeId);
+      if (!mounted) return;
+      // Le backend renvoie un message déjà adapté au cas (notif directe
+      // OU re-broadcast). On l'affiche tel quel.
+      Snackbars.showSucces(
+        context,
+        (res['message'] as String?) ?? 'Transporteur alerté.',
+      );
+      ref.invalidate(_commandeProvider(widget.commandeId));
+    } on ApiException catch (e) {
+      if (mounted) Snackbars.showErreur(context, e.message);
+    } catch (e) {
+      if (mounted) Snackbars.showErreurInattendue(context, e);
+    } finally {
+      if (mounted) setState(() => _isSending = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.30),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.local_shipping_outlined,
+                  size: 20,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Colis prêt à expédier ?',
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.text,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Alerte le transporteur pour qu\'il vienne enlever la marchandise.',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 44,
+            child: Material(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(12),
+              child: InkWell(
+                onTap: _isSending ? null : _alerter,
+                borderRadius: BorderRadius.circular(12),
+                child: Center(
+                  child: _isSending
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.notifications_active_outlined,
+                              size: 17,
+                              color: Colors.white,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Alerter le transporteur',
+                              style: AppTextStyles.button.copyWith(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Affichée quand la coop a déjà alerté le transporteur (le shipment
+/// existe avec un transporter_id). La coop peut quand même re-cliquer
+/// pour relancer (idempotent côté backend) — d'où le bouton secondaire
+/// « Relancer la notif ».
+class _CarteTransporteurSollicite extends ConsumerStatefulWidget {
+  const _CarteTransporteurSollicite({required this.commandeId});
+  final String commandeId;
+
+  @override
+  ConsumerState<_CarteTransporteurSollicite> createState() =>
+      _CarteTransporteurSolliciteState();
+}
+
+class _CarteTransporteurSolliciteState
+    extends ConsumerState<_CarteTransporteurSollicite> {
+  bool _isSending = false;
+
+  Future<void> _relancer() async {
+    if (_isSending) return;
+    setState(() => _isSending = true);
+    try {
+      final res = await ref
+          .read(coopLogisticsServiceProvider)
+          .notifyPickupReady(widget.commandeId);
+      if (!mounted) return;
+      Snackbars.showSucces(
+        context,
+        (res['message'] as String?) ?? 'Transporteur relancé.',
+      );
+      ref.invalidate(_commandeProvider(widget.commandeId));
+    } on ApiException catch (e) {
+      if (mounted) Snackbars.showErreur(context, e.message);
+    } catch (e) {
+      if (mounted) Snackbars.showErreurInattendue(context, e);
+    } finally {
+      if (mounted) setState(() => _isSending = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFEF3C7),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: const Color(0xFFB45309).withValues(alpha: 0.30),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: const Color(0xFFB45309).withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            alignment: Alignment.center,
+            child: const Icon(
+              Icons.hourglass_top_rounded,
+              size: 20,
+              color: Color(0xFFB45309),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Transporteur alerté',
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFFB45309),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'En attente qu\'il vienne enlever le colis.',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          TextButton(
+            onPressed: _isSending ? null : _relancer,
+            child: _isSending
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Text(
+                    'Relancer',
+                    style: AppTextStyles.button.copyWith(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFFB45309),
+                    ),
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }

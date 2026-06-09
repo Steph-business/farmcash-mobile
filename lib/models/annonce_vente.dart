@@ -49,6 +49,20 @@ class AnnonceVente with _$AnnonceVente {
     /// Affiché au producteur dans une bannière rouge soft pour qu'il
     /// sache quoi corriger avant de re-publier.
     @JsonKey(name: 'rejected_reason') String? rejectedReason,
+
+    /// Quantité réellement pesée par la coop lors de la validation
+    /// (vs `quantiteKg` qui est la quantité déclarée par le producteur).
+    /// Utilisée pour les calculs d'agrégation publication et de
+    /// rémunération. Renseignée dès `coopStatus == VALIDATED`.
+    @JsonKey(name: 'quantite_kg_validee')
+    @FlexDoubleN()
+    double? quantiteKgValidee,
+
+    /// Qualité réellement constatée par la coop à la pesée. Peut différer
+    /// de la qualité déclarée (sur-classement ou sous-classement après
+    /// contrôle visuel). Renseignée dès `coopStatus == VALIDATED`.
+    @JsonKey(name: 'qualite_validee', unknownEnumValue: ProductQuality.unknown)
+    ProductQuality? qualiteValidee,
     /// Le backend renvoie les photos dans la table `medias` jointe :
     /// `medias: [{url, thumbnail_url}]`. On extrait l'URL utilisable et on
     /// retombe sur un `photos: [...]` plat utilisé par les widgets.

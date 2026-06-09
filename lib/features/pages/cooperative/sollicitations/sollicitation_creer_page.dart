@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../api_client/api_exception.dart';
 import '../../../../models/annonce_achat.dart';
+import '../../../../routing/route_names.dart';
 import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
@@ -218,7 +220,7 @@ class _SollicitationCreerPageState
     } on ApiException catch (e) {
       if (mounted) Snackbars.showErreur(context, e.message);
     } catch (e) {
-      if (mounted) Snackbars.showErreur(context, 'Erreur : $e');
+      if (mounted) Snackbars.showErreurInattendue(context, e);
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -226,6 +228,14 @@ class _SollicitationCreerPageState
 
   @override
   Widget build(BuildContext context) {
+    // Sans `offreId`, le form n'a aucun contexte (à quelle offre cliente
+    // la sollicitation se rattache ?). Plutôt qu'afficher un form vide
+    // qui finira en erreur au submit, on redirige l'utilisateur vers
+    // « Offres reçues » d'où il choisira l'offre à couvrir.
+    if (widget.offreId == null || widget.offreId!.isEmpty) {
+      return const _EtatPasDOffre();
+    }
+
     // Fetch contexte (offre source + nb membres réel). Tolérant aux
     // erreurs : chaque appel retombe sur null/0 si le backend échoue.
     final contexteAsync = ref.watch(_contexteProvider(widget.offreId));
@@ -385,6 +395,115 @@ class _SollicitationCreerPageState
               count: _totalRecipients(nbMembres),
               isSubmitting: _isSubmitting,
               onTap: _envoyer,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// État affiché quand la page est ouverte sans offreId — la sollicitation
+/// n'a pas de sens sans une offre cliente à couvrir. Redirige vers
+/// « Offres reçues » coop d'où l'utilisateur choisira l'offre source.
+class _EtatPasDOffre extends StatelessWidget {
+  const _EtatPasDOffre();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            const HeaderCreerSollicitationCoop(),
+            Expanded(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 72,
+                        height: 72,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.10),
+                          shape: BoxShape.circle,
+                        ),
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.inbox_outlined,
+                          size: 32,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Choisis d\'abord une offre à couvrir',
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.titleSmall.copyWith(
+                          fontFamily: 'Poppins',
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.text,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Une sollicitation se rattache toujours à une '
+                        'offre acheteur. Ouvre « Offres reçues » et tape '
+                        '« Solliciter » sur l\'offre que tu veux couvrir.',
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          fontSize: 13.5,
+                          height: 1.45,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        height: 48,
+                        child: Material(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(12),
+                          child: InkWell(
+                            onTap: () => context.go(
+                              RouteNames.cooperativeOffresRecuesPath,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 22,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.arrow_forward_rounded,
+                                    size: 18,
+                                    color: Colors.white,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Voir les offres reçues',
+                                    style: AppTextStyles.button.copyWith(
+                                      fontSize: 14.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ],
         ),

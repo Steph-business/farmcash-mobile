@@ -11,9 +11,11 @@ import '../../../theme/app_dimens.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../state/auth_state.dart';
 import '../../storage/secure_storage.dart';
+import '../../widgets/authentification/force_pin_indicator.dart';
 import '../../widgets/authentification/pave_pin.dart';
 import '../../widgets/authentification/selecteur_langue.dart';
 import '../../widgets/communs/bouton_principal.dart';
+import '../../widgets/communs/snackbars.dart';
 import '../../widgets/communs/vue_erreur.dart';
 
 /// Définition d'un code PIN (4 à 6 chiffres) après OTP réussi.
@@ -149,10 +151,13 @@ class _DefinirPinPageState extends ConsumerState<DefinirPinPage> {
         _error = e.message;
         _loading = false;
       });
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('[definir_pin] exception inattendue : $e');
+      debugPrint('$st');
       if (!mounted) return;
+      Snackbars.showErreurInattendue(context, e);
       setState(() {
-        _error = 'Une erreur est survenue.';
+        _error = null;
         _loading = false;
       });
     }
@@ -197,6 +202,10 @@ class _DefinirPinPageState extends ConsumerState<DefinirPinPage> {
                   autofocus: true,
                   enabled: !_loading,
                 ),
+                // Indicateur de force live — capte les PINs faibles
+                // (1111, 1234, etc.) avant submit, donne un feedback
+                // visuel immédiat type fintech sérieux.
+                ForcePinIndicator(pin: _pin1Ctrl.text),
                 AppDimens.vGap16,
                 PavePin(
                   controller: _pin2Ctrl,

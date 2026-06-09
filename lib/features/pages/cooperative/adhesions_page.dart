@@ -156,7 +156,7 @@ class AdhesionsCooperativePage extends ConsumerWidget {
       ref.invalidate(_adhesionsCoopProvider);
     } catch (e) {
       if (context.mounted) {
-        Snackbars.showErreur(context, 'Erreur : ${e.toString()}');
+        Snackbars.showErreurInattendue(context, e);
       }
     }
   }

@@ -5,6 +5,7 @@ import '../../../models/ai_content.dart';
 import '../../../models/annonce_achat.dart';
 import '../../../models/annonce_vente.dart';
 import '../../../models/cooperative.dart';
+import '../../../models/enums.dart';
 import '../../../models/negociation.dart';
 import '../../../models/portefeuille.dart';
 import '../../../models/publication_coop.dart';
@@ -21,6 +22,43 @@ import '../../widgets/producteur/accueil/contenu_accueil.dart';
 /// Extrait le prénom = premier mot de `fullName`, fallback « toi » si vide.
 String _prenomDe(String? fullName) =>
     (fullName ?? '').trim().split(RegExp(r'\s+')).first;
+
+/// Sous-titre header producteur, calé sur ce qui mérite le plus
+/// l'attention. Cascade :
+///   1. Offres reçues actionnables (PENDING/COUNTER_OFFERED) → priorité
+///   2. Annonces actives → métier nominal
+///   3. Aucune annonce → invite à publier
+///
+/// Helper top-level (pas méthode du Widget) pour pouvoir le tester
+/// indépendamment et garder le build() lisible.
+String? _construireSousTitreProducteur(
+    AsyncValue<AccueilProducteurData> async) {
+  final data = async.value;
+  if (data == null) return null;
+
+  // 1. Candidatures actionnables = action prioritaire
+  final candidaturesActives = data.offresIncoming
+      .where((c) =>
+          c.status == NegotiationStatus.pending ||
+          c.status == NegotiationStatus.counterOffered)
+      .length;
+  if (candidaturesActives > 0) {
+    return candidaturesActives == 1
+        ? '1 offre à traiter sur tes annonces'
+        : '$candidaturesActives offres à traiter sur tes annonces';
+  }
+
+  // 2. Annonces actives = métier nominal
+  final nbAnnonces = data.annonces.length;
+  if (nbAnnonces > 0) {
+    return nbAnnonces == 1
+        ? '1 annonce active'
+        : '$nbAnnonces annonces actives';
+  }
+
+  // 3. Rien publié → invite douce
+  return 'Publie ta première annonce pour vendre';
+}
 
 /// Charge en parallèle les données nécessaires à l'accueil producteur.
 ///
@@ -160,7 +198,12 @@ class AccueilPage extends ConsumerWidget {
         bottom: false,
         child: Column(
           children: [
-            const HeaderUtilisateur(variant: HeaderVariant.producteur),
+            // Sous-titre dynamique : si des candidatures actionnables
+            // attendent → message d'action. Sinon défaut neutre.
+            HeaderUtilisateur(
+              variant: HeaderVariant.producteur,
+              subtitleOverride: _construireSousTitreProducteur(async),
+            ),
             Expanded(
               child: async.when(
                 loading: () => const Padding(

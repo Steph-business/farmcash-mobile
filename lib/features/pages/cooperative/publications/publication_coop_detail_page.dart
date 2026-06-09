@@ -12,6 +12,7 @@ import '../../../../services/orders_service.dart';
 import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
+import '../../../widgets/communs/bandeau_intervalle_recolte.dart';
 import '../../../../theme/app_text_styles.dart';
 import '../../../widgets/communs/chargement.dart';
 import '../../../widgets/communs/snackbars.dart';
@@ -188,6 +189,11 @@ class _DetailContent extends StatelessWidget {
       ),
       children: [
         _HeroPublication(pub: pub),
+        AppDimens.vGap12,
+        // Bandeau intervalle de récolte (visible UNIQUEMENT si les
+        // contributions ont une date_recolte). Cache silencieusement
+        // sinon — pas de placeholder.
+        BandeauIntervalleRecolte(publication: pub),
         AppDimens.vGap16,
         _SectionTitre('Détails'),
         AppDimens.vGap12,
@@ -779,7 +785,7 @@ class _StickyBoutonFermerState extends ConsumerState<_StickyBoutonFermer> {
     } catch (e) {
       messenger.hideCurrentSnackBar();
       if (!mounted) return;
-      Snackbars.showErreur(context, 'Erreur : $e');
+      Snackbars.showErreurInattendue(context, e);
     } finally {
       if (mounted) setState(() => _busy = false);
     }

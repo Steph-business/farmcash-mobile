@@ -41,6 +41,7 @@ class InputUnitCreerSollicitationCoop extends StatelessWidget {
               controller: controller,
               keyboardType: keyboardType,
               inputFormatters: formatters,
+              textAlignVertical: TextAlignVertical.center,
               style: AppTextStyles.bodyMedium.copyWith(
                 fontSize: 14,
                 color: AppColors.text,

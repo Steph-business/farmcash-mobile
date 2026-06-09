@@ -138,10 +138,13 @@ class _OtpPageState extends ConsumerState<OtpPage> {
       });
       _otpKey.currentState?.reset();
       setState(() => _otp = '');
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('[otp/verify] exception inattendue : $e');
+      debugPrint('$st');
       if (!mounted) return;
+      Snackbars.showErreurInattendue(context, e);
       setState(() {
-        _error = 'Une erreur est survenue.';
+        _error = null;
         _loading = false;
       });
       _otpKey.currentState?.reset();
@@ -167,9 +170,11 @@ class _OtpPageState extends ConsumerState<OtpPage> {
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _error = e.message);
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('[otp/resend] exception inattendue : $e');
+      debugPrint('$st');
       if (!mounted) return;
-      setState(() => _error = 'Impossible de renvoyer le code.');
+      Snackbars.showErreurInattendue(context, e);
     } finally {
       if (mounted) setState(() => _resending = false);
     }

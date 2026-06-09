@@ -62,6 +62,10 @@ _$PublicationCoopImpl _$$PublicationCoopImplFromJson(
         'updated_at',
         (v) => v == null ? null : DateTime.parse(v as String),
       ),
+      datesRecolteAnnonces: $checkedConvert(
+        'publication_contributions',
+        (v) => v == null ? const <DateTime>[] : _datesRecolteFromContribs(v),
+      ),
     );
     return val;
   },
@@ -74,6 +78,7 @@ _$PublicationCoopImpl _$$PublicationCoopImplFromJson(
     'nbContributeurs': 'nb_contributeurs',
     'createdAt': 'created_at',
     'updatedAt': 'updated_at',
+    'datesRecolteAnnonces': 'publication_contributions',
   },
 );
 
@@ -97,6 +102,9 @@ Map<String, dynamic> _$$PublicationCoopImplToJson(
     'created_at': value,
   if (instance.updatedAt?.toIso8601String() case final value?)
     'updated_at': value,
+  'publication_contributions': _datesRecolteToJson(
+    instance.datesRecolteAnnonces,
+  ),
 };
 
 const _$ProductQualityEnumMap = {
@@ -114,56 +122,4 @@ const _$ProductStatusEnumMap = {
   ProductStatus.sold: 'SOLD',
   ProductStatus.expired: 'EXPIRED',
   ProductStatus.unknown: 'UNKNOWN',
-};
-
-_$CoopContributionImpl _$$CoopContributionImplFromJson(
-  Map<String, dynamic> json,
-) => $checkedCreate(
-  r'_$CoopContributionImpl',
-  json,
-  ($checkedConvert) {
-    final val = _$CoopContributionImpl(
-      userId: $checkedConvert('user_id', (v) => v as String),
-      annonceId: $checkedConvert('annonce_id', (v) => v as String),
-      quantiteKg: $checkedConvert(
-        'quantite_kg',
-        (v) => const FlexDouble().fromJson(v),
-      ),
-      partPourcent: $checkedConvert(
-        'part_pourcent',
-        (v) => const FlexDouble().fromJson(v),
-      ),
-      revenuProjete: $checkedConvert(
-        'revenu_projete',
-        (v) => const FlexDouble().fromJson(v),
-      ),
-      user: $checkedConvert(
-        'user',
-        (v) =>
-            v == null ? null : Utilisateur.fromJson(v as Map<String, dynamic>),
-      ),
-    );
-    return val;
-  },
-  fieldKeyMap: const {
-    'userId': 'user_id',
-    'annonceId': 'annonce_id',
-    'quantiteKg': 'quantite_kg',
-    'partPourcent': 'part_pourcent',
-    'revenuProjete': 'revenu_projete',
-  },
-);
-
-Map<String, dynamic> _$$CoopContributionImplToJson(
-  _$CoopContributionImpl instance,
-) => <String, dynamic>{
-  'user_id': instance.userId,
-  'annonce_id': instance.annonceId,
-  if (const FlexDouble().toJson(instance.quantiteKg) case final value?)
-    'quantite_kg': value,
-  if (const FlexDouble().toJson(instance.partPourcent) case final value?)
-    'part_pourcent': value,
-  if (const FlexDouble().toJson(instance.revenuProjete) case final value?)
-    'revenu_projete': value,
-  if (instance.user case final value?) 'user': value,
 };

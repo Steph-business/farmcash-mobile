@@ -18,9 +18,13 @@ import '../../widgets/cooperative/membres/etat_vide_invitations.dart';
 import '../../widgets/cooperative/membres/libelle_champ_invitation.dart';
 
 /// Charge l'historique des invitations envoyées par la coop.
+///
+/// ⚠️ Fix 2026-06-06 : utilisait `listMyInvitations` qui est l'endpoint
+/// FARMER (invitations REÇUES) → 403 Forbidden côté coop. Le bon
+/// endpoint est `listSentInvitations` (`GET /coop/invitations/sent`).
 final _invitationsProvider =
     FutureProvider.autoDispose<List<CoopInvitation>>((ref) async {
-  return ref.read(cooperativesServiceProvider).listMyInvitations();
+  return ref.read(cooperativesServiceProvider).listSentInvitations();
 });
 
 /// Page Inviter un farmer — SMS d'invitation via l'endpoint `coopInvitations`.
@@ -73,7 +77,7 @@ class _InviterFarmerPageState extends ConsumerState<InviterFarmerPage> {
     } on ApiException catch (e) {
       if (mounted) Snackbars.showErreur(context, e.message);
     } catch (e) {
-      if (mounted) Snackbars.showErreur(context, 'Erreur : $e');
+      if (mounted) Snackbars.showErreurInattendue(context, e);
     } finally {
       if (mounted) setState(() => _busy = false);
     }

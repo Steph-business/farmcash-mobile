@@ -36,6 +36,7 @@ class ChampGrandPublication extends StatelessWidget {
         ),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Expanded(
             child: TextField(
@@ -45,6 +46,9 @@ class ChampGrandPublication extends StatelessWidget {
                 decimal: false,
               ),
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              // Centre verticalement le texte dans le champ à hauteur
+              // fixe — sinon le placeholder/saisie se cale en haut.
+              textAlignVertical: TextAlignVertical.center,
               style: AppTextStyles.displayLarge.copyWith(
                 fontSize: 22,
                 fontWeight: FontWeight.w700,
@@ -55,7 +59,8 @@ class ChampGrandPublication extends StatelessWidget {
                 border: InputBorder.none,
                 focusedBorder: InputBorder.none,
                 enabledBorder: InputBorder.none,
-                isDense: true,
+                isCollapsed: true,
+                contentPadding: EdgeInsets.zero,
                 hintStyle: AppTextStyles.bodyMedium.copyWith(
                   color: AppColors.textSubtle,
                 ),

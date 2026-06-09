@@ -72,6 +72,9 @@ import '../features/pages/producteur/publier/parcelle_creer_page.dart';
 import '../features/pages/producteur/publier/publier_annonce_page.dart';
 import '../features/pages/producteur/sollicitations/sollicitation_repondre_page.dart';
 import '../features/pages/producteur/sollicitations/sollicitations_recues_page.dart';
+import '../features/pages/producteur/cooperative/invitations_coop_page.dart';
+import '../features/pages/producteur/cooperative/trouver_coop_page.dart';
+import '../features/pages/producteur/ventes_coop_page.dart';
 import '../features/pages/producteur/wallet/wallet_page.dart';
 import '../features/pages/producteur/wallet/wallet_recharger_page.dart';
 import '../features/pages/producteur/wallet/wallet_retirer_page.dart';
@@ -903,6 +906,27 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: RouteNames.producteurWallet,
         builder: (_, _) => const WalletPage(),
       ),
+      // Producteur — vue agrégée de ses contributions aux publications
+      // coop avec breakdown (brut → FarmCash → commission coop → net).
+      GoRoute(
+        path: RouteNames.producteurVentesCoopPath,
+        name: RouteNames.producteurVentesCoop,
+        builder: (_, _) => const VentesCoopPage(),
+      ),
+      // Producteur — annuaire public des coopératives pour rejoindre.
+      // Affiché quand le producteur n'est rattaché à aucune coop (CTA
+      // depuis l'état vide « Ma coopérative »).
+      GoRoute(
+        path: RouteNames.producteurTrouverCoopPath,
+        name: RouteNames.producteurTrouverCoop,
+        builder: (_, _) => const TrouverCoopPage(),
+      ),
+      // Producteur — invitations reçues + demandes envoyées (statuts).
+      GoRoute(
+        path: RouteNames.producteurInvitationsCoopPath,
+        name: RouteNames.producteurInvitationsCoop,
+        builder: (_, _) => const InvitationsCoopPage(),
+      ),
       GoRoute(
         path: RouteNames.producteurWalletRechargerPath,
         name: RouteNames.producteurWalletRecharger,
@@ -1352,23 +1376,21 @@ void _menuProducteur(BuildContext context) {
 }
 
 void _menuCooperative(BuildContext context) {
-  showMenuActions(
-    context,
-    title: 'Publier',
-    actions: [
-      MenuAction(
-        icon: Icons.campaign_outlined,
-        label: 'Publier sur le marché',
-        subtitle: 'Nouveau lot direct depuis le stock coop',
-        onTap: () => _stubAction(context, 'Publication directe'),
-      ),
-      MenuAction(
-        icon: Icons.calendar_today_outlined,
-        label: 'Publier une prévision',
-        subtitle: 'Agréger les prévisions des membres',
-        onTap: () => _stubAction(context, 'Prévision coop'),
-      ),
-    ],
+  // Refonte 2026-06-06 : la coopérative ne publie PLUS de prévisions
+  // (rôle métier décidé : la coop agrège du stock présent et sollicite
+  // ses membres pour répondre aux demandes futures — elle n'émet pas
+  // de prévision propre, cf. discussion architecture). Une seule action
+  // restante (« Publier sur le marché ») → on bypasse le bottom sheet
+  // et on navigue directement vers le formulaire de création.
+  //
+  // **Future.microtask** : indispensable pour différer la navigation
+  // hors de la frame du tap, sinon Navigator throws
+  // `!_debugLocked is not true` (push tenté pendant que l'InkWell
+  // splash + l'événement de tap sont encore en cours de processing).
+  // Pattern Flutter standard pour les nav déclenchées par un tap
+  // qui n'a pas de bottom sheet tampon.
+  Future.microtask(
+    () => context.push(RouteNames.cooperativePublicationCreerPath),
   );
 }
 

@@ -112,15 +112,44 @@ class AccueilPage extends ConsumerWidget {
     );
   }
 
+  /// Sous-titre header contextualisé selon l'état du transporteur :
+  ///   1. Mission active en cours → priorité absolue ("Mission en cours")
+  ///   2. Pas d'itinéraires actifs → alerte ("Déclare un itinéraire")
+  ///   3. Missions dispos → opportunité ("X missions disponibles")
+  ///   4. Rien à faire → encouragement neutre
+  ///
+  /// Cascade volontaire : on affiche l'info la plus actionnable d'abord.
+  /// Évite l'ancien comportement statique "X missions disponibles" qui
+  /// ne disait rien en cas de mission active (et noyait l'info clé).
   String _sousTitreHeader(
     AsyncValue<AccueilTransporteurData> async,
     double? rating,
   ) {
     final data = async.value;
-    final nb = data?.missionsDisponibles.length ?? 0;
-    final missionsTxt = nb == 0
-        ? 'Aucune mission disponible'
-        : '$nb mission${nb > 1 ? 's' : ''} disponible${nb > 1 ? 's' : ''}';
-    return missionsTxt;
+    if (data == null) return 'Chargement...';
+
+    // 1. Mission active = priorité (déjà en exécution)
+    if (data.missionActive != null) {
+      return 'Mission en cours — bonne route 🚛';
+    }
+
+    // 2. Pas d'itinéraires actifs = friction (catch-22 : sans route,
+    //    aucune mission ne sera proposée — le transporteur doit savoir)
+    final itinerairesActifs =
+        data.routes.where((r) => r.isActive).length;
+    if (itinerairesActifs == 0) {
+      return 'Déclare un itinéraire pour recevoir des missions';
+    }
+
+    // 3. Missions dispos = opportunité commerciale
+    final nb = data.missionsDisponibles.length;
+    if (nb > 0) {
+      return nb == 1
+          ? '1 mission disponible sur tes routes'
+          : '$nb missions disponibles sur tes routes';
+    }
+
+    // 4. Rien d'urgent — encouragement neutre
+    return 'En attente de nouvelles missions';
   }
 }

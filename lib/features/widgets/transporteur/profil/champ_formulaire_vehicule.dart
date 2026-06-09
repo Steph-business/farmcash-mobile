@@ -58,6 +58,8 @@ class ChampFormulaireVehicule extends StatelessWidget {
             controller: controller,
             keyboardType: keyboardType,
             inputFormatters: inputFormatters,
+            // Centre verticalement texte + hint dans le champ.
+            textAlignVertical: TextAlignVertical.center,
             style: AppTextStyles.bodyMedium.copyWith(fontSize: 14),
             decoration: InputDecoration(
               isCollapsed: true,

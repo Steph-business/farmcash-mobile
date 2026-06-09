@@ -54,6 +54,20 @@ mixin _$AnnonceVente {
   @JsonKey(name: 'rejected_reason')
   String? get rejectedReason => throw _privateConstructorUsedError;
 
+  /// Quantité réellement pesée par la coop lors de la validation
+  /// (vs `quantiteKg` qui est la quantité déclarée par le producteur).
+  /// Utilisée pour les calculs d'agrégation publication et de
+  /// rémunération. Renseignée dès `coopStatus == VALIDATED`.
+  @JsonKey(name: 'quantite_kg_validee')
+  @FlexDoubleN()
+  double? get quantiteKgValidee => throw _privateConstructorUsedError;
+
+  /// Qualité réellement constatée par la coop à la pesée. Peut différer
+  /// de la qualité déclarée (sur-classement ou sous-classement après
+  /// contrôle visuel). Renseignée dès `coopStatus == VALIDATED`.
+  @JsonKey(name: 'qualite_validee', unknownEnumValue: ProductQuality.unknown)
+  ProductQuality? get qualiteValidee => throw _privateConstructorUsedError;
+
   /// Le backend renvoie les photos dans la table `medias` jointe :
   /// `medias: [{url, thumbnail_url}]`. On extrait l'URL utilisable et on
   /// retombe sur un `photos: [...]` plat utilisé par les widgets.
@@ -131,6 +145,11 @@ abstract class $AnnonceVenteCopyWith<$Res> {
     @JsonKey(unknownEnumValue: CoopAnnonceStatus.unknown)
     CoopAnnonceStatus? coopStatus,
     @JsonKey(name: 'rejected_reason') String? rejectedReason,
+    @JsonKey(name: 'quantite_kg_validee')
+    @FlexDoubleN()
+    double? quantiteKgValidee,
+    @JsonKey(name: 'qualite_validee', unknownEnumValue: ProductQuality.unknown)
+    ProductQuality? qualiteValidee,
     @JsonKey(name: 'medias', fromJson: mediasToPhotos, toJson: photosToMedias)
     List<String> photos,
     DateTime? disponibleJusqu,
@@ -195,6 +214,8 @@ class _$AnnonceVenteCopyWithImpl<$Res, $Val extends AnnonceVente>
     Object? assignedToCooperativeId = freezed,
     Object? coopStatus = freezed,
     Object? rejectedReason = freezed,
+    Object? quantiteKgValidee = freezed,
+    Object? qualiteValidee = freezed,
     Object? photos = null,
     Object? disponibleJusqu = freezed,
     Object? dateRecolte = freezed,
@@ -280,6 +301,14 @@ class _$AnnonceVenteCopyWithImpl<$Res, $Val extends AnnonceVente>
                 ? _value.rejectedReason
                 : rejectedReason // ignore: cast_nullable_to_non_nullable
                       as String?,
+            quantiteKgValidee: freezed == quantiteKgValidee
+                ? _value.quantiteKgValidee
+                : quantiteKgValidee // ignore: cast_nullable_to_non_nullable
+                      as double?,
+            qualiteValidee: freezed == qualiteValidee
+                ? _value.qualiteValidee
+                : qualiteValidee // ignore: cast_nullable_to_non_nullable
+                      as ProductQuality?,
             photos: null == photos
                 ? _value.photos
                 : photos // ignore: cast_nullable_to_non_nullable
@@ -355,6 +384,11 @@ abstract class _$$AnnonceVenteImplCopyWith<$Res>
     @JsonKey(unknownEnumValue: CoopAnnonceStatus.unknown)
     CoopAnnonceStatus? coopStatus,
     @JsonKey(name: 'rejected_reason') String? rejectedReason,
+    @JsonKey(name: 'quantite_kg_validee')
+    @FlexDoubleN()
+    double? quantiteKgValidee,
+    @JsonKey(name: 'qualite_validee', unknownEnumValue: ProductQuality.unknown)
+    ProductQuality? qualiteValidee,
     @JsonKey(name: 'medias', fromJson: mediasToPhotos, toJson: photosToMedias)
     List<String> photos,
     DateTime? disponibleJusqu,
@@ -418,6 +452,8 @@ class __$$AnnonceVenteImplCopyWithImpl<$Res>
     Object? assignedToCooperativeId = freezed,
     Object? coopStatus = freezed,
     Object? rejectedReason = freezed,
+    Object? quantiteKgValidee = freezed,
+    Object? qualiteValidee = freezed,
     Object? photos = null,
     Object? disponibleJusqu = freezed,
     Object? dateRecolte = freezed,
@@ -503,6 +539,14 @@ class __$$AnnonceVenteImplCopyWithImpl<$Res>
             ? _value.rejectedReason
             : rejectedReason // ignore: cast_nullable_to_non_nullable
                   as String?,
+        quantiteKgValidee: freezed == quantiteKgValidee
+            ? _value.quantiteKgValidee
+            : quantiteKgValidee // ignore: cast_nullable_to_non_nullable
+                  as double?,
+        qualiteValidee: freezed == qualiteValidee
+            ? _value.qualiteValidee
+            : qualiteValidee // ignore: cast_nullable_to_non_nullable
+                  as ProductQuality?,
         photos: null == photos
             ? _value._photos
             : photos // ignore: cast_nullable_to_non_nullable
@@ -572,6 +616,9 @@ class _$AnnonceVenteImpl extends _AnnonceVente {
     this.assignedToCooperativeId,
     @JsonKey(unknownEnumValue: CoopAnnonceStatus.unknown) this.coopStatus,
     @JsonKey(name: 'rejected_reason') this.rejectedReason,
+    @JsonKey(name: 'quantite_kg_validee') @FlexDoubleN() this.quantiteKgValidee,
+    @JsonKey(name: 'qualite_validee', unknownEnumValue: ProductQuality.unknown)
+    this.qualiteValidee,
     @JsonKey(name: 'medias', fromJson: mediasToPhotos, toJson: photosToMedias)
     final List<String> photos = const <String>[],
     this.disponibleJusqu,
@@ -667,6 +714,22 @@ class _$AnnonceVenteImpl extends _AnnonceVente {
   @JsonKey(name: 'rejected_reason')
   final String? rejectedReason;
 
+  /// Quantité réellement pesée par la coop lors de la validation
+  /// (vs `quantiteKg` qui est la quantité déclarée par le producteur).
+  /// Utilisée pour les calculs d'agrégation publication et de
+  /// rémunération. Renseignée dès `coopStatus == VALIDATED`.
+  @override
+  @JsonKey(name: 'quantite_kg_validee')
+  @FlexDoubleN()
+  final double? quantiteKgValidee;
+
+  /// Qualité réellement constatée par la coop à la pesée. Peut différer
+  /// de la qualité déclarée (sur-classement ou sous-classement après
+  /// contrôle visuel). Renseignée dès `coopStatus == VALIDATED`.
+  @override
+  @JsonKey(name: 'qualite_validee', unknownEnumValue: ProductQuality.unknown)
+  final ProductQuality? qualiteValidee;
+
   /// Le backend renvoie les photos dans la table `medias` jointe :
   /// `medias: [{url, thumbnail_url}]`. On extrait l'URL utilisable et on
   /// retombe sur un `photos: [...]` plat utilisé par les widgets.
@@ -741,7 +804,7 @@ class _$AnnonceVenteImpl extends _AnnonceVente {
 
   @override
   String toString() {
-    return 'AnnonceVente(id: $id, farmerId: $farmerId, produitId: $produitId, titre: $titre, quantiteKg: $quantiteKg, prixParKg: $prixParKg, quantiteMinKg: $quantiteMinKg, qualite: $qualite, description: $description, certifications: $certifications, regionId: $regionId, villeId: $villeId, adresseDetail: $adresseDetail, status: $status, viewsCount: $viewsCount, assignedToCooperativeId: $assignedToCooperativeId, coopStatus: $coopStatus, rejectedReason: $rejectedReason, photos: $photos, disponibleJusqu: $disponibleJusqu, dateRecolte: $dateRecolte, createdAt: $createdAt, updatedAt: $updatedAt, produitNom: $produitNom, vendeur: $vendeur, regionNom: $regionNom, villeNom: $villeNom, traitements: $traitements)';
+    return 'AnnonceVente(id: $id, farmerId: $farmerId, produitId: $produitId, titre: $titre, quantiteKg: $quantiteKg, prixParKg: $prixParKg, quantiteMinKg: $quantiteMinKg, qualite: $qualite, description: $description, certifications: $certifications, regionId: $regionId, villeId: $villeId, adresseDetail: $adresseDetail, status: $status, viewsCount: $viewsCount, assignedToCooperativeId: $assignedToCooperativeId, coopStatus: $coopStatus, rejectedReason: $rejectedReason, quantiteKgValidee: $quantiteKgValidee, qualiteValidee: $qualiteValidee, photos: $photos, disponibleJusqu: $disponibleJusqu, dateRecolte: $dateRecolte, createdAt: $createdAt, updatedAt: $updatedAt, produitNom: $produitNom, vendeur: $vendeur, regionNom: $regionNom, villeNom: $villeNom, traitements: $traitements)';
   }
 
   @override
@@ -785,6 +848,10 @@ class _$AnnonceVenteImpl extends _AnnonceVente {
                 other.coopStatus == coopStatus) &&
             (identical(other.rejectedReason, rejectedReason) ||
                 other.rejectedReason == rejectedReason) &&
+            (identical(other.quantiteKgValidee, quantiteKgValidee) ||
+                other.quantiteKgValidee == quantiteKgValidee) &&
+            (identical(other.qualiteValidee, qualiteValidee) ||
+                other.qualiteValidee == qualiteValidee) &&
             const DeepCollectionEquality().equals(other._photos, _photos) &&
             (identical(other.disponibleJusqu, disponibleJusqu) ||
                 other.disponibleJusqu == disponibleJusqu) &&
@@ -829,6 +896,8 @@ class _$AnnonceVenteImpl extends _AnnonceVente {
     assignedToCooperativeId,
     coopStatus,
     rejectedReason,
+    quantiteKgValidee,
+    qualiteValidee,
     const DeepCollectionEquality().hash(_photos),
     disponibleJusqu,
     dateRecolte,
@@ -878,6 +947,11 @@ abstract class _AnnonceVente extends AnnonceVente {
     @JsonKey(unknownEnumValue: CoopAnnonceStatus.unknown)
     final CoopAnnonceStatus? coopStatus,
     @JsonKey(name: 'rejected_reason') final String? rejectedReason,
+    @JsonKey(name: 'quantite_kg_validee')
+    @FlexDoubleN()
+    final double? quantiteKgValidee,
+    @JsonKey(name: 'qualite_validee', unknownEnumValue: ProductQuality.unknown)
+    final ProductQuality? qualiteValidee,
     @JsonKey(name: 'medias', fromJson: mediasToPhotos, toJson: photosToMedias)
     final List<String> photos,
     final DateTime? disponibleJusqu,
@@ -962,6 +1036,22 @@ abstract class _AnnonceVente extends AnnonceVente {
   @override
   @JsonKey(name: 'rejected_reason')
   String? get rejectedReason;
+
+  /// Quantité réellement pesée par la coop lors de la validation
+  /// (vs `quantiteKg` qui est la quantité déclarée par le producteur).
+  /// Utilisée pour les calculs d'agrégation publication et de
+  /// rémunération. Renseignée dès `coopStatus == VALIDATED`.
+  @override
+  @JsonKey(name: 'quantite_kg_validee')
+  @FlexDoubleN()
+  double? get quantiteKgValidee;
+
+  /// Qualité réellement constatée par la coop à la pesée. Peut différer
+  /// de la qualité déclarée (sur-classement ou sous-classement après
+  /// contrôle visuel). Renseignée dès `coopStatus == VALIDATED`.
+  @override
+  @JsonKey(name: 'qualite_validee', unknownEnumValue: ProductQuality.unknown)
+  ProductQuality? get qualiteValidee;
 
   /// Le backend renvoie les photos dans la table `medias` jointe :
   /// `medias: [{url, thumbnail_url}]`. On extrait l'URL utilisable et on

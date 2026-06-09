@@ -76,6 +76,18 @@ _$AnnonceVenteImpl _$$AnnonceVenteImplFromJson(
         ),
       ),
       rejectedReason: $checkedConvert('rejected_reason', (v) => v as String?),
+      quantiteKgValidee: $checkedConvert(
+        'quantite_kg_validee',
+        (v) => const FlexDoubleN().fromJson(v),
+      ),
+      qualiteValidee: $checkedConvert(
+        'qualite_validee',
+        (v) => $enumDecodeNullable(
+          _$ProductQualityEnumMap,
+          v,
+          unknownValue: ProductQuality.unknown,
+        ),
+      ),
       photos: $checkedConvert(
         'medias',
         (v) => v == null ? const <String>[] : mediasToPhotos(v),
@@ -121,6 +133,8 @@ _$AnnonceVenteImpl _$$AnnonceVenteImplFromJson(
     'assignedToCooperativeId': 'assigned_to_cooperative_id',
     'coopStatus': 'coop_status',
     'rejectedReason': 'rejected_reason',
+    'quantiteKgValidee': 'quantite_kg_validee',
+    'qualiteValidee': 'qualite_validee',
     'photos': 'medias',
     'disponibleJusqu': 'disponible_jusqu',
     'dateRecolte': 'date_recolte',
@@ -161,6 +175,10 @@ Map<String, dynamic> _$$AnnonceVenteImplToJson(
   if (_$CoopAnnonceStatusEnumMap[instance.coopStatus] case final value?)
     'coop_status': value,
   if (instance.rejectedReason case final value?) 'rejected_reason': value,
+  if (const FlexDoubleN().toJson(instance.quantiteKgValidee) case final value?)
+    'quantite_kg_validee': value,
+  if (_$ProductQualityEnumMap[instance.qualiteValidee] case final value?)
+    'qualite_validee': value,
   'medias': photosToMedias(instance.photos),
   if (instance.disponibleJusqu?.toIso8601String() case final value?)
     'disponible_jusqu': value,

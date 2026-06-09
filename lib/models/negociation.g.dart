@@ -120,6 +120,7 @@ _$PropositionImpl _$$PropositionImplFromJson(Map<String, dynamic> json) =>
             'updated_at',
             (v) => v == null ? null : DateTime.parse(v as String),
           ),
+          vendeur: $checkedConvert('users', (v) => _vendeurFromJson(v)),
         );
         return val;
       },
@@ -130,6 +131,7 @@ _$PropositionImpl _$$PropositionImplFromJson(Map<String, dynamic> json) =>
         'prixProposeKg': 'prix_propose_kg',
         'createdAt': 'created_at',
         'updatedAt': 'updated_at',
+        'vendeur': 'users',
       },
     );
 
@@ -148,6 +150,7 @@ Map<String, dynamic> _$$PropositionImplToJson(_$PropositionImpl instance) =>
         'created_at': value,
       if (instance.updatedAt?.toIso8601String() case final value?)
         'updated_at': value,
+      if (_vendeurToJson(instance.vendeur) case final value?) 'users': value,
     };
 
 _$TraitementNegociationResultatImpl

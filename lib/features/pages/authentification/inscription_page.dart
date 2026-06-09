@@ -25,6 +25,7 @@ import '../../widgets/authentification/label_champ_inscription.dart';
 import '../../widgets/authentification/logo_farmcash.dart';
 import '../../widgets/authentification/selecteur_langue.dart';
 import '../../widgets/communs/bouton_secondaire.dart';
+import '../../widgets/communs/snackbars.dart';
 import '../../widgets/communs/vue_erreur.dart';
 
 /// Inscription — formulaire par rôle (FARMER / BUYER / COOPERATIVE / TRANSPORTER).
@@ -359,14 +360,21 @@ class _InscriptionPageState extends ConsumerState<InscriptionPage> {
       context.go('/otp?phone=$phoneEncoded&purpose=register');
     } on ApiException catch (e) {
       if (!mounted) return;
+      // Message humanisé (api_exception.dart). Affichage inline pour
+      // que l'utilisateur voit l'erreur sans avoir à scroller.
       setState(() {
         _errorMessage = e.message;
         _loading = false;
       });
-    } catch (_) {
+    } catch (e, st) {
+      // Exception inattendue (réseau down, etc.) — helper unifié
+      // évite d'exposer la stack technique. Snackbar + reset état.
+      debugPrint('[inscription] exception inattendue : $e');
+      debugPrint('$st');
       if (!mounted) return;
+      Snackbars.showErreurInattendue(context, e);
       setState(() {
-        _errorMessage = 'Une erreur est survenue.';
+        _errorMessage = null;
         _loading = false;
       });
     }
@@ -474,11 +482,36 @@ class _InscriptionPageState extends ConsumerState<InscriptionPage> {
   }
 
   Widget _buildForm(UserRole role) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+    // STRUCTURE STICKY : scroll au-dessus, CTA toujours visible en bas
+    // (SafeArea + shadow top). Pattern critique pour les formulaires
+    // longs comme Transporteur (7+ champs) où l'utilisateur devait
+    // scroller jusqu'au bas pour cliquer « Créer mon compte ».
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: _formContent(role),
+          ),
+        ),
+        _StickyBottomInscription(
+          enabled: _canSubmit,
+          loading: _loading,
+          onSubmit: _soumettre,
+          onLogin: _loading
+              ? null
+              : () => context.go(RouteNames.connexionPath),
+        ),
+      ],
+    );
+  }
+
+  /// Contenu scrollable du formulaire (sans CTA ni lien login, qui
+  /// sont sticky en bas via [_StickyBottomInscription]).
+  Widget _formContent(UserRole role) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
           const SizedBox(height: 16),
           const LogoFarmcash(),
           const SizedBox(height: 28),
@@ -560,27 +593,11 @@ class _InscriptionPageState extends ConsumerState<InscriptionPage> {
             AppDimens.vGap16,
             VueErreur(message: _errorMessage!),
           ],
-
-          AppDimens.vGap24,
-          CtaAuthPremium(
-            label: 'Créer mon compte',
-            onTap: _canSubmit ? _soumettre : null,
-            loading: _loading,
-            enabled: _canSubmit,
-          ),
-          AppDimens.vGap16,
-          Center(
-            child: LienTexte(
-              prefixe: 'Déjà un compte ?',
-              lien: 'Se connecter',
-              onPressed:
-                  _loading ? null : () => context.go(RouteNames.connexionPath),
-            ),
-          ),
+          // Spacer en bas du scroll : laisse de la respiration avant
+          // le sticky bottom (sinon dernier champ collé au CTA).
           AppDimens.vGap32,
         ],
-      ),
-    );
+      );
   }
 
   Widget _champsParRole(UserRole role) {
@@ -636,5 +653,67 @@ class _InscriptionPageState extends ConsumerState<InscriptionPage> {
           ),
         );
     }
+  }
+}
+
+/// Bandeau sticky bottom du formulaire d'inscription. Toujours visible
+/// (n'est PAS dans le scroll) — résout le bug UX où l'utilisateur
+/// transporteur (7+ champs) devait scroller jusqu'au bas pour
+/// atteindre « Créer mon compte ».
+///
+/// Pattern aligné sur les autres sticky bottoms de l'app : shadow top
+/// pour signaler la séparation + SafeArea bottom pour respecter l'iPhone
+/// home indicator + lien login secondaire.
+class _StickyBottomInscription extends StatelessWidget {
+  const _StickyBottomInscription({
+    required this.enabled,
+    required this.loading,
+    required this.onSubmit,
+    required this.onLogin,
+  });
+
+  final bool enabled;
+  final bool loading;
+  final VoidCallback onSubmit;
+  final VoidCallback? onLogin;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 16,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        minimum: const EdgeInsets.only(bottom: 8),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 6),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CtaAuthPremium(
+                label: 'Créer mon compte',
+                onTap: enabled ? onSubmit : null,
+                loading: loading,
+                enabled: enabled,
+              ),
+              const SizedBox(height: 8),
+              LienTexte(
+                prefixe: 'Déjà un compte ?',
+                lien: 'Se connecter',
+                onPressed: onLogin,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

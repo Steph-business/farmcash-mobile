@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../api_client/api_client.dart';
 import '../api_client/api_endpoints.dart';
@@ -93,6 +96,11 @@ class OrdersService {
     String? contreOffreId,
     String? paymentMethodId,
     String? transporterRouteId,
+    /// Si true et `transporterRouteId == null`, le backend cherche
+    /// automatiquement la 1ère route active matchant ville produit ↔
+    /// ville livraison ↔ capacité. UX : envoyé quand l'acheteur choisit
+    /// « FarmCash décide » dans le mode de livraison.
+    bool? autoAssignTransporter,
     String? pickupAddress,
     String? deliveryAddress,
     String? notes,
@@ -110,6 +118,8 @@ class OrdersService {
         if (paymentMethodId != null) 'payment_method_id': paymentMethodId,
         if (transporterRouteId != null)
           'transporter_route_id': transporterRouteId,
+        if (autoAssignTransporter != null)
+          'auto_assign_transporter': autoAssignTransporter,
         if (pickupAddress != null) 'pickup_address': pickupAddress,
         if (deliveryAddress != null) 'delivery_address': deliveryAddress,
         if (notes != null) 'notes': notes,
@@ -175,6 +185,43 @@ class OrdersService {
       ApiEndpoints.orderById(id),
     );
     return Commande.fromJson(json);
+  }
+
+  /// Vérifie si une commande est éligible au bon de commande PDF
+  /// (commande coop ≥ 500 kg). Permet à l'UI d'afficher le bouton de
+  /// téléchargement uniquement quand pertinent.
+  Future<bool> isBonDeCommandeEligible(String orderId) async {
+    try {
+      final json = await _api.get<Map<String, dynamic>>(
+        '/orders/$orderId/bon-de-commande/eligible',
+      );
+      return json['eligible'] == true;
+    } catch (_) {
+      // En cas d'erreur on retourne false (bouton caché — UX sûre).
+      return false;
+    }
+  }
+
+  /// Télécharge le bon de commande PDF d'une commande coop ≥ 500 kg
+  /// dans le dossier temp et retourne le chemin local du fichier.
+  /// L'UI appelle ensuite `OpenFilex.open(path)` pour afficher le PDF.
+  Future<String> downloadBonDeCommande(String orderId) async {
+    // ApiClient utilise dio. On accède au client brut pour streamer
+    // une réponse binaire (pas du JSON).
+    final response = await _api.dio.get<List<int>>(
+      '/orders/$orderId/bon-de-commande.pdf',
+      options: Options(responseType: ResponseType.bytes),
+    );
+    final bytes = response.data;
+    if (bytes == null || bytes.isEmpty) {
+      throw Exception('Bon de commande vide ou inaccessible.');
+    }
+
+    final tempDir = await getTemporaryDirectory();
+    final shortId = orderId.length >= 8 ? orderId.substring(0, 8) : orderId;
+    final file = File('${tempDir.path}/bon-de-commande-$shortId.pdf');
+    await file.writeAsBytes(bytes, flush: true);
+    return file.path;
   }
 
   /// Paie une commande **déjà créée** (status SENT). Typiquement utilisée

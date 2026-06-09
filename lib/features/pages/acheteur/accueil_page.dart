@@ -12,6 +12,7 @@ import '../../../routing/route_names.dart';
 import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
+import '../../../theme/app_text_styles.dart';
 import '../../state/auth_state.dart';
 import '../../state/badges_state.dart';
 import '../../widgets/acheteur/accueil/annonces_grid_acheteur.dart';
@@ -150,6 +151,23 @@ class _AccueilPageState extends ConsumerState<AccueilPage> {
     await ref.read(_accueilAcheteurDataProvider.future);
   }
 
+  /// Sous-titre du header acheteur. Si des propositions non traitées
+  /// attendent → message d'action ("3 offres à traiter"). Sinon →
+  /// salutation neutre. Évite de laisser l'acheteur ouvrir l'app sans
+  /// indication sur ce qui mérite son attention.
+  String? _construireSousTitreHeader(WidgetRef ref) {
+    final propsCount = ref
+            .watch(propositionsRecuesNonTraiteesCountProvider)
+            .valueOrNull ??
+        0;
+    if (propsCount > 0) {
+      return propsCount == 1
+          ? '1 offre à traiter sur tes demandes'
+          : '$propsCount offres à traiter sur tes demandes';
+    }
+    return null; // laisse le défaut de HeaderUtilisateur acheteur
+  }
+
   // Onglets du shell (Marché, Commandes) → `context.go` pour que le
   // bottom nav suive le changement de branche. Sinon `push` empile au
   // dessus de l'onglet actuel et la barre du bas reste sur Accueil
@@ -240,7 +258,13 @@ class _AccueilPageState extends ConsumerState<AccueilPage> {
         bottom: false,
         child: Column(
           children: [
-            const HeaderUtilisateur(variant: HeaderVariant.acheteur),
+            // Sous-titre dynamique : si l'acheteur a des propositions
+            // reçues à traiter, on lui dit clairement combien — c'est
+            // plus actionnable que "Bienvenue" générique.
+            HeaderUtilisateur(
+              variant: HeaderVariant.acheteur,
+              subtitleOverride: _construireSousTitreHeader(ref),
+            ),
             Expanded(
               child: asyncData.when(
                 loading: () => const Padding(
@@ -314,6 +338,24 @@ class _AccueilPageState extends ConsumerState<AccueilPage> {
             solde: data.solde,
             onOuvrirWallet: _onTapWallet,
           ),
+          // 1.bis Bandeau premium d'alerte « Offres à traiter » — visible
+          // SEULEMENT si des propositions non traitées attendent. Pattern
+          // type Uber/Stripe : rappel d'action en haut, gradient vif pour
+          // capter l'œil immédiatement. Tap → page Négociations.
+          if ((ref
+                      .watch(propositionsRecuesNonTraiteesCountProvider)
+                      .valueOrNull ??
+                  0) >
+              0) ...[
+            AppDimens.vGap12,
+            _BandeauOffresATraiter(
+              count: ref
+                      .watch(propositionsRecuesNonTraiteesCountProvider)
+                      .valueOrNull ??
+                  0,
+              onTap: _onTapNegociations,
+            ),
+          ],
           AppDimens.vGap16,
           // 2. Grille 2×3 d'actions rapides — pattern maquette FarmCash AI
           GrilleActions(actions: _actions()),
@@ -324,9 +366,16 @@ class _AccueilPageState extends ConsumerState<AccueilPage> {
             onVoirTout: _onTapVoirTout,
             child: recommandes.isEmpty
                 ? EtatVideSectionAccueil(
+                    icone: Icons.storefront_outlined,
                     message: _filtreCategorieNom == null
-                        ? 'Aucune annonce disponible pour le moment.'
+                        ? 'Aucune annonce pour l\'instant. Publie une demande pour faire venir les vendeurs.'
                         : 'Aucune annonce dans cette catégorie.',
+                    ctaLabel: _filtreCategorieNom == null
+                        ? 'Publier ma demande'
+                        : 'Voir tout le marché',
+                    onCtaTap: () => _filtreCategorieNom == null
+                        ? context.push(RouteNames.acheteurDemandePublierPath)
+                        : _onTapVoirTout(),
                   )
                 : AnnoncesGridAcheteur(
                     annonces: recommandes,
@@ -351,6 +400,104 @@ class _AccueilPageState extends ConsumerState<AccueilPage> {
           // 5. Tendances du marché (bandeau vert pâle)
           SectionTendance(tendance: tendance),
         ],
+      ),
+    );
+  }
+}
+
+/// Bandeau d'alerte premium « X offres à traiter » — affiché en haut de
+/// l'accueil acheteur SEULEMENT s'il a des propositions reçues non
+/// traitées. Pattern type Uber/Stripe : capte l'œil immédiatement via
+/// gradient vert + accent visuel, transforme l'app passive
+/// (consultation marché) en app active (réponses aux propositions).
+///
+/// Tap → page Négociations.
+class _BandeauOffresATraiter extends StatelessWidget {
+  const _BandeauOffresATraiter({required this.count, required this.onTap});
+
+  final int count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.primary,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [AppColors.primary, AppColors.primaryHover],
+            ),
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.28),
+                blurRadius: 12,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.20),
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.handshake_rounded,
+                  size: 22,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      count == 1
+                          ? '1 offre à traiter'
+                          : '$count offres à traiter',
+                      style: AppTextStyles.titleSmall.copyWith(
+                        fontFamily: 'Poppins',
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Des vendeurs ont répondu à tes demandes — touche pour voir.',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        fontSize: 12,
+                        color: Colors.white.withValues(alpha: 0.92),
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Icon(
+                Icons.arrow_forward_rounded,
+                size: 20,
+                color: Colors.white,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

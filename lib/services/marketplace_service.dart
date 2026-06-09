@@ -148,6 +148,13 @@ class MarketplaceService {
     /// `date_application` (YYYY-MM-DD), `delai_carence_respecte`,
     /// `notes`.
     List<Map<String, dynamic>>? traitements,
+    /// Acting-on-behalf : si le user authentifié est une coopérative
+    /// et fournit cet UUID, l'annonce est créée AU NOM de ce farmer
+    /// (qui doit être un managed member de la coop). Le backend
+    /// valide la propriété (`users.managed_by_coop_id == coopUserId`).
+    /// La traçabilité reste : `farmer_id = actAsFarmerId`, l'audit
+    /// loggue la coop comme acteur réel.
+    String? actAsFarmerId,
   }) async {
     final json = await _api.post<Map<String, dynamic>>(
       ApiEndpoints.annoncesVente,
@@ -175,6 +182,7 @@ class MarketplaceService {
           'assigned_to_cooperative_id': assignedToCooperativeId,
         if (traitements != null && traitements.isNotEmpty)
           'traitements': traitements,
+        if (actAsFarmerId != null) 'act_as_farmer_id': actAsFarmerId,
       },
     );
     // Backend nouveau : entité complète avec `id` + `farmer_id`. Backend

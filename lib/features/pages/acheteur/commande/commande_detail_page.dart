@@ -18,6 +18,7 @@ import '../../../widgets/acheteur/commandes/carte_vendeur_compacte.dart';
 import '../../../widgets/acheteur/commandes/entete_commande_detail.dart';
 import '../../../widgets/acheteur/commandes/section_parcours.dart';
 import '../../../widgets/acheteur/commandes/section_qr.dart';
+import '../../../widgets/communs/carte_bon_de_commande_pdf.dart';
 import '../../../widgets/communs/chargement.dart';
 import '../../../widgets/communs/section_titre.dart';
 import '../../../widgets/communs/snackbars.dart';
@@ -208,6 +209,11 @@ class _CommandeDetailAcheteurPageState
                 commande: c,
                 annonce: bundle.annonce,
               ),
+              // 3.bis Bon de commande PDF — visible UNIQUEMENT pour les
+              //       commandes coop ≥ 500 kg (check d'éligibilité auto
+              //       backend). Document officiel pour archivage compta.
+              const SizedBox(height: 8),
+              CarteBonDeCommandePdf(orderId: c.id),
               // 4. QR de réception — affiché en permanence pour permettre
               //    à l'acheteur de le retrouver vite.
               SectionQr(commandeId: c.id),
@@ -262,7 +268,7 @@ class _CommandeDetailAcheteurPageState
     } on ApiException catch (e) {
       if (mounted) Snackbars.showErreur(context, e.message);
     } catch (e) {
-      if (mounted) Snackbars.showErreur(context, 'Erreur : $e');
+      if (mounted) Snackbars.showErreurInattendue(context, e);
     } finally {
       if (mounted) setState(() => _confirmingDelivery = false);
     }

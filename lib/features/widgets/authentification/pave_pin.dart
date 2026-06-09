@@ -18,6 +18,7 @@ class PavePin extends StatefulWidget {
     this.minLength = 4,
     this.enabled = true,
     this.autofocus = false,
+    this.showLabel = true,
     this.onCompleted,
     this.onSubmitted,
     super.key,
@@ -30,6 +31,13 @@ class PavePin extends StatefulWidget {
   final int minLength;
   final bool enabled;
   final bool autofocus;
+
+  /// Affiche le label interne au-dessus du champ. Mettre à `false`
+  /// quand le widget est wrappé par un parent qui rend déjà son label
+  /// (cf. `_CarteChamp` connexion/definir_pin/inscription) — évite la
+  /// duplication visuelle « Code PIN » / « Code PIN ».
+  final bool showLabel;
+
   final ValueChanged<String>? onCompleted;
   final ValueChanged<String>? onSubmitted;
 
@@ -77,8 +85,10 @@ class _PavePinState extends State<PavePin> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(widget.label, style: AppTextStyles.labelMedium),
-        AppDimens.vGap8,
+        if (widget.showLabel) ...[
+          Text(widget.label, style: AppTextStyles.labelMedium),
+          AppDimens.vGap8,
+        ],
         Container(
           height: AppDimens.inputHeight,
           decoration: BoxDecoration(
@@ -87,6 +97,7 @@ class _PavePinState extends State<PavePin> {
             border: Border.all(color: borderColor, width: AppDimens.borderThin),
           ),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
                 child: TextField(
@@ -99,6 +110,9 @@ class _PavePinState extends State<PavePin> {
                   keyboardType: TextInputType.number,
                   textInputAction: TextInputAction.done,
                   onSubmitted: widget.onSubmitted,
+                  // Centre verticalement — sinon les bullets se calent
+                  // en haut du champ sur grand input height.
+                  textAlignVertical: TextAlignVertical.center,
                   inputFormatters: [
                     FilteringTextInputFormatter.digitsOnly,
                     LengthLimitingTextInputFormatter(widget.maxLength),
@@ -110,11 +124,13 @@ class _PavePinState extends State<PavePin> {
                   decoration: InputDecoration(
                     hintText: widget.hint,
                     hintStyle: AppTextStyles.hint.copyWith(letterSpacing: 6),
+                    isCollapsed: true,
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,
                     focusedBorder: InputBorder.none,
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 14,
+                      vertical: 14,
                     ),
                   ),
                 ),

@@ -40,6 +40,20 @@ mixin _$PublicationCoop {
   DateTime? get createdAt => throw _privateConstructorUsedError;
   DateTime? get updatedAt => throw _privateConstructorUsedError;
 
+  /// Dates de récolte des annonces du lot agrégé, parsées depuis
+  /// `publication_contributions[].annonces_vente.date_recolte`.
+  /// Liste plate triée croissant. Vide si le backend ne joint pas ou
+  /// si aucune contribution n'a renseigné `date_recolte`.
+  /// Utilisée par les getters `dateRecolteMin/Max` ci-dessous pour
+  /// afficher « Récolté entre le X et le Y » côté acheteur (signal
+  /// de fraîcheur clé pour produits frais).
+  @JsonKey(
+    name: 'publication_contributions',
+    fromJson: _datesRecolteFromContribs,
+    toJson: _datesRecolteToJson,
+  )
+  List<DateTime> get datesRecolteAnnonces => throw _privateConstructorUsedError;
+
   /// Serializes this PublicationCoop to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
@@ -72,6 +86,12 @@ abstract class $PublicationCoopCopyWith<$Res> {
     int nbContributeurs,
     DateTime? createdAt,
     DateTime? updatedAt,
+    @JsonKey(
+      name: 'publication_contributions',
+      fromJson: _datesRecolteFromContribs,
+      toJson: _datesRecolteToJson,
+    )
+    List<DateTime> datesRecolteAnnonces,
   });
 }
 
@@ -103,6 +123,7 @@ class _$PublicationCoopCopyWithImpl<$Res, $Val extends PublicationCoop>
     Object? nbContributeurs = null,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
+    Object? datesRecolteAnnonces = null,
   }) {
     return _then(
       _value.copyWith(
@@ -158,6 +179,10 @@ class _$PublicationCoopCopyWithImpl<$Res, $Val extends PublicationCoop>
                 ? _value.updatedAt
                 : updatedAt // ignore: cast_nullable_to_non_nullable
                       as DateTime?,
+            datesRecolteAnnonces: null == datesRecolteAnnonces
+                ? _value.datesRecolteAnnonces
+                : datesRecolteAnnonces // ignore: cast_nullable_to_non_nullable
+                      as List<DateTime>,
           )
           as $Val,
     );
@@ -188,6 +213,12 @@ abstract class _$$PublicationCoopImplCopyWith<$Res>
     int nbContributeurs,
     DateTime? createdAt,
     DateTime? updatedAt,
+    @JsonKey(
+      name: 'publication_contributions',
+      fromJson: _datesRecolteFromContribs,
+      toJson: _datesRecolteToJson,
+    )
+    List<DateTime> datesRecolteAnnonces,
   });
 }
 
@@ -218,6 +249,7 @@ class __$$PublicationCoopImplCopyWithImpl<$Res>
     Object? nbContributeurs = null,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
+    Object? datesRecolteAnnonces = null,
   }) {
     return _then(
       _$PublicationCoopImpl(
@@ -273,6 +305,10 @@ class __$$PublicationCoopImplCopyWithImpl<$Res>
             ? _value.updatedAt
             : updatedAt // ignore: cast_nullable_to_non_nullable
                   as DateTime?,
+        datesRecolteAnnonces: null == datesRecolteAnnonces
+            ? _value._datesRecolteAnnonces
+            : datesRecolteAnnonces // ignore: cast_nullable_to_non_nullable
+                  as List<DateTime>,
       ),
     );
   }
@@ -280,7 +316,7 @@ class __$$PublicationCoopImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$PublicationCoopImpl implements _PublicationCoop {
+class _$PublicationCoopImpl extends _PublicationCoop {
   const _$PublicationCoopImpl({
     required this.id,
     required this.cooperativeId,
@@ -298,7 +334,15 @@ class _$PublicationCoopImpl implements _PublicationCoop {
     this.nbContributeurs = 0,
     this.createdAt,
     this.updatedAt,
-  }) : _photos = photos;
+    @JsonKey(
+      name: 'publication_contributions',
+      fromJson: _datesRecolteFromContribs,
+      toJson: _datesRecolteToJson,
+    )
+    final List<DateTime> datesRecolteAnnonces = const <DateTime>[],
+  }) : _photos = photos,
+       _datesRecolteAnnonces = datesRecolteAnnonces,
+       super._();
 
   factory _$PublicationCoopImpl.fromJson(Map<String, dynamic> json) =>
       _$$PublicationCoopImplFromJson(json);
@@ -342,9 +386,38 @@ class _$PublicationCoopImpl implements _PublicationCoop {
   @override
   final DateTime? updatedAt;
 
+  /// Dates de récolte des annonces du lot agrégé, parsées depuis
+  /// `publication_contributions[].annonces_vente.date_recolte`.
+  /// Liste plate triée croissant. Vide si le backend ne joint pas ou
+  /// si aucune contribution n'a renseigné `date_recolte`.
+  /// Utilisée par les getters `dateRecolteMin/Max` ci-dessous pour
+  /// afficher « Récolté entre le X et le Y » côté acheteur (signal
+  /// de fraîcheur clé pour produits frais).
+  final List<DateTime> _datesRecolteAnnonces;
+
+  /// Dates de récolte des annonces du lot agrégé, parsées depuis
+  /// `publication_contributions[].annonces_vente.date_recolte`.
+  /// Liste plate triée croissant. Vide si le backend ne joint pas ou
+  /// si aucune contribution n'a renseigné `date_recolte`.
+  /// Utilisée par les getters `dateRecolteMin/Max` ci-dessous pour
+  /// afficher « Récolté entre le X et le Y » côté acheteur (signal
+  /// de fraîcheur clé pour produits frais).
+  @override
+  @JsonKey(
+    name: 'publication_contributions',
+    fromJson: _datesRecolteFromContribs,
+    toJson: _datesRecolteToJson,
+  )
+  List<DateTime> get datesRecolteAnnonces {
+    if (_datesRecolteAnnonces is EqualUnmodifiableListView)
+      return _datesRecolteAnnonces;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_datesRecolteAnnonces);
+  }
+
   @override
   String toString() {
-    return 'PublicationCoop(id: $id, cooperativeId: $cooperativeId, produitId: $produitId, titre: $titre, quantiteKg: $quantiteKg, prixParKg: $prixParKg, qualite: $qualite, description: $description, photos: $photos, status: $status, nbContributeurs: $nbContributeurs, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'PublicationCoop(id: $id, cooperativeId: $cooperativeId, produitId: $produitId, titre: $titre, quantiteKg: $quantiteKg, prixParKg: $prixParKg, qualite: $qualite, description: $description, photos: $photos, status: $status, nbContributeurs: $nbContributeurs, createdAt: $createdAt, updatedAt: $updatedAt, datesRecolteAnnonces: $datesRecolteAnnonces)';
   }
 
   @override
@@ -372,7 +445,11 @@ class _$PublicationCoopImpl implements _PublicationCoop {
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
-                other.updatedAt == updatedAt));
+                other.updatedAt == updatedAt) &&
+            const DeepCollectionEquality().equals(
+              other._datesRecolteAnnonces,
+              _datesRecolteAnnonces,
+            ));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -392,6 +469,7 @@ class _$PublicationCoopImpl implements _PublicationCoop {
     nbContributeurs,
     createdAt,
     updatedAt,
+    const DeepCollectionEquality().hash(_datesRecolteAnnonces),
   );
 
   /// Create a copy of PublicationCoop
@@ -411,7 +489,7 @@ class _$PublicationCoopImpl implements _PublicationCoop {
   }
 }
 
-abstract class _PublicationCoop implements PublicationCoop {
+abstract class _PublicationCoop extends PublicationCoop {
   const factory _PublicationCoop({
     required final String id,
     required final String cooperativeId,
@@ -429,7 +507,14 @@ abstract class _PublicationCoop implements PublicationCoop {
     final int nbContributeurs,
     final DateTime? createdAt,
     final DateTime? updatedAt,
+    @JsonKey(
+      name: 'publication_contributions',
+      fromJson: _datesRecolteFromContribs,
+      toJson: _datesRecolteToJson,
+    )
+    final List<DateTime> datesRecolteAnnonces,
   }) = _$PublicationCoopImpl;
+  const _PublicationCoop._() : super._();
 
   factory _PublicationCoop.fromJson(Map<String, dynamic> json) =
       _$PublicationCoopImpl.fromJson;
@@ -466,317 +551,25 @@ abstract class _PublicationCoop implements PublicationCoop {
   @override
   DateTime? get updatedAt;
 
+  /// Dates de récolte des annonces du lot agrégé, parsées depuis
+  /// `publication_contributions[].annonces_vente.date_recolte`.
+  /// Liste plate triée croissant. Vide si le backend ne joint pas ou
+  /// si aucune contribution n'a renseigné `date_recolte`.
+  /// Utilisée par les getters `dateRecolteMin/Max` ci-dessous pour
+  /// afficher « Récolté entre le X et le Y » côté acheteur (signal
+  /// de fraîcheur clé pour produits frais).
+  @override
+  @JsonKey(
+    name: 'publication_contributions',
+    fromJson: _datesRecolteFromContribs,
+    toJson: _datesRecolteToJson,
+  )
+  List<DateTime> get datesRecolteAnnonces;
+
   /// Create a copy of PublicationCoop
   /// with the given fields replaced by the non-null parameter values.
   @override
   @JsonKey(includeFromJson: false, includeToJson: false)
   _$$PublicationCoopImplCopyWith<_$PublicationCoopImpl> get copyWith =>
-      throw _privateConstructorUsedError;
-}
-
-CoopContribution _$CoopContributionFromJson(Map<String, dynamic> json) {
-  return _CoopContribution.fromJson(json);
-}
-
-/// @nodoc
-mixin _$CoopContribution {
-  String get userId => throw _privateConstructorUsedError;
-  String get annonceId => throw _privateConstructorUsedError;
-  @FlexDouble()
-  double get quantiteKg => throw _privateConstructorUsedError;
-  @FlexDouble()
-  double get partPourcent => throw _privateConstructorUsedError;
-  @FlexDouble()
-  double get revenuProjete => throw _privateConstructorUsedError;
-  Utilisateur? get user => throw _privateConstructorUsedError;
-
-  /// Serializes this CoopContribution to a JSON map.
-  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-
-  /// Create a copy of CoopContribution
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  $CoopContributionCopyWith<CoopContribution> get copyWith =>
-      throw _privateConstructorUsedError;
-}
-
-/// @nodoc
-abstract class $CoopContributionCopyWith<$Res> {
-  factory $CoopContributionCopyWith(
-    CoopContribution value,
-    $Res Function(CoopContribution) then,
-  ) = _$CoopContributionCopyWithImpl<$Res, CoopContribution>;
-  @useResult
-  $Res call({
-    String userId,
-    String annonceId,
-    @FlexDouble() double quantiteKg,
-    @FlexDouble() double partPourcent,
-    @FlexDouble() double revenuProjete,
-    Utilisateur? user,
-  });
-
-  $UtilisateurCopyWith<$Res>? get user;
-}
-
-/// @nodoc
-class _$CoopContributionCopyWithImpl<$Res, $Val extends CoopContribution>
-    implements $CoopContributionCopyWith<$Res> {
-  _$CoopContributionCopyWithImpl(this._value, this._then);
-
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
-
-  /// Create a copy of CoopContribution
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? userId = null,
-    Object? annonceId = null,
-    Object? quantiteKg = null,
-    Object? partPourcent = null,
-    Object? revenuProjete = null,
-    Object? user = freezed,
-  }) {
-    return _then(
-      _value.copyWith(
-            userId: null == userId
-                ? _value.userId
-                : userId // ignore: cast_nullable_to_non_nullable
-                      as String,
-            annonceId: null == annonceId
-                ? _value.annonceId
-                : annonceId // ignore: cast_nullable_to_non_nullable
-                      as String,
-            quantiteKg: null == quantiteKg
-                ? _value.quantiteKg
-                : quantiteKg // ignore: cast_nullable_to_non_nullable
-                      as double,
-            partPourcent: null == partPourcent
-                ? _value.partPourcent
-                : partPourcent // ignore: cast_nullable_to_non_nullable
-                      as double,
-            revenuProjete: null == revenuProjete
-                ? _value.revenuProjete
-                : revenuProjete // ignore: cast_nullable_to_non_nullable
-                      as double,
-            user: freezed == user
-                ? _value.user
-                : user // ignore: cast_nullable_to_non_nullable
-                      as Utilisateur?,
-          )
-          as $Val,
-    );
-  }
-
-  /// Create a copy of CoopContribution
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @pragma('vm:prefer-inline')
-  $UtilisateurCopyWith<$Res>? get user {
-    if (_value.user == null) {
-      return null;
-    }
-
-    return $UtilisateurCopyWith<$Res>(_value.user!, (value) {
-      return _then(_value.copyWith(user: value) as $Val);
-    });
-  }
-}
-
-/// @nodoc
-abstract class _$$CoopContributionImplCopyWith<$Res>
-    implements $CoopContributionCopyWith<$Res> {
-  factory _$$CoopContributionImplCopyWith(
-    _$CoopContributionImpl value,
-    $Res Function(_$CoopContributionImpl) then,
-  ) = __$$CoopContributionImplCopyWithImpl<$Res>;
-  @override
-  @useResult
-  $Res call({
-    String userId,
-    String annonceId,
-    @FlexDouble() double quantiteKg,
-    @FlexDouble() double partPourcent,
-    @FlexDouble() double revenuProjete,
-    Utilisateur? user,
-  });
-
-  @override
-  $UtilisateurCopyWith<$Res>? get user;
-}
-
-/// @nodoc
-class __$$CoopContributionImplCopyWithImpl<$Res>
-    extends _$CoopContributionCopyWithImpl<$Res, _$CoopContributionImpl>
-    implements _$$CoopContributionImplCopyWith<$Res> {
-  __$$CoopContributionImplCopyWithImpl(
-    _$CoopContributionImpl _value,
-    $Res Function(_$CoopContributionImpl) _then,
-  ) : super(_value, _then);
-
-  /// Create a copy of CoopContribution
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? userId = null,
-    Object? annonceId = null,
-    Object? quantiteKg = null,
-    Object? partPourcent = null,
-    Object? revenuProjete = null,
-    Object? user = freezed,
-  }) {
-    return _then(
-      _$CoopContributionImpl(
-        userId: null == userId
-            ? _value.userId
-            : userId // ignore: cast_nullable_to_non_nullable
-                  as String,
-        annonceId: null == annonceId
-            ? _value.annonceId
-            : annonceId // ignore: cast_nullable_to_non_nullable
-                  as String,
-        quantiteKg: null == quantiteKg
-            ? _value.quantiteKg
-            : quantiteKg // ignore: cast_nullable_to_non_nullable
-                  as double,
-        partPourcent: null == partPourcent
-            ? _value.partPourcent
-            : partPourcent // ignore: cast_nullable_to_non_nullable
-                  as double,
-        revenuProjete: null == revenuProjete
-            ? _value.revenuProjete
-            : revenuProjete // ignore: cast_nullable_to_non_nullable
-                  as double,
-        user: freezed == user
-            ? _value.user
-            : user // ignore: cast_nullable_to_non_nullable
-                  as Utilisateur?,
-      ),
-    );
-  }
-}
-
-/// @nodoc
-@JsonSerializable()
-class _$CoopContributionImpl extends _CoopContribution {
-  const _$CoopContributionImpl({
-    required this.userId,
-    required this.annonceId,
-    @FlexDouble() required this.quantiteKg,
-    @FlexDouble() required this.partPourcent,
-    @FlexDouble() required this.revenuProjete,
-    this.user,
-  }) : super._();
-
-  factory _$CoopContributionImpl.fromJson(Map<String, dynamic> json) =>
-      _$$CoopContributionImplFromJson(json);
-
-  @override
-  final String userId;
-  @override
-  final String annonceId;
-  @override
-  @FlexDouble()
-  final double quantiteKg;
-  @override
-  @FlexDouble()
-  final double partPourcent;
-  @override
-  @FlexDouble()
-  final double revenuProjete;
-  @override
-  final Utilisateur? user;
-
-  @override
-  String toString() {
-    return 'CoopContribution(userId: $userId, annonceId: $annonceId, quantiteKg: $quantiteKg, partPourcent: $partPourcent, revenuProjete: $revenuProjete, user: $user)';
-  }
-
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$CoopContributionImpl &&
-            (identical(other.userId, userId) || other.userId == userId) &&
-            (identical(other.annonceId, annonceId) ||
-                other.annonceId == annonceId) &&
-            (identical(other.quantiteKg, quantiteKg) ||
-                other.quantiteKg == quantiteKg) &&
-            (identical(other.partPourcent, partPourcent) ||
-                other.partPourcent == partPourcent) &&
-            (identical(other.revenuProjete, revenuProjete) ||
-                other.revenuProjete == revenuProjete) &&
-            (identical(other.user, user) || other.user == user));
-  }
-
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    userId,
-    annonceId,
-    quantiteKg,
-    partPourcent,
-    revenuProjete,
-    user,
-  );
-
-  /// Create a copy of CoopContribution
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  @override
-  @pragma('vm:prefer-inline')
-  _$$CoopContributionImplCopyWith<_$CoopContributionImpl> get copyWith =>
-      __$$CoopContributionImplCopyWithImpl<_$CoopContributionImpl>(
-        this,
-        _$identity,
-      );
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$CoopContributionImplToJson(this);
-  }
-}
-
-abstract class _CoopContribution extends CoopContribution {
-  const factory _CoopContribution({
-    required final String userId,
-    required final String annonceId,
-    @FlexDouble() required final double quantiteKg,
-    @FlexDouble() required final double partPourcent,
-    @FlexDouble() required final double revenuProjete,
-    final Utilisateur? user,
-  }) = _$CoopContributionImpl;
-  const _CoopContribution._() : super._();
-
-  factory _CoopContribution.fromJson(Map<String, dynamic> json) =
-      _$CoopContributionImpl.fromJson;
-
-  @override
-  String get userId;
-  @override
-  String get annonceId;
-  @override
-  @FlexDouble()
-  double get quantiteKg;
-  @override
-  @FlexDouble()
-  double get partPourcent;
-  @override
-  @FlexDouble()
-  double get revenuProjete;
-  @override
-  Utilisateur? get user;
-
-  /// Create a copy of CoopContribution
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$CoopContributionImplCopyWith<_$CoopContributionImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }

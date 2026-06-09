@@ -16,6 +16,7 @@ class ChampTelephone extends StatefulWidget {
     this.hint = '07 12 34 56 78',
     this.enabled = true,
     this.autofocus = false,
+    this.showLabel = true,
     this.onSubmitted,
     super.key,
   });
@@ -25,6 +26,12 @@ class ChampTelephone extends StatefulWidget {
   final String hint;
   final bool enabled;
   final bool autofocus;
+
+  /// Affiche le label interne au-dessus du champ. Mettre à `false`
+  /// quand le widget est wrappé par un parent qui rend déjà son propre
+  /// label (cf. `_CarteChamp` des pages auth) — évite la duplication.
+  final bool showLabel;
+
   final ValueChanged<String>? onSubmitted;
 
   /// Convertit un numéro local (ex: `0709883051`) en E.164 (ex: `+2250709883051`).
@@ -75,8 +82,10 @@ class _ChampTelephoneState extends State<ChampTelephone> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(widget.label, style: AppTextStyles.labelMedium),
-        AppDimens.vGap8,
+        if (widget.showLabel) ...[
+          Text(widget.label, style: AppTextStyles.labelMedium),
+          AppDimens.vGap8,
+        ],
         Container(
           height: AppDimens.inputHeight,
           decoration: BoxDecoration(
@@ -85,6 +94,7 @@ class _ChampTelephoneState extends State<ChampTelephone> {
             border: Border.all(color: borderColor, width: AppDimens.borderThin),
           ),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // Préfixe pays : drapeau + indicatif, séparé par un filet fin.
               Padding(
@@ -117,6 +127,11 @@ class _ChampTelephoneState extends State<ChampTelephone> {
                   keyboardType: TextInputType.phone,
                   textInputAction: TextInputAction.next,
                   onSubmitted: widget.onSubmitted,
+                  // Centre verticalement le texte dans la zone (sinon
+                  // le placeholder + la saisie se calent en haut sur
+                  // les inputs avec hauteur fixe — bug visible sur la
+                  // page connexion sur grand écran).
+                  textAlignVertical: TextAlignVertical.center,
                   inputFormatters: [
                     FilteringTextInputFormatter.allow(RegExp(r'[\d ]')),
                     LengthLimitingTextInputFormatter(13),
@@ -127,11 +142,13 @@ class _ChampTelephoneState extends State<ChampTelephone> {
                   decoration: InputDecoration(
                     hintText: widget.hint,
                     hintStyle: AppTextStyles.hint,
+                    isCollapsed: true,
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,
                     focusedBorder: InputBorder.none,
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 12,
+                      vertical: 14,
                     ),
                   ),
                 ),

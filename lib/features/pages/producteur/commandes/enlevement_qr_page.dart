@@ -96,7 +96,7 @@ class EnlevementQrPage extends ConsumerWidget {
                 ),
               ),
             ),
-            const StickyLinkEnlevement(),
+            StickyLinkEnlevement(commandeId: commandeId),
           ],
         ),
       ),

@@ -507,7 +507,7 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
       Snackbars.showErreur(context, e.message);
     } catch (e) {
       if (!mounted) return;
-      Snackbars.showErreur(context, 'Erreur : $e');
+      Snackbars.showErreurInattendue(context, e);
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }

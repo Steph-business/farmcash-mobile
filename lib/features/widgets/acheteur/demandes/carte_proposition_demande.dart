@@ -7,6 +7,7 @@ import '../../../../models/negociation.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
+import 'carte_garanties_coop.dart';
 
 const Color _kPrimarySoft = Color(0xFFE8F5E9);
 
@@ -131,6 +132,15 @@ class CartePropositionDemande extends StatelessWidget {
                     : 'Produit',
                 produitPhotoUrl: produitPhotoUrl,
               ),
+              // Bandeau « Garanties » UNIQUEMENT si la proposition vient
+              // d'une coopérative (vs un farmer individuel). Affiche le
+              // nb de membres, la note + rappel escrow pour rassurer
+              // l'acheteur sur les gros engagements coop.
+              if (proposition.isFromCooperative &&
+                  proposition.vendeur != null) ...[
+                const SizedBox(height: 10),
+                CarteGarantiesCoop(vendeur: proposition.vendeur!),
+              ],
               if (note != null && note.isNotEmpty) ...[
                 const SizedBox(height: 10),
                 Container(

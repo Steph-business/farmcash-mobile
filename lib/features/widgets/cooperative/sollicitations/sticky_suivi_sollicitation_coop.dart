@@ -47,7 +47,7 @@ class _StickySuiviSollicitationCoopState
       Snackbars.showErreur(context, e.message);
     } catch (e) {
       if (!mounted) return;
-      Snackbars.showErreur(context, 'Erreur : $e');
+      Snackbars.showErreurInattendue(context, e);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -60,83 +60,98 @@ class _StickySuiviSollicitationCoopState
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.background,
-        border: Border(
+        // Shadow soft top → effet plateau flottant qui décolle le sticky du
+        // contenu scrollable au-dessus.
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, -4),
+          ),
+        ],
+        border: const Border(
           top: BorderSide(
             color: AppColors.border,
             width: AppDimens.borderThin,
           ),
         ),
       ),
-      padding: const EdgeInsets.fromLTRB(24, 14, 24, 12),
-      child: Row(
-        children: [
-          Expanded(
-            child: InkWell(
-              onTap: _busy ? null : _relancer,
-              borderRadius: BorderRadius.circular(AppDimens.radiusCard),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 13),
-                decoration: BoxDecoration(
-                  color: AppColors.background,
-                  borderRadius:
-                      BorderRadius.circular(AppDimens.radiusCard),
-                  border: Border.all(
-                    color: AppColors.primary,
-                    width: AppDimens.borderThin,
-                  ),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  'Relancer non-répondants',
-                  style: AppTextStyles.button.copyWith(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: InkWell(
-              onTap: _busy ? null : _cloturer,
-              borderRadius: BorderRadius.circular(AppDimens.radiusCard),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 13),
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius:
-                      BorderRadius.circular(AppDimens.radiusCard),
-                  border: Border.all(
-                    color: AppColors.primary,
-                    width: AppDimens.borderThin,
-                  ),
-                ),
-                alignment: Alignment.center,
-                child: _busy
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : Text(
-                        'Clôturer',
-                        style: AppTextStyles.button.copyWith(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
+      child: SafeArea(
+        top: false,
+        minimum: const EdgeInsets.only(bottom: 8),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 14, 24, 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: InkWell(
+                  onTap: _busy ? null : _relancer,
+                  borderRadius: BorderRadius.circular(AppDimens.radiusCard),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    decoration: BoxDecoration(
+                      color: AppColors.background,
+                      borderRadius:
+                          BorderRadius.circular(AppDimens.radiusCard),
+                      border: Border.all(
+                        color: AppColors.primary,
+                        width: AppDimens.borderThin,
                       ),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      'Relancer non-répondants',
+                      style: AppTextStyles.button.copyWith(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                ),
               ),
-            ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: InkWell(
+                  onTap: _busy ? null : _cloturer,
+                  borderRadius: BorderRadius.circular(AppDimens.radiusCard),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius:
+                          BorderRadius.circular(AppDimens.radiusCard),
+                      border: Border.all(
+                        color: AppColors.primary,
+                        width: AppDimens.borderThin,
+                      ),
+                    ),
+                    alignment: Alignment.center,
+                    child: _busy
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(
+                            'Clôturer',
+                            style: AppTextStyles.button.copyWith(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

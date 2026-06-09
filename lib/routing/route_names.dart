@@ -162,6 +162,20 @@ class RouteNames {
       '/producteur/publications-coop/:id';
   static String producteurPublicationCoopDetailPathFor(String id) =>
       '/producteur/publications-coop/$id';
+  // Mes ventes coop — historique des contributions du producteur aux
+  // publications agrégées par sa coopérative (qte contribuée, statut,
+  // net reçu après distribution).
+  static const producteurVentesCoop = 'producteur-ventes-coop';
+  static const producteurVentesCoopPath = '/producteur/ventes-coop';
+  // Trouver une coopérative — annuaire public, recherche + filtre, tap
+  // → demander à rejoindre. Utilisé quand le producteur n'est rattaché
+  // à aucune coop (état vide « Ma coopérative »).
+  static const producteurTrouverCoop = 'producteur-trouver-coop';
+  static const producteurTrouverCoopPath = '/producteur/trouver-coop';
+  // Mes demandes d'adhésion en cours (PENDING / ACCEPTED / REJECTED)
+  // + invitations reçues par téléphone (acceptable / refusable).
+  static const producteurInvitationsCoop = 'producteur-invitations-coop';
+  static const producteurInvitationsCoopPath = '/producteur/invitations-coop';
   // Profil & paramètres (push top-level — pattern iOS Settings)
   static const producteurProfilSettings = 'producteur-profil-settings';
   static const producteurProfilSettingsPath =
@@ -316,7 +330,10 @@ class RouteNames {
   static const cooperativeProfilPath = '/cooperative/profil';
   static const cooperativeMessages = 'cooperative-messages';
   static const cooperativeMessagesPath = '/cooperative/messages';
-  static const cooperativeAvancesPath = '/cooperative/avances';
+  // ⚠️ `cooperativeAvancesPath` retiré 2026-06-06 — constante orpheline
+  // sans GoRoute (404 « no routes for location »). La page « Verser une
+  // avance » (cooperativeVerserAvancePath) est l'écran principal — tous
+  // les call sites doivent pointer dessus directement.
   static const cooperativeTransactionsPath = '/cooperative/transactions';
   // Notifications (push depuis l'icône cloche du header)
   static const cooperativeNotifications = 'cooperative-notifications';
