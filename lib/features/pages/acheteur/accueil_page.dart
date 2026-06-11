@@ -19,6 +19,7 @@ import '../../widgets/acheteur/accueil/annonces_grid_acheteur.dart';
 import '../../widgets/acheteur/accueil/etat_vide_accueil_acheteur.dart';
 import '../../widgets/acheteur/accueil/section_accueil_acheteur.dart';
 import '../../widgets/acheteur/accueil/section_tendance.dart';
+import '../../widgets/communs/bandeau_consentement.dart';
 import '../../widgets/communs/carte_solde_hero.dart';
 import '../../widgets/communs/chargement.dart';
 import '../../widgets/communs/grille_actions.dart';
@@ -252,36 +253,38 @@ class _AccueilPageState extends ConsumerState<AccueilPage> {
   Widget build(BuildContext context) {
     final asyncData = ref.watch(_accueilAcheteurDataProvider);
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            // Sous-titre dynamique : si l'acheteur a des propositions
-            // reçues à traiter, on lui dit clairement combien — c'est
-            // plus actionnable que "Bienvenue" générique.
-            HeaderUtilisateur(
-              variant: HeaderVariant.acheteur,
-              subtitleOverride: _construireSousTitreHeader(ref),
-            ),
-            Expanded(
-              child: asyncData.when(
-                loading: () => const Padding(
-                  padding: EdgeInsets.only(top: 48),
-                  child: Chargement(size: 22),
-                ),
-                error: (err, _) => Padding(
-                  padding: const EdgeInsets.all(AppDimens.pagePaddingH),
-                  child: VueErreur(
-                    message: 'Impossible de charger le marché. $err',
-                    onRetry: _refresh,
-                  ),
-                ),
-                data: _buildContent,
+    return BandeauConsentementWrapper(
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              // Sous-titre dynamique : si l'acheteur a des propositions
+              // reçues à traiter, on lui dit clairement combien — c'est
+              // plus actionnable que "Bienvenue" générique.
+              HeaderUtilisateur(
+                variant: HeaderVariant.acheteur,
+                subtitleOverride: _construireSousTitreHeader(ref),
               ),
-            ),
-          ],
+              Expanded(
+                child: asyncData.when(
+                  loading: () => const Padding(
+                    padding: EdgeInsets.only(top: 48),
+                    child: Chargement(size: 22),
+                  ),
+                  error: (err, _) => Padding(
+                    padding: const EdgeInsets.all(AppDimens.pagePaddingH),
+                    child: VueErreur(
+                      message: 'Impossible de charger le marché. $err',
+                      onRetry: _refresh,
+                    ),
+                  ),
+                  data: _buildContent,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

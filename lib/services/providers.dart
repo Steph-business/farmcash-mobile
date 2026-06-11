@@ -8,7 +8,9 @@ import 'auth_service.dart';
 import 'buyer_service.dart';
 import 'coop_logistics_service.dart';
 import 'cooperatives_service.dart';
+import 'farmer_stats_service.dart';
 import 'finance_service.dart';
+import 'legal_service.dart';
 import 'logistics_service.dart';
 import 'marketplace_service.dart';
 import 'matching_service.dart';
@@ -65,6 +67,13 @@ final financeServiceProvider = Provider<FinanceService>((ref) {
   return FinanceService(ref.watch(apiClientProvider));
 });
 
+/// Légal & confidentialité (suppression compte, export données,
+/// consentement CGU/Privacy). Obligations Apple/Google Play + loi
+/// ivoirienne 2013-450 sur la protection des données.
+final legalServiceProvider = Provider<LegalService>((ref) {
+  return LegalService(ref.watch(apiClientProvider));
+});
+
 final logisticsServiceProvider = Provider<LogisticsService>((ref) {
   return LogisticsService(ref.watch(apiClientProvider));
 });
@@ -106,6 +115,12 @@ final supplyPlansServiceProvider = Provider<SupplyPlansService>((ref) {
 /// potentiels pour l'acheteur / la coop.
 final matchingServiceProvider = Provider<MatchingService>((ref) {
   return MatchingService(ref.watch(apiClientProvider));
+});
+
+/// Tableau de bord analytique producteur — alimente la page « Mes
+/// statistiques » (overview, actions en attente, funnel de conversion).
+final farmerStatsServiceProvider = Provider<FarmerStatsService>((ref) {
+  return FarmerStatsService(ref.watch(apiClientProvider));
 });
 
 /// Estimation prix marché — médiane + min/max + verdict. Utilisé par le

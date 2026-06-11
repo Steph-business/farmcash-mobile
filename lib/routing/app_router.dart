@@ -18,6 +18,11 @@ import '../features/pages/_shared/parametres/notifications_preferences_page.dart
     as shared_notifs_prefs;
 import '../features/pages/_shared/parametres/securite_page.dart'
     as shared_securite;
+// ─── Pages Légal & confidentialité (partagées tous rôles) ───────────────
+import '../features/pages/communs/legal/document_legal_page.dart';
+import '../features/pages/communs/legal/exporter_donnees_page.dart';
+import '../features/pages/communs/legal/legal_page.dart';
+import '../features/pages/communs/legal/supprimer_compte_page.dart';
 
 // ─── Pages auth ─────────────────────────────────────────────────────────
 import '../features/pages/authentification/bienvenue_page.dart';
@@ -293,6 +298,40 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: RouteNames.moyensPaiementPath,
         name: RouteNames.moyensPaiement,
         builder: (context, _) => shared_moyens_paiement.MoyensPaiementPage(
+          fallbackPath: _homePathPourRoleCourant(context),
+        ),
+      ),
+
+      // ─── Légal & confidentialité — partagé tous rôles ──────────────
+      // Obligations Apple/Google Play et loi ivoirienne 2013-450
+      // (protection des données personnelles). 4 pages : index, viewer
+      // générique pour chaque document, export RGPD, suppression compte.
+      GoRoute(
+        path: RouteNames.legalPath,
+        name: RouteNames.legal,
+        builder: (context, _) => LegalPage(
+          fallbackPath: _homePathPourRoleCourant(context),
+        ),
+      ),
+      GoRoute(
+        path: RouteNames.documentLegalPath,
+        name: RouteNames.documentLegal,
+        builder: (context, state) => DocumentLegalPage(
+          docType: state.pathParameters['docType'] ?? '',
+          fallbackPath: _homePathPourRoleCourant(context),
+        ),
+      ),
+      GoRoute(
+        path: RouteNames.exporterDonneesPath,
+        name: RouteNames.exporterDonnees,
+        builder: (context, _) => ExporterDonneesPage(
+          fallbackPath: _homePathPourRoleCourant(context),
+        ),
+      ),
+      GoRoute(
+        path: RouteNames.supprimerComptePath,
+        name: RouteNames.supprimerCompte,
+        builder: (context, _) => SupprimerComptePage(
           fallbackPath: _homePathPourRoleCourant(context),
         ),
       ),

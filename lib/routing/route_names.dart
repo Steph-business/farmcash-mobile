@@ -595,6 +595,27 @@ class RouteNames {
   static const conditions = 'conditions';
   static const conditionsPath = '/conditions';
 
+  // ─── Légal & confidentialité — partagé tous rôles ────────────────────
+  // Obligations Apple/Google Play et loi ivoirienne 2013-450 (protection
+  // des données personnelles). Page d'accueil + viewer générique pour
+  // les 4 documents (CGU / CGV / Privacy / Mentions) + pages de gestion
+  // du compte (export RGPD, suppression soft-delete 30 jours).
+  static const legal = 'legal';
+  static const legalPath = '/legal';
+
+  /// Type de document légal à afficher dans `DocumentLegalPage`.
+  /// Valeurs supportées : `cgu`, `cgv`, `privacy`, `mentions`.
+  static const documentLegal = 'document-legal';
+  static const documentLegalPath = '/legal/document/:docType';
+  static String documentLegalPathFor(String docType) =>
+      '/legal/document/$docType';
+
+  static const exporterDonnees = 'exporter-donnees';
+  static const exporterDonneesPath = '/legal/exporter-donnees';
+
+  static const supprimerCompte = 'supprimer-compte';
+  static const supprimerComptePath = '/legal/supprimer-compte';
+
   static const moyensPaiement = 'moyens-paiement';
   static const moyensPaiementPath = '/parametres/moyens-paiement';
 

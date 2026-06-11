@@ -26,6 +26,15 @@ class ApiEndpoints {
   static const String authProfileTransporteur = '/auth/profile/transporteur';
   static const String authDeviceToken = '/auth/device-token';
 
+  // ─── COMPTE — RGPD / loi 2013-450 (suppression, export, consentement) ─
+  // Obligations Apple/Google Play et loi ivoirienne sur la protection des
+  // données personnelles. Soft-delete 30 jours côté backend.
+  static const String authAccountDelete = '/auth/account';
+  static const String authAccountCancelDeletion =
+      '/auth/account/cancel-deletion';
+  static const String authAccountExport = '/auth/account/export';
+  static const String authAccountConsent = '/auth/account/consent';
+
   // ─── KYC (justificatifs d'identité, parcelles, etc.) ─────────────────
   static const String authKycMy = '/auth/kyc/my';
   static const String authKycUpload = '/auth/kyc/upload';
@@ -89,6 +98,7 @@ class ApiEndpoints {
   static const String produits = '/marketplace/produits';
   static const String categories = '/marketplace/categories';
   static const String villes = '/marketplace/villes';
+  static const String regions = '/marketplace/regions';
 
   // ─── MARKETPLACE — annonces vente ────────────────────────────────────
   static const String annoncesVente = '/marketplace/annonces/vente';
@@ -340,4 +350,21 @@ class ApiEndpoints {
   /// produit donné, éventuellement filtré par région et qualité.
   /// Endpoint accessible à tous les rôles authentifiés.
   static const String aiPriceEstimate = '/ai/price-estimate';
+
+  // ─── Oversight — Tableau de bord PRODUCTEUR (rôle FARMER) ────────────
+  /// Vue agrégée : annonces, revenus 30j, commandes à expédier, alertes
+  /// cultures, note, wallet. Alimente la page « Mes statistiques ».
+  static const String farmerOverview = '/oversight/farmer/overview';
+
+  /// Actions en attente (candidatures, livraisons, conversions prévision).
+  static const String farmerPendingActions =
+      '/oversight/farmer/pending-actions';
+
+  /// Funnel de conversion par annonce (vues → candidatures → commandes).
+  static const String farmerConversionFunnel =
+      '/oversight/farmer/conversion-funnel';
+
+  /// Revenus hebdomadaires direct vs via coop, sur 7d / 30d / 90d / year.
+  static String farmerRevenueTimeline(String period) =>
+      '/oversight/farmer/revenue-timeline?period=$period';
 }

@@ -15,6 +15,7 @@ import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
 import '../../../theme/app_text_styles.dart';
+import '../../widgets/communs/bandeau_consentement.dart';
 import '../../widgets/communs/carte_solde_hero.dart';
 import '../../widgets/communs/chargement.dart';
 import '../../widgets/communs/grille_actions.dart';
@@ -35,30 +36,32 @@ class AccueilPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final dataAsync = ref.watch(_accueilCoopDataProvider);
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        bottom: false,
-        child: dataAsync.when(
-          loading: () => Column(
-            children: const [
-              HeaderUtilisateur(variant: HeaderVariant.cooperative),
-              Expanded(child: Chargement(size: 22)),
-            ],
-          ),
-          error: (err, _) => Column(
-            children: [
-              const HeaderUtilisateur(variant: HeaderVariant.cooperative),
-              Padding(
-                padding: const EdgeInsets.all(AppDimens.pagePaddingH),
-                child: VueErreur(
-                  message: 'Impossible de charger l’accueil.',
-                  onRetry: () => ref.invalidate(_accueilCoopDataProvider),
+    return BandeauConsentementWrapper(
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          bottom: false,
+          child: dataAsync.when(
+            loading: () => Column(
+              children: const [
+                HeaderUtilisateur(variant: HeaderVariant.cooperative),
+                Expanded(child: Chargement(size: 22)),
+              ],
+            ),
+            error: (err, _) => Column(
+              children: [
+                const HeaderUtilisateur(variant: HeaderVariant.cooperative),
+                Padding(
+                  padding: const EdgeInsets.all(AppDimens.pagePaddingH),
+                  child: VueErreur(
+                    message: 'Impossible de charger l’accueil.',
+                    onRetry: () => ref.invalidate(_accueilCoopDataProvider),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
+            data: (data) => _AccueilContent(data: data),
           ),
-          data: (data) => _AccueilContent(data: data),
         ),
       ),
     );

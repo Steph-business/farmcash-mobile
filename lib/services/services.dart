@@ -7,6 +7,7 @@ export 'ai_service.dart';
 export 'auth_service.dart';
 export 'cooperatives_service.dart';
 export 'finance_service.dart';
+export 'legal_service.dart';
 export 'logistics_service.dart';
 export 'marketplace_service.dart';
 export 'matching_service.dart';
