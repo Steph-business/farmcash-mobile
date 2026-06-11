@@ -22,9 +22,13 @@ import '../features/pages/_shared/parametres/securite_page.dart'
 // ─── Pages auth ─────────────────────────────────────────────────────────
 import '../features/pages/authentification/bienvenue_page.dart';
 import '../features/pages/authentification/choix_role_page.dart';
+import '../features/pages/authentification/completer_profil_page.dart';
 import '../features/pages/authentification/connexion_page.dart';
 import '../features/pages/authentification/definir_pin_page.dart';
 import '../features/pages/authentification/inscription_page.dart';
+import '../features/pages/authentification/onboarding/wizard_essentiel_acheteur_page.dart';
+import '../features/pages/authentification/onboarding/wizard_essentiel_cooperative_page.dart';
+import '../features/pages/authentification/onboarding/wizard_essentiel_producteur_page.dart';
 import '../features/pages/authentification/otp_page.dart';
 import '../features/pages/authentification/pin_oublie_page.dart';
 import '../features/pages/authentification/splash_page.dart';
@@ -66,6 +70,7 @@ import '../features/pages/producteur/publications/mes_publications_page.dart';
 import '../features/pages/producteur/publications/mes_reservations_recues_page.dart';
 import '../features/pages/producteur/publications/prevision_detail_page.dart';
 import '../features/pages/producteur/publications/publication_coop_detail_page.dart';
+import '../features/pages/producteur/marche/opportunites_matching_page.dart';
 import '../features/pages/producteur/publier/annonce_express_page.dart';
 import '../features/pages/producteur/publier/creer_prevision_page.dart';
 import '../features/pages/producteur/publier/parcelle_creer_page.dart';
@@ -83,6 +88,11 @@ import '../features/pages/producteur/wallet/wallet_retirer_page.dart';
 import '../features/pages/acheteur/accueil_page.dart' as ach_accueil;
 import '../features/pages/acheteur/adresses_livraison_page.dart';
 import '../features/pages/acheteur/entreprise/mon_entreprise_page.dart';
+import '../features/pages/acheteur/supply_plans/creer_plan_page.dart';
+import '../features/pages/acheteur/supply_plans/detail_plan_page.dart';
+import '../features/pages/acheteur/supply_plans/mes_plans_page.dart';
+import '../features/pages/cooperative/supply_plans/mes_contrats_b2b_page.dart';
+import '../features/pages/cooperative/supply_plans/plans_publics_page.dart';
 import '../features/pages/acheteur/commande/choisir_transporteur_page.dart';
 import '../features/pages/acheteur/commande/commande_detail_page.dart'
     as ach_cmd_detail;
@@ -97,6 +107,7 @@ import '../features/pages/acheteur/demandes/proposition_detail_page.dart';
 import '../features/pages/acheteur/demandes/publier_demande_page.dart';
 import '../features/pages/acheteur/favoris_page.dart';
 import '../features/pages/acheteur/marche/annonce_detail_page.dart';
+import '../features/pages/acheteur/marche/publication_coop_detail_page.dart';
 import '../features/pages/acheteur/marche/marche_page.dart';
 import '../features/pages/acheteur/marche/prevision_detail_page.dart';
 import '../features/pages/acheteur/marche/reservation_paiement_page.dart';
@@ -138,6 +149,7 @@ import '../features/pages/cooperative/membres/enregistrer_managed_page.dart';
 import '../features/pages/cooperative/membres/membre_detail_page.dart';
 import '../features/pages/cooperative/membres/verser_avance_page.dart';
 import '../features/pages/cooperative/membres_page.dart';
+import '../features/pages/cooperative/negociations/contre_offres_recues_page.dart';
 import '../features/pages/cooperative/offres_recues_page.dart'
     as coop_offres;
 import '../features/pages/cooperative/pesee_page.dart';
@@ -161,6 +173,7 @@ import '../features/pages/transporteur/confirmations/livraison_confirme_page.dar
 import '../features/pages/transporteur/demande_detail_page.dart';
 import '../features/pages/transporteur/demandes_entrantes_page.dart';
 import '../features/pages/transporteur/itineraires_page.dart';
+import '../features/pages/transporteur/mes_documents_page.dart';
 import '../features/pages/transporteur/mes_vehicules_page.dart';
 import '../features/pages/transporteur/missions/mission_detail_page.dart';
 import '../features/pages/transporteur/missions/mission_en_route_page.dart';
@@ -172,7 +185,7 @@ import '../features/pages/transporteur/profil_settings_page.dart'
     as trans_profil_settings;
 import '../features/pages/transporteur/scanner_page.dart';
 import '../features/pages/transporteur/tarification/tarification_page.dart';
-import '../features/pages/transporteur/vehicule_ajouter_page.dart';
+import '../features/pages/transporteur/itineraire_creer_page.dart';
 import '../features/pages/transporteur/vehicule_creer_page.dart';
 import '../features/pages/transporteur/wallet/wallet_page.dart'
     as trans_wallet;
@@ -297,6 +310,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: RouteNames.acheteurMonEntreprise,
         builder: (_, _) => const MonEntrepriseAcheteurPage(),
       ),
+      // Plans d'approvisionnement B2B (chantier 2)
+      GoRoute(
+        path: RouteNames.acheteurMesPlansPath,
+        name: RouteNames.acheteurMesPlans,
+        builder: (_, _) => const MesPlansPage(),
+      ),
+      GoRoute(
+        path: RouteNames.acheteurCreerPlanPath,
+        name: RouteNames.acheteurCreerPlan,
+        builder: (_, _) => const CreerPlanPage(),
+      ),
+      GoRoute(
+        path: '/acheteur/plans/:id',
+        name: RouteNames.acheteurDetailPlan,
+        builder: (_, state) => DetailPlanPage(
+          planId: state.pathParameters['id']!,
+        ),
+      ),
 
       // ─── Pages métier coopérative (push hors shell, ajoutées récemment) ─
       // Membres : push hors-shell (anciennement onglet) — le 2026-06-04
@@ -321,6 +352,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: RouteNames.cooperativeDocumentsOfficielsPath,
         name: RouteNames.cooperativeDocumentsOfficiels,
         builder: (_, _) => const DocumentsOfficielsCoopPage(),
+      ),
+      // Contre-offres reçues sur les publications coop — gestion
+      // Accepter/Rejeter/Contre-proposer côté vendeur coop.
+      GoRoute(
+        path: RouteNames.cooperativeContreOffresRecuesPath,
+        name: RouteNames.cooperativeContreOffresRecues,
+        builder: (_, _) => const ContreOffresRecuesCoopPage(),
+      ),
+      // Plans d'approvisionnement B2B (chantier 2) — côté fournisseur.
+      GoRoute(
+        path: RouteNames.cooperativePlansPublicsPath,
+        name: RouteNames.cooperativePlansPublics,
+        builder: (_, _) => const PlansPublicsPage(),
+      ),
+      GoRoute(
+        path: RouteNames.cooperativeMesContratsB2BPath,
+        name: RouteNames.cooperativeMesContratsB2B,
+        builder: (_, _) => const MesContratsB2BPage(),
       ),
 
       // ─── Pages métier transporteur (push hors shell, ajoutées récemment) ─
@@ -370,6 +419,34 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: RouteNames.pinOubliePath,
         name: RouteNames.pinOublie,
         builder: (_, _) => const PinOubliePage(),
+      ),
+      // Page de récupération : user authentifié SANS profil rôle.
+      // Le guard auth y redirige automatiquement quand
+      // `user.hasRoleProfile == false` pour FARMER/BUYER/COOPERATIVE.
+      GoRoute(
+        path: RouteNames.completerProfilPath,
+        name: RouteNames.completerProfil,
+        builder: (_, _) => const CompleterProfilPage(),
+      ),
+
+      // ─── Onboarding obligatoire (hors shell) ───────────────────────
+      // Wizards forcés par le guard tant que essential_fields_complete
+      // = false côté FARMER/BUYER/COOPERATIVE. TRANSPORTER a son propre
+      // onboarding (route active obligatoire) géré ailleurs.
+      GoRoute(
+        path: RouteNames.onboardingProducteurPath,
+        name: RouteNames.onboardingProducteur,
+        builder: (_, _) => const WizardEssentielProducteurPage(),
+      ),
+      GoRoute(
+        path: RouteNames.onboardingAcheteurPath,
+        name: RouteNames.onboardingAcheteur,
+        builder: (_, _) => const WizardEssentielAcheteurPage(),
+      ),
+      GoRoute(
+        path: RouteNames.onboardingCooperativePath,
+        name: RouteNames.onboardingCooperative,
+        builder: (_, _) => const WizardEssentielCooperativePage(),
       ),
 
       // ─── SHELL PRODUCTEUR ─────────────────────────────────────────
@@ -470,6 +547,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: RouteNames.acheteurAnnonceDetail,
         builder: (_, state) => AnnonceDetailAcheteurPage(
           annonceId: state.pathParameters['id'] ?? '',
+        ),
+      ),
+      // Détail publication coop côté acheteur (lots agrégés).
+      GoRoute(
+        path: RouteNames.acheteurPublicationCoopDetailPath,
+        name: RouteNames.acheteurPublicationCoopDetail,
+        builder: (_, state) => PublicationCoopDetailAcheteurPage(
+          id: state.pathParameters['id'] ?? '',
         ),
       ),
       GoRoute(
@@ -1061,6 +1146,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: RouteNames.producteurAide,
         builder: (_, _) => const prod_aide.AidePage(),
       ),
+      // ─── Producteur — Opportunités matching (push hors shell) ──────
+      // Liste complète des demandes d'achat qui matchent les cultures
+      // déclarées (vue producteur du matching IA backend).
+      GoRoute(
+        path: RouteNames.producteurOpportunitesPath,
+        name: RouteNames.producteurOpportunites,
+        builder: (_, _) => const OpportunitesMatchingPage(),
+      ),
 
       // ─── Producteur — Outils IA (push hors shell) ──────────────────
       GoRoute(
@@ -1252,12 +1345,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
 
       // ─── Transporteur — Ajouter mon véhicule (push hors shell) ─────
-      // Historiquement nommée "vehicule-ajouter" mais crée en réalité un
-      // itinéraire (route transporteur).
+      // Création d'un itinéraire (route) transporteur.
       GoRoute(
         path: RouteNames.transporteurVehiculeAjouterPath,
         name: RouteNames.transporteurVehiculeAjouter,
-        builder: (_, _) => const VehiculeAjouterTransporteurPage(),
+        builder: (_, _) => const ItineraireCreerPage(),
       ),
 
       // ─── Transporteur — Créer un véhicule (POST /logistics/vehicles) ─
@@ -1272,6 +1364,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: RouteNames.transporteurMesVehiculesPath,
         name: RouteNames.transporteurMesVehicules,
         builder: (_, _) => const MesVehiculesPage(),
+      ),
+      // ─── Transporteur — Mes documents officiels (KYC permis + carte
+      //     grise) ───────────────────────────────────────────────────
+      GoRoute(
+        path: RouteNames.transporteurMesDocumentsPath,
+        name: RouteNames.transporteurMesDocuments,
+        builder: (_, _) => const MesDocumentsTransporteurPage(),
       ),
 
       // ─── SHELL TRANSPORTEUR ───────────────────────────────────────

@@ -76,6 +76,26 @@ _$CommandeImpl _$$CommandeImplFromJson(Map<String, dynamic> json) =>
             'updated_at',
             (v) => v == null ? null : DateTime.parse(v as String),
           ),
+          paymentMode: $checkedConvert(
+            'payment_mode',
+            (v) => v as String? ?? 'FULL',
+          ),
+          depositAmount: $checkedConvert(
+            'deposit_amount',
+            (v) => const FlexDoubleN().fromJson(v),
+          ),
+          depositPaidAt: $checkedConvert(
+            'deposit_paid_at',
+            (v) => v == null ? null : DateTime.parse(v as String),
+          ),
+          balancePaidAt: $checkedConvert(
+            'balance_paid_at',
+            (v) => v == null ? null : DateTime.parse(v as String),
+          ),
+          cashCollectedAt: $checkedConvert(
+            'cash_collected_at',
+            (v) => v == null ? null : DateTime.parse(v as String),
+          ),
           buyerName: $checkedConvert(
             'buyer_name',
             (v) => v as String?,
@@ -115,6 +135,11 @@ _$CommandeImpl _$$CommandeImplFromJson(Map<String, dynamic> json) =>
         'livraisonDate': 'livraison_date',
         'createdAt': 'created_at',
         'updatedAt': 'updated_at',
+        'paymentMode': 'payment_mode',
+        'depositAmount': 'deposit_amount',
+        'depositPaidAt': 'deposit_paid_at',
+        'balancePaidAt': 'balance_paid_at',
+        'cashCollectedAt': 'cash_collected_at',
         'buyerName': 'buyer_name',
         'buyerPhotoUrl': 'buyer_photo_url',
         'sellerName': 'seller_name',
@@ -151,6 +176,15 @@ Map<String, dynamic> _$$CommandeImplToJson(
     'created_at': value,
   if (instance.updatedAt?.toIso8601String() case final value?)
     'updated_at': value,
+  'payment_mode': instance.paymentMode,
+  if (const FlexDoubleN().toJson(instance.depositAmount) case final value?)
+    'deposit_amount': value,
+  if (instance.depositPaidAt?.toIso8601String() case final value?)
+    'deposit_paid_at': value,
+  if (instance.balancePaidAt?.toIso8601String() case final value?)
+    'balance_paid_at': value,
+  if (instance.cashCollectedAt?.toIso8601String() case final value?)
+    'cash_collected_at': value,
   if (instance.buyerName case final value?) 'buyer_name': value,
   if (instance.buyerPhotoUrl case final value?) 'buyer_photo_url': value,
   if (instance.sellerName case final value?) 'seller_name': value,

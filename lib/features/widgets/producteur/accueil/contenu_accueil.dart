@@ -19,6 +19,7 @@ import '../demandes/demande_achat_modeles.dart';
 import 'accueil_producteur_data.dart';
 import 'etat_vide.dart';
 import 'section_conseils.dart';
+import 'section_opportunites_matching.dart';
 
 /// Composition principale de l'accueil producteur, sous le `HeaderUtilisateur`.
 ///
@@ -136,9 +137,28 @@ class ContenuAccueil extends StatelessWidget {
           labelBouton: 'Mon wallet',
         ),
         AppDimens.vGap16,
+        // B-bis. Opportunités de matching intelligent — demandes d'achat
+        //        ciblées sur les cultures déclarées du producteur. Section
+        //        silencieuse si aucun match (SizedBox.shrink) pour ne pas
+        //        bruiter l'accueil. Placée AVANT la grille pour capter
+        //        l'attention sur des opportunités concrètes.
+        const SectionOpportunitesMatching(),
+        AppDimens.vGap16,
         // C. Grille 2×3 d'actions rapides
         GrilleActions(actions: _actions(context)),
         AppDimens.vGap24,
+        // C-bis. Bannière « Rejoins une coopérative » — visible UNIQUEMENT
+        //        si le producteur n'est rattaché à aucune coop. Pousse à
+        //        découvrir le réseau coop directement depuis l'accueil
+        //        sans passer par la page « Ma coopérative » (qui n'est
+        //        pas évidente à trouver pour un nouveau producteur).
+        if (data.coopInfo == null) ...[
+          _BanniereRejoindreCoop(
+            onTap: () =>
+                context.push(RouteNames.producteurTrouverCoopPath),
+          ),
+          AppDimens.vGap24,
+        ],
         // D. Offres REÇUES (urgent — TOI tu dois répondre) — remontée
         //    en priorité 2026-06-05 pour s'aligner sur la logique
         //    « ce que tu DOIS faire avant ce que tu PEUX faire ».
@@ -461,6 +481,103 @@ class _CarteOffreRecue extends StatelessWidget {
                 Icons.chevron_right_rounded,
                 size: 20,
                 color: AppColors.textSubtle,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Bannière premium « Rejoins une coopérative » sur l'accueil producteur,
+/// affichée uniquement si le producteur n'est rattaché à aucune coop.
+/// Pousse à découvrir le réseau coop directement depuis l'accueil sans
+/// passer par la page « Ma coopérative » (cachée derrière une tuile peu
+/// utilisée). Tap → page annuaire `TrouverCoopPage`.
+///
+/// Pattern visuel : carte gradient vert + icône groups + titre + sous
+/// titre + CTA flèche. Inspiré du bandeau « Offres à traiter » du
+/// pattern Uber/Stripe (capter une opportunité actionnable).
+class _BanniereRejoindreCoop extends StatelessWidget {
+  const _BanniereRejoindreCoop({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.primary,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [AppColors.primary, AppColors.primaryHover],
+            ),
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.28),
+                blurRadius: 12,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.20),
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.groups_2_rounded,
+                  size: 22,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Rejoins une coopérative',
+                      style: AppTextStyles.titleSmall.copyWith(
+                        fontFamily: 'Poppins',
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Vends en groupe, accède aux gros acheteurs.',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        fontSize: 12,
+                        color: Colors.white.withValues(alpha: 0.92),
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Icon(
+                Icons.arrow_forward_rounded,
+                size: 20,
+                color: Colors.white,
               ),
             ],
           ),

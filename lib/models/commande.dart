@@ -41,6 +41,24 @@ class Commande with _$Commande {
     DateTime? livraisonDate,
     DateTime? createdAt,
     DateTime? updatedAt,
+
+    // ─── Paiement étagé (mode STAGED) ────────────────────────────────
+    /// Mode de paiement : 'FULL' (paye 100% à la commande, défaut/legacy)
+    /// ou 'STAGED' (dépôt à la commande + solde à la livraison). Permet
+    /// aux petites coopératives villageoises sans fonds propres de payer
+    /// leurs producteurs immédiatement.
+    @Default('FULL') String paymentMode,
+    /// Montant du dépôt acheteur si paymentMode == STAGED. Le solde =
+    /// montantTotal - depositAmount.
+    @FlexDoubleN() double? depositAmount,
+    /// Date à laquelle le dépôt a été payé (null tant que non payé).
+    DateTime? depositPaidAt,
+    /// Date à laquelle le solde a été payé à la livraison.
+    DateTime? balancePaidAt,
+    /// Cash à la livraison : horodatage où le transporteur a confirmé
+    /// avoir reçu les 95 % en espèces de l'acheteur.
+    DateTime? cashCollectedAt,
+
     // ─── Champs joints (depuis getOrderById backend) ──────────────────
     // Le backend renvoie le buyer/seller via `include:` Prisma. On les
     // aplatit ici en fields plats lisibles directement par l'UI. `null`

@@ -11,8 +11,10 @@ import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
 import '../../../widgets/acheteur/demandes/carte_proposition_demande.dart';
 import '../../../widgets/acheteur/demandes/header_propositions_demande.dart';
+import '../../../widgets/acheteur/demandes/section_fournisseurs_potentiels.dart';
 import 'discussion_negociation_page.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/post_acceptation_negociation.dart';
 import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/communs/vue_erreur.dart';
 
@@ -75,18 +77,23 @@ class _PropositionDetailAcheteurPageState
     if (_opEnCours != null) return;
     setState(() => _opEnCours = p.id);
     try {
-      await ref.read(negotiationServiceProvider).traiterProposition(
+      final result = await ref.read(negotiationServiceProvider).traiterProposition(
             id: p.id,
             action: action,
           );
       await _refresh();
       if (!mounted) return;
-      Snackbars.showSucces(
-        context,
-        action == NegotiationAction.accept
-            ? 'Proposition acceptée'
-            : 'Proposition refusée',
-      );
+      // Si ACCEPTED → commande créée, on snackbar + navigation paiement.
+      // Sinon → snackbar simple.
+      if (action == NegotiationAction.accept) {
+        await apresAcceptationNegociation(
+          context,
+          result,
+          fromAcheteurSide: true,
+        );
+      } else {
+        Snackbars.showSucces(context, 'Proposition refusée.');
+      }
     } on ApiException catch (e) {
       if (mounted) Snackbars.showErreur(context, e.message);
     } finally {
@@ -135,8 +142,26 @@ class _PropositionDetailAcheteurPageState
                 ),
                 data: (bundle) {
                   final items = bundle.propositions;
+                  // Empty state : on garde le visuel initial MAIS on
+                  // ajoute la section « Fournisseurs potentiels » au-
+                  // dessus pour proposer une action à l'acheteur (matching
+                  // backend) plutôt qu'un mur de vide.
                   if (items.isEmpty) {
-                    return _emptyState(context);
+                    return RefreshIndicator(
+                      color: AppColors.primary,
+                      onRefresh: _refresh,
+                      child: ListView(
+                        padding:
+                            const EdgeInsets.fromLTRB(20, 14, 20, 20),
+                        children: [
+                          SectionFournisseursPotentiels(
+                            annonceId: widget.demandeId,
+                          ),
+                          const SizedBox(height: AppDimens.space24),
+                          _EmptyPropositionsEncart(),
+                        ],
+                      ),
+                    );
                   }
                   final sorted = [...items]
                     ..sort((a, b) => a.prixProposeKg.compareTo(b.prixProposeKg));
@@ -151,6 +176,13 @@ class _PropositionDetailAcheteurPageState
                     child: ListView(
                       padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
                       children: [
+                        // Section « Fournisseurs potentiels » en tête : le
+                        // matching IA peut suggérer des producteurs qui ne
+                        // sont pas encore venus candidater sur la demande.
+                        SectionFournisseursPotentiels(
+                          annonceId: widget.demandeId,
+                        ),
+                        const SizedBox(height: AppDimens.space24),
                         for (var i = 0; i < sorted.length; i++)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 12),
@@ -182,35 +214,50 @@ class _PropositionDetailAcheteurPageState
     );
   }
 
-  Widget _emptyState(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppDimens.space24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.inbox_outlined,
-              size: 44,
-              color: AppColors.textSubtle.withValues(alpha: 0.9),
-            ),
-            const SizedBox(height: AppDimens.space12),
-            Text(
-              'Aucune proposition reçue',
-              style: AppTextStyles.titleSmall,
-            ),
-            const SizedBox(height: AppDimens.space8),
-            Text(
-              'Les producteurs n\'ont pas encore répondu\nà ta demande.',
-              textAlign: TextAlign.center,
-              style: AppTextStyles.bodySmall.copyWith(
-                fontSize: 12,
-                color: AppColors.textSecondary,
-                height: 1.4,
-              ),
-            ),
-          ],
+}
+
+/// Encart compact « Aucune proposition reçue » utilisé sous la section
+/// fournisseurs potentiels (la matrice « pas de propositions ET pas de
+/// fournisseurs matchés » reste pédagogique grâce à la section au-dessus).
+class _EmptyPropositionsEncart extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceSoft,
+        borderRadius: BorderRadius.circular(AppDimens.radiusCard),
+        border: Border.all(
+          color: AppColors.border,
+          width: AppDimens.borderThin,
         ),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.inbox_outlined,
+            size: 32,
+            color: AppColors.textSubtle.withValues(alpha: 0.9),
+          ),
+          const SizedBox(height: AppDimens.space8),
+          Text(
+            'Aucune proposition reçue',
+            style: AppTextStyles.titleSmall.copyWith(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Les producteurs n\'ont pas encore répondu à ta demande.',
+            textAlign: TextAlign.center,
+            style: AppTextStyles.bodySmall.copyWith(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+              height: 1.4,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -48,6 +48,27 @@ mixin _$Commande {
   DateTime? get livraisonDate => throw _privateConstructorUsedError;
   DateTime? get createdAt => throw _privateConstructorUsedError;
   DateTime? get updatedAt =>
+      throw _privateConstructorUsedError; // ─── Paiement étagé (mode STAGED) ────────────────────────────────
+  /// Mode de paiement : 'FULL' (paye 100% à la commande, défaut/legacy)
+  /// ou 'STAGED' (dépôt à la commande + solde à la livraison). Permet
+  /// aux petites coopératives villageoises sans fonds propres de payer
+  /// leurs producteurs immédiatement.
+  String get paymentMode => throw _privateConstructorUsedError;
+
+  /// Montant du dépôt acheteur si paymentMode == STAGED. Le solde =
+  /// montantTotal - depositAmount.
+  @FlexDoubleN()
+  double? get depositAmount => throw _privateConstructorUsedError;
+
+  /// Date à laquelle le dépôt a été payé (null tant que non payé).
+  DateTime? get depositPaidAt => throw _privateConstructorUsedError;
+
+  /// Date à laquelle le solde a été payé à la livraison.
+  DateTime? get balancePaidAt => throw _privateConstructorUsedError;
+
+  /// Cash à la livraison : horodatage où le transporteur a confirmé
+  /// avoir reçu les 95 % en espèces de l'acheteur.
+  DateTime? get cashCollectedAt =>
       throw _privateConstructorUsedError; // ─── Champs joints (depuis getOrderById backend) ──────────────────
   // Le backend renvoie le buyer/seller via `include:` Prisma. On les
   // aplatit ici en fields plats lisibles directement par l'UI. `null`
@@ -96,6 +117,11 @@ abstract class $CommandeCopyWith<$Res> {
     DateTime? livraisonDate,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String paymentMode,
+    @FlexDoubleN() double? depositAmount,
+    DateTime? depositPaidAt,
+    DateTime? balancePaidAt,
+    DateTime? cashCollectedAt,
     @JsonKey(readValue: _readBuyerName) String? buyerName,
     @JsonKey(readValue: _readBuyerPhoto) String? buyerPhotoUrl,
     @JsonKey(readValue: _readSellerName) String? sellerName,
@@ -136,6 +162,11 @@ class _$CommandeCopyWithImpl<$Res, $Val extends Commande>
     Object? livraisonDate = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
+    Object? paymentMode = null,
+    Object? depositAmount = freezed,
+    Object? depositPaidAt = freezed,
+    Object? balancePaidAt = freezed,
+    Object? cashCollectedAt = freezed,
     Object? buyerName = freezed,
     Object? buyerPhotoUrl = freezed,
     Object? sellerName = freezed,
@@ -215,6 +246,26 @@ class _$CommandeCopyWithImpl<$Res, $Val extends Commande>
                 ? _value.updatedAt
                 : updatedAt // ignore: cast_nullable_to_non_nullable
                       as DateTime?,
+            paymentMode: null == paymentMode
+                ? _value.paymentMode
+                : paymentMode // ignore: cast_nullable_to_non_nullable
+                      as String,
+            depositAmount: freezed == depositAmount
+                ? _value.depositAmount
+                : depositAmount // ignore: cast_nullable_to_non_nullable
+                      as double?,
+            depositPaidAt: freezed == depositPaidAt
+                ? _value.depositPaidAt
+                : depositPaidAt // ignore: cast_nullable_to_non_nullable
+                      as DateTime?,
+            balancePaidAt: freezed == balancePaidAt
+                ? _value.balancePaidAt
+                : balancePaidAt // ignore: cast_nullable_to_non_nullable
+                      as DateTime?,
+            cashCollectedAt: freezed == cashCollectedAt
+                ? _value.cashCollectedAt
+                : cashCollectedAt // ignore: cast_nullable_to_non_nullable
+                      as DateTime?,
             buyerName: freezed == buyerName
                 ? _value.buyerName
                 : buyerName // ignore: cast_nullable_to_non_nullable
@@ -266,6 +317,11 @@ abstract class _$$CommandeImplCopyWith<$Res>
     DateTime? livraisonDate,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String paymentMode,
+    @FlexDoubleN() double? depositAmount,
+    DateTime? depositPaidAt,
+    DateTime? balancePaidAt,
+    DateTime? cashCollectedAt,
     @JsonKey(readValue: _readBuyerName) String? buyerName,
     @JsonKey(readValue: _readBuyerPhoto) String? buyerPhotoUrl,
     @JsonKey(readValue: _readSellerName) String? sellerName,
@@ -305,6 +361,11 @@ class __$$CommandeImplCopyWithImpl<$Res>
     Object? livraisonDate = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
+    Object? paymentMode = null,
+    Object? depositAmount = freezed,
+    Object? depositPaidAt = freezed,
+    Object? balancePaidAt = freezed,
+    Object? cashCollectedAt = freezed,
     Object? buyerName = freezed,
     Object? buyerPhotoUrl = freezed,
     Object? sellerName = freezed,
@@ -384,6 +445,26 @@ class __$$CommandeImplCopyWithImpl<$Res>
             ? _value.updatedAt
             : updatedAt // ignore: cast_nullable_to_non_nullable
                   as DateTime?,
+        paymentMode: null == paymentMode
+            ? _value.paymentMode
+            : paymentMode // ignore: cast_nullable_to_non_nullable
+                  as String,
+        depositAmount: freezed == depositAmount
+            ? _value.depositAmount
+            : depositAmount // ignore: cast_nullable_to_non_nullable
+                  as double?,
+        depositPaidAt: freezed == depositPaidAt
+            ? _value.depositPaidAt
+            : depositPaidAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime?,
+        balancePaidAt: freezed == balancePaidAt
+            ? _value.balancePaidAt
+            : balancePaidAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime?,
+        cashCollectedAt: freezed == cashCollectedAt
+            ? _value.cashCollectedAt
+            : cashCollectedAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime?,
         buyerName: freezed == buyerName
             ? _value.buyerName
             : buyerName // ignore: cast_nullable_to_non_nullable
@@ -428,6 +509,11 @@ class _$CommandeImpl implements _Commande {
     this.livraisonDate,
     this.createdAt,
     this.updatedAt,
+    this.paymentMode = 'FULL',
+    @FlexDoubleN() this.depositAmount,
+    this.depositPaidAt,
+    this.balancePaidAt,
+    this.cashCollectedAt,
     @JsonKey(readValue: _readBuyerName) this.buyerName,
     @JsonKey(readValue: _readBuyerPhoto) this.buyerPhotoUrl,
     @JsonKey(readValue: _readSellerName) this.sellerName,
@@ -484,6 +570,33 @@ class _$CommandeImpl implements _Commande {
   final DateTime? createdAt;
   @override
   final DateTime? updatedAt;
+  // ─── Paiement étagé (mode STAGED) ────────────────────────────────
+  /// Mode de paiement : 'FULL' (paye 100% à la commande, défaut/legacy)
+  /// ou 'STAGED' (dépôt à la commande + solde à la livraison). Permet
+  /// aux petites coopératives villageoises sans fonds propres de payer
+  /// leurs producteurs immédiatement.
+  @override
+  @JsonKey()
+  final String paymentMode;
+
+  /// Montant du dépôt acheteur si paymentMode == STAGED. Le solde =
+  /// montantTotal - depositAmount.
+  @override
+  @FlexDoubleN()
+  final double? depositAmount;
+
+  /// Date à laquelle le dépôt a été payé (null tant que non payé).
+  @override
+  final DateTime? depositPaidAt;
+
+  /// Date à laquelle le solde a été payé à la livraison.
+  @override
+  final DateTime? balancePaidAt;
+
+  /// Cash à la livraison : horodatage où le transporteur a confirmé
+  /// avoir reçu les 95 % en espèces de l'acheteur.
+  @override
+  final DateTime? cashCollectedAt;
   // ─── Champs joints (depuis getOrderById backend) ──────────────────
   // Le backend renvoie le buyer/seller via `include:` Prisma. On les
   // aplatit ici en fields plats lisibles directement par l'UI. `null`
@@ -503,7 +616,7 @@ class _$CommandeImpl implements _Commande {
 
   @override
   String toString() {
-    return 'Commande(id: $id, reference: $reference, buyerId: $buyerId, sellerId: $sellerId, annonceId: $annonceId, annonceAchatId: $annonceAchatId, publicationCoopId: $publicationCoopId, lotId: $lotId, quantiteKg: $quantiteKg, prixUnitaireKg: $prixUnitaireKg, montantTotal: $montantTotal, status: $status, paymentProvider: $paymentProvider, escrowReleased: $escrowReleased, livraisonAdresse: $livraisonAdresse, livraisonDate: $livraisonDate, createdAt: $createdAt, updatedAt: $updatedAt, buyerName: $buyerName, buyerPhotoUrl: $buyerPhotoUrl, sellerName: $sellerName, sellerPhotoUrl: $sellerPhotoUrl)';
+    return 'Commande(id: $id, reference: $reference, buyerId: $buyerId, sellerId: $sellerId, annonceId: $annonceId, annonceAchatId: $annonceAchatId, publicationCoopId: $publicationCoopId, lotId: $lotId, quantiteKg: $quantiteKg, prixUnitaireKg: $prixUnitaireKg, montantTotal: $montantTotal, status: $status, paymentProvider: $paymentProvider, escrowReleased: $escrowReleased, livraisonAdresse: $livraisonAdresse, livraisonDate: $livraisonDate, createdAt: $createdAt, updatedAt: $updatedAt, paymentMode: $paymentMode, depositAmount: $depositAmount, depositPaidAt: $depositPaidAt, balancePaidAt: $balancePaidAt, cashCollectedAt: $cashCollectedAt, buyerName: $buyerName, buyerPhotoUrl: $buyerPhotoUrl, sellerName: $sellerName, sellerPhotoUrl: $sellerPhotoUrl)';
   }
 
   @override
@@ -543,6 +656,16 @@ class _$CommandeImpl implements _Commande {
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
                 other.updatedAt == updatedAt) &&
+            (identical(other.paymentMode, paymentMode) ||
+                other.paymentMode == paymentMode) &&
+            (identical(other.depositAmount, depositAmount) ||
+                other.depositAmount == depositAmount) &&
+            (identical(other.depositPaidAt, depositPaidAt) ||
+                other.depositPaidAt == depositPaidAt) &&
+            (identical(other.balancePaidAt, balancePaidAt) ||
+                other.balancePaidAt == balancePaidAt) &&
+            (identical(other.cashCollectedAt, cashCollectedAt) ||
+                other.cashCollectedAt == cashCollectedAt) &&
             (identical(other.buyerName, buyerName) ||
                 other.buyerName == buyerName) &&
             (identical(other.buyerPhotoUrl, buyerPhotoUrl) ||
@@ -575,6 +698,11 @@ class _$CommandeImpl implements _Commande {
     livraisonDate,
     createdAt,
     updatedAt,
+    paymentMode,
+    depositAmount,
+    depositPaidAt,
+    balancePaidAt,
+    cashCollectedAt,
     buyerName,
     buyerPhotoUrl,
     sellerName,
@@ -616,6 +744,11 @@ abstract class _Commande implements Commande {
     final DateTime? livraisonDate,
     final DateTime? createdAt,
     final DateTime? updatedAt,
+    final String paymentMode,
+    @FlexDoubleN() final double? depositAmount,
+    final DateTime? depositPaidAt,
+    final DateTime? balancePaidAt,
+    final DateTime? cashCollectedAt,
     @JsonKey(readValue: _readBuyerName) final String? buyerName,
     @JsonKey(readValue: _readBuyerPhoto) final String? buyerPhotoUrl,
     @JsonKey(readValue: _readSellerName) final String? sellerName,
@@ -669,7 +802,32 @@ abstract class _Commande implements Commande {
   @override
   DateTime? get createdAt;
   @override
-  DateTime? get updatedAt; // ─── Champs joints (depuis getOrderById backend) ──────────────────
+  DateTime? get updatedAt; // ─── Paiement étagé (mode STAGED) ────────────────────────────────
+  /// Mode de paiement : 'FULL' (paye 100% à la commande, défaut/legacy)
+  /// ou 'STAGED' (dépôt à la commande + solde à la livraison). Permet
+  /// aux petites coopératives villageoises sans fonds propres de payer
+  /// leurs producteurs immédiatement.
+  @override
+  String get paymentMode;
+
+  /// Montant du dépôt acheteur si paymentMode == STAGED. Le solde =
+  /// montantTotal - depositAmount.
+  @override
+  @FlexDoubleN()
+  double? get depositAmount;
+
+  /// Date à laquelle le dépôt a été payé (null tant que non payé).
+  @override
+  DateTime? get depositPaidAt;
+
+  /// Date à laquelle le solde a été payé à la livraison.
+  @override
+  DateTime? get balancePaidAt;
+
+  /// Cash à la livraison : horodatage où le transporteur a confirmé
+  /// avoir reçu les 95 % en espèces de l'acheteur.
+  @override
+  DateTime? get cashCollectedAt; // ─── Champs joints (depuis getOrderById backend) ──────────────────
   // Le backend renvoie le buyer/seller via `include:` Prisma. On les
   // aplatit ici en fields plats lisibles directement par l'UI. `null`
   // si la jointure n'a pas été demandée (ex. ancien endpoint list).

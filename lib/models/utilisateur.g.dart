@@ -45,6 +45,14 @@ _$UtilisateurImpl _$$UtilisateurImplFromJson(Map<String, dynamic> json) =>
             'created_at',
             (v) => v == null ? null : DateTime.parse(v as String),
           ),
+          hasRoleProfile: $checkedConvert(
+            'has_role_profile',
+            (v) => v as bool? ?? true,
+          ),
+          essentialFieldsComplete: $checkedConvert(
+            'essential_fields_complete',
+            (v) => v as bool? ?? true,
+          ),
         );
         return val;
       },
@@ -56,6 +64,8 @@ _$UtilisateurImpl _$$UtilisateurImplFromJson(Map<String, dynamic> json) =>
         'walletBalance': 'wallet_balance',
         'cooperativeId': 'cooperative_id',
         'createdAt': 'created_at',
+        'hasRoleProfile': 'has_role_profile',
+        'essentialFieldsComplete': 'essential_fields_complete',
       },
     );
 
@@ -76,6 +86,8 @@ Map<String, dynamic> _$$UtilisateurImplToJson(_$UtilisateurImpl instance) =>
       if (instance.cooperativeId case final value?) 'cooperative_id': value,
       if (instance.createdAt?.toIso8601String() case final value?)
         'created_at': value,
+      'has_role_profile': instance.hasRoleProfile,
+      'essential_fields_complete': instance.essentialFieldsComplete,
     };
 
 const _$UserRoleEnumMap = {

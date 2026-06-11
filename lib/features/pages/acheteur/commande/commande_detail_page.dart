@@ -18,6 +18,8 @@ import '../../../widgets/acheteur/commandes/carte_vendeur_compacte.dart';
 import '../../../widgets/acheteur/commandes/entete_commande_detail.dart';
 import '../../../widgets/acheteur/commandes/section_parcours.dart';
 import '../../../widgets/acheteur/commandes/section_qr.dart';
+import '../../../widgets/acheteur/commandes/carte_a_regler.dart';
+import '../../../widgets/acheteur/commandes/carte_solde_a_payer.dart';
 import '../../../widgets/communs/carte_bon_de_commande_pdf.dart';
 import '../../../widgets/communs/chargement.dart';
 import '../../../widgets/communs/section_titre.dart';
@@ -209,7 +211,22 @@ class _CommandeDetailAcheteurPageState
                 commande: c,
                 annonce: bundle.annonce,
               ),
-              // 3.bis Bon de commande PDF — visible UNIQUEMENT pour les
+              // 3.tris « Commande à régler » — visible UNIQUEMENT si
+              //        la commande vient d'être créée (status SENT,
+              //        jamais payée). Cas typique : acceptation d'une
+              //        proposition/contre-offre → commande créée backend
+              //        avec le prix négocié. CTA vers paiement.
+              CarteARegler(commande: c),
+              // 3.bis Solde à payer — visible UNIQUEMENT pour les
+              //       commandes en mode STAGED dont le dépôt a déjà été
+              //       payé mais pas encore le solde (à la livraison).
+              //       Cache silencieusement sinon.
+              CarteSoldeAPayer(
+                commande: c,
+                onPaye: () =>
+                    ref.invalidate(_commandeBundleProvider(widget.commandeId)),
+              ),
+              // 3.ter Bon de commande PDF — visible UNIQUEMENT pour les
               //       commandes coop ≥ 500 kg (check d'éligibilité auto
               //       backend). Document officiel pour archivage compta.
               const SizedBox(height: 8),

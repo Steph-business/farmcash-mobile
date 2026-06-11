@@ -31,6 +31,29 @@ class RouteNames {
   static const pinOublie = 'pin-oublie';
   static const pinOubliePath = '/pin/oublie';
 
+  /// Page de récupération : user authentifié SANS profil rôle (cas rare
+  /// où le push best-effort post-PIN a échoué). Le guard auth y redirige
+  /// pour éviter un crash dans les écrans qui supposent un profil joint.
+  static const completerProfil = 'completer-profil';
+  static const completerProfilPath = '/completer-profil';
+
+  // ─── Onboarding obligatoire post-inscription ─────────────────────────
+  // Wizards forcés par le guard auth quand le backend signale via
+  // `essential_fields_complete == false` que le profil rôle existe mais
+  // que les champs essentiels (région, cultures, zones, agrément…) ne
+  // sont pas remplis. L'app cible des paysans peu tech / partiellement
+  // analphabètes — on ne peut pas les laisser entrer dans l'app sans
+  // collecter ces données minimales, sinon l'écosystème se pourrit de
+  // profils vides.
+  static const onboardingProducteur = 'onboarding-producteur';
+  static const onboardingProducteurPath = '/onboarding/producteur';
+
+  static const onboardingAcheteur = 'onboarding-acheteur';
+  static const onboardingAcheteurPath = '/onboarding/acheteur';
+
+  static const onboardingCooperative = 'onboarding-cooperative';
+  static const onboardingCooperativePath = '/onboarding/cooperative';
+
   // ─── Home par rôle (racines des shells) ──────────────────────────────
   static const accueilProducteur = 'accueil-producteur';
   static const accueilProducteurPath = '/producteur';
@@ -189,6 +212,11 @@ class RouteNames {
   // Centre d'aide (FAQ + contact)
   static const producteurAide = 'producteur-aide';
   static const producteurAidePath = '/producteur/aide';
+  // Opportunités matching intelligent — demandes d'achat qui matchent les
+  // cultures déclarées du producteur connecté. Accessible depuis le CTA
+  // « Voir toutes les opportunités » sur l'accueil.
+  static const producteurOpportunites = 'producteur-opportunites';
+  static const producteurOpportunitesPath = '/producteur/opportunites';
 
   // ─── Outils IA producteur (push hors shell) ──────────────────────────
   // Diagnostiquer une plante (photo → maladie + traitements)
@@ -229,6 +257,15 @@ class RouteNames {
   // Flow Marché acheteur — onglet bottom-nav + détails + flow réservation prévision
   static const acheteurMarche = 'acheteur-marche';
   static const acheteurMarchePath = '/acheteur/marche';
+  // Détail d'une publication coop côté acheteur — vue achat (qte + prix
+  // + garanties coop + intervalle récolte). Distincte du détail annonce
+  // solo car la mécanique d'achat passe par publications_stock_coop.
+  static const acheteurPublicationCoopDetail =
+      'acheteur-publication-coop-detail';
+  static const acheteurPublicationCoopDetailPath =
+      '/acheteur/publications-coop/:id';
+  static String acheteurPublicationCoopDetailPathFor(String id) =>
+      '/acheteur/publications-coop/$id';
   static const acheteurAnnonceDetail = 'acheteur-annonce-detail';
   static const acheteurAnnonceDetailPath = '/acheteur/annonces/:id';
   static String acheteurAnnonceDetailPathFor(String id) =>
@@ -518,6 +555,9 @@ class RouteNames {
   // Mes véhicules — liste (push depuis profil settings / profil)
   static const transporteurMesVehicules = 'transporteur-mes-vehicules';
   static const transporteurMesVehiculesPath = '/transporteur/vehicules';
+  // Mes documents officiels (permis + carte grise) — push depuis profil.
+  static const transporteurMesDocuments = 'transporteur-mes-documents';
+  static const transporteurMesDocumentsPath = '/transporteur/documents';
   // Historique des missions terminées (push depuis l'onglet Missions)
   static const transporteurMissionsHistorique =
       'transporteur-missions-historique';
@@ -571,6 +611,15 @@ class RouteNames {
   static const acheteurMonEntreprise = 'acheteur-mon-entreprise';
   static const acheteurMonEntreprisePath = '/acheteur/mon-entreprise';
 
+  // Plans d'approvisionnement B2B (chantier 2)
+  static const acheteurMesPlans = 'acheteur-mes-plans';
+  static const acheteurMesPlansPath = '/acheteur/plans';
+  static const acheteurCreerPlan = 'acheteur-creer-plan';
+  static const acheteurCreerPlanPath = '/acheteur/plans/creer';
+  static const acheteurDetailPlan = 'acheteur-detail-plan';
+  static String acheteurDetailPlanPathFor(String id) =>
+      '/acheteur/plans/$id';
+
   // ─── Pages métier coopérative (push hors shell) ──────────────────────
   // Mes commandes coop — suivi des ventes directes (coop est vendeuse
   // sur ses propres publications).
@@ -587,6 +636,20 @@ class RouteNames {
       'cooperative-documents-officiels';
   static const cooperativeDocumentsOfficielsPath =
       '/cooperative/documents-officiels';
+
+  // Contre-offres reçues par la coop sur ses publications (BUYER → COOP).
+  // Page de gestion : liste filtrable + actions Accepter/Rejeter/Contre-proposer.
+  static const cooperativeContreOffresRecues =
+      'cooperative-contre-offres-recues';
+  static const cooperativeContreOffresRecuesPath =
+      '/cooperative/contre-offres-recues';
+
+  // Plans d'approvisionnement B2B (chantier 2) — côté fournisseur.
+  static const cooperativePlansPublics = 'cooperative-plans-publics';
+  static const cooperativePlansPublicsPath = '/cooperative/plans-b2b';
+  static const cooperativeMesContratsB2B = 'cooperative-mes-contrats-b2b';
+  static const cooperativeMesContratsB2BPath =
+      '/cooperative/contrats-b2b';
 
   // ─── Pages métier transporteur (push hors shell) ─────────────────────
   static const transporteurTarification = 'transporteur-tarification';

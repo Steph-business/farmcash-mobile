@@ -18,7 +18,9 @@ import '../../../widgets/acheteur/marche/section_infos_annonce.dart';
 import '../../../widgets/acheteur/marche/section_tracabilite_annonce.dart';
 import '../../../widgets/acheteur/marche/sheet_negocier_annonce.dart';
 import '../../../widgets/acheteur/marche/sticky_bottom_annonce.dart';
+import '../../../widgets/acheteur/marche/badge_prix_negocie.dart';
 import '../../../widgets/acheteur/marche/title_card_annonce.dart';
+import '../../../widgets/communs/badge_prix_marche.dart';
 import '../../../widgets/communs/chargement.dart';
 import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/communs/vue_erreur.dart';
@@ -111,6 +113,30 @@ class _AnnonceDetailAcheteurPageState
               // Titre compact : nom + chip qualité + prix + vendeur + lieu
               // tout en un seul header (style mockup référence).
               TitleCardAnnonce(annonce: annonce, qteDispo: qteDispo),
+              // Badge « ton prix négocié » — visible uniquement si
+              // l'acheteur courant a une candidature ACCEPTED sur cette
+              // annonce. Vue marché personnalisée — pour les autres
+              // acheteurs, le prix marché d'origine reste affiché.
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: BadgePrixNegocie(
+                  annonceId: annonce.id,
+                  prixMarcheKg: annonce.prixParKg,
+                ),
+              ),
+              // Badge « Prix marché » — situe le prix d'affichage par
+              // rapport à la médiane des ventes récentes. Permet à
+              // l'acheteur de jauger sa marge de négociation. Silencieux
+              // si le backend n'a pas assez de signal.
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: BadgePrixMarche(
+                  produitId: annonce.produitId,
+                  regionId: annonce.regionId,
+                  qualite: annonce.qualite.apiValue,
+                  prixActuelKg: annonce.prixParKg,
+                ),
+              ),
               // Tableau d'informations clé/valeur (quantité, prix, etc).
               SectionInfosAnnonce(annonce: annonce),
               if (annonce.description != null &&

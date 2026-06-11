@@ -18,6 +18,7 @@ import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
 import '../../../state/auth_state.dart';
+import '../../../widgets/communs/badge_prix_marche.dart';
 import '../../../widgets/communs/chargement.dart';
 import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/producteur/publier/_couleurs_publier.dart';
@@ -873,6 +874,19 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
                   ),
                 ),
               ),
+              // Badge "Prix marché" — médiane + min/max sur 90 jours à
+              // partir des commandes réelles. Si le producteur saisit un
+              // prix, on ajoute un verdict couleur (sous/dans/au-dessus
+              // du marché) pour le guider sans l'agresser. Silencieux si
+              // le backend n'a pas assez de données (SizedBox.shrink()).
+              if (_culture != null) ...[
+                const SizedBox(height: 10),
+                BadgePrixMarche(
+                  produitId: _culture!.produitId,
+                  qualite: _qualite.apiValue,
+                  prixActuelKg: _prix,
+                ),
+              ],
               // Aperçu net par kg dès que l'utilisateur saisit son prix.
               // Affiche en clair ce qu'il touchera vraiment après la
               // commission FarmCash 3 %. Pas de mauvaise surprise au

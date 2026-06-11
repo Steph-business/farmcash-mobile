@@ -16,8 +16,8 @@ import '../../widgets/transporteur/profil/titre_section_formulaire.dart';
 /// Créer un véhicule du transporteur — type, capacité, immatriculation,
 /// marque, volume optionnel. POST sur `/logistics/vehicles`.
 ///
-/// Distinct de `VehiculeAjouterTransporteurPage` qui, malgré son nom
-/// historique, crée des **itinéraires** (routes transporteur).
+/// Distinct de `ItineraireCreerPage` qui crée des **itinéraires**
+/// (routes origine ↔ destination avec tarif).
 class VehiculeCreerPage extends ConsumerStatefulWidget {
   const VehiculeCreerPage({super.key});
 

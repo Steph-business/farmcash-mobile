@@ -12,6 +12,7 @@ import '../../../theme/app_dimens.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../state/auth_state.dart';
 import '../../widgets/communs/chargement.dart';
+import '../../widgets/communs/dialog_changer_profil.dart';
 import '../../widgets/communs/profil/barre_superieure_profil.dart';
 import '../../widgets/communs/profil/bouton_deconnexion_profil.dart';
 import '../../widgets/communs/profil/carte_identite_profil.dart';
@@ -248,6 +249,28 @@ class _ContenuProfilTransporteur extends StatelessWidget {
         ),
         AppDimens.vGap16,
 
+        // 3 bis. Documents officiels (KYC permis + carte grise)
+        GroupeProfil(
+          titre: 'Documents officiels',
+          enfants: [
+            TuileProfil(
+              icone: Icons.badge_outlined,
+              label: 'Permis de conduire',
+              sousTitre: 'Envoyer la photo pour validation',
+              onTap: () =>
+                  context.push(RouteNames.transporteurMesDocumentsPath),
+            ),
+            TuileProfil(
+              icone: Icons.description_outlined,
+              label: 'Carte grise',
+              sousTitre: 'Envoyer la photo pour validation',
+              onTap: () =>
+                  context.push(RouteNames.transporteurMesDocumentsPath),
+            ),
+          ],
+        ),
+        AppDimens.vGap16,
+
         // 4. Tarification & zones
         GroupeProfil(
           titre: 'Tarification & zones',
@@ -361,6 +384,13 @@ class _ContenuProfilTransporteur extends StatelessWidget {
               icone: Icons.lock_outline,
               label: 'Sécurité (PIN, sessions)',
               onTap: () => context.push(RouteNames.securitePath),
+            ),
+            // V1 : un user = un rôle. Dialog explicatif.
+            TuileProfil(
+              icone: Icons.swap_horiz_rounded,
+              label: 'Changer de profil',
+              sousTitre: 'Transporteur · Acheteur · Producteur',
+              onTap: () => showDialogChangerProfil(context),
             ),
           ],
         ),

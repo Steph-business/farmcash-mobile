@@ -14,6 +14,7 @@ import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
 import '../../../widgets/communs/carte_bon_de_commande_pdf.dart';
+import '../../../widgets/communs/carte_paiement_etage_vendeur.dart';
 import '../../../widgets/communs/chargement.dart';
 import '../../../widgets/communs/section_titre.dart';
 import '../../../widgets/communs/snackbars.dart';
@@ -261,6 +262,11 @@ class _Body extends ConsumerWidget {
           CarteBonDeCommandePdf(orderId: commande.id),
           AppDimens.vGap12,
         ],
+        // 1.bis Bandeau paiement étagé — visible pour le vendeur
+        //       (producteur ou coop) quand la commande est en mode STAGED
+        //       et que le dépôt a été payé. Montre l'avance reçue + le
+        //       solde attendu. Cache silencieusement si mode FULL.
+        CartePaiementEtageVendeur(commande: commande),
         // 2. Acheteur compact (avatar + nom + CTA Discuter).
         CarteAcheteurCompacte(commande: commande),
         AppDimens.vGap12,
@@ -407,6 +413,7 @@ class _CarteDemanderTransporteur extends ConsumerStatefulWidget {
 class _CarteDemanderTransporteurState
     extends ConsumerState<_CarteDemanderTransporteur> {
   bool _isSending = false;
+  bool _isDeclaringInternal = false;
 
   Future<void> _alerter() async {
     if (_isSending) return;
@@ -429,6 +436,54 @@ class _CarteDemanderTransporteurState
       if (mounted) Snackbars.showErreurInattendue(context, e);
     } finally {
       if (mounted) setState(() => _isSending = false);
+    }
+  }
+
+  /// Chantier 4 : le vendeur déclare livrer lui-même.
+  Future<void> _livrerMoiMeme() async {
+    if (_isDeclaringInternal) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Livrer moi-même ?'),
+        content: const Text(
+          "Tu vas livrer la marchandise avec ton propre véhicule. "
+          "Aucun transporteur externe ne sera contacté et il n'y aura "
+          "pas de commission FarmCash sur le transport.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primary,
+            ),
+            child: const Text('Oui, je livre'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    setState(() => _isDeclaringInternal = true);
+    try {
+      await ref.read(logisticsServiceProvider).declareInternalTransport(
+            commandeId: widget.commandeId,
+          );
+      if (!mounted) return;
+      Snackbars.showSucces(
+        context,
+        'Livraison interne déclarée · acheteur prévenu.',
+      );
+      ref.invalidate(_commandeProvider(widget.commandeId));
+    } on ApiException catch (e) {
+      if (mounted) Snackbars.showErreur(context, e.message);
+    } catch (e) {
+      if (mounted) Snackbars.showErreurInattendue(context, e);
+    } finally {
+      if (mounted) setState(() => _isDeclaringInternal = false);
     }
   }
 
@@ -528,6 +583,45 @@ class _CarteDemanderTransporteurState
                             ),
                           ],
                         ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Chantier 4 — option transport coop interne.
+          // Le vendeur peut livrer lui-même (Hilux, camion perso) sans
+          // passer par le marketplace transporteur.
+          SizedBox(
+            height: 40,
+            child: OutlinedButton.icon(
+              onPressed: _isDeclaringInternal ? null : _livrerMoiMeme,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: BorderSide(
+                  color: AppColors.primary.withValues(alpha: 0.35),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              icon: _isDeclaringInternal
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.primary,
+                      ),
+                    )
+                  : const Icon(Icons.directions_car_outlined, size: 16),
+              label: Text(
+                _isDeclaringInternal
+                    ? 'Déclaration en cours...'
+                    : 'Je livre moi-même',
+                style: AppTextStyles.button.copyWith(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
                 ),
               ),
             ),

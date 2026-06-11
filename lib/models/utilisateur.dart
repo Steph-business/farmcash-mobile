@@ -27,6 +27,23 @@ class Utilisateur with _$Utilisateur {
     @FlexDouble() @Default(0.0) double walletBalance,
     String? cooperativeId,
     DateTime? createdAt,
+    /// Flag explicite backend : `true` si le profil étendu rôle existe.
+    /// Si `false` côté FARMER/BUYER/COOPERATIVE → l'utilisateur a un user
+    /// mais sans son profil rôle (le push best-effort post-inscription a
+    /// échoué). Le guard mobile route alors vers la page de complétion.
+    /// Default `true` pour rétrocompat (endpoints qui ne renvoient pas
+    /// ce flag — login-pin minimal, anciens caches).
+    @JsonKey(name: 'has_role_profile') @Default(true) bool hasRoleProfile,
+    /// Flag backend (`/auth/me`) : `true` si le profil rôle a TOUTES les
+    /// informations essentielles renseignées. Si `false` côté FARMER /
+    /// BUYER / COOPERATIVE → le guard force le wizard d'onboarding pour
+    /// bloquer l'entrée dans l'app tant que les champs minimaux ne sont
+    /// pas remplis (sinon écosystème pourri par des profils vides).
+    /// Default `true` pour rétrocompat (endpoints minimaux + transporteur
+    /// qui a son propre onboarding).
+    @JsonKey(name: 'essential_fields_complete')
+    @Default(true)
+    bool essentialFieldsComplete,
   }) = _Utilisateur;
 
   factory Utilisateur.fromJson(Map<String, dynamic> json) =>

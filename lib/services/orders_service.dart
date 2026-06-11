@@ -104,6 +104,15 @@ class OrdersService {
     String? pickupAddress,
     String? deliveryAddress,
     String? notes,
+    /// Mode de paiement étagé : 'FULL' (défaut, paye 100% à la commande)
+    /// ou 'STAGED' (paye un dépôt à la commande + le solde à la livraison).
+    /// Permet aux petites coopératives villageoises de payer leurs
+    /// producteurs sans attendre la confirmation livraison.
+    String? paymentMode,
+    /// Montant explicite du dépôt (en F CFA). Si omis et payment_mode =
+    /// STAGED, le backend applique la grille adaptative 30/20/10 % selon
+    /// le montant total.
+    double? depositAmount,
   }) async {
     final json = await _api.post<Map<String, dynamic>>(
       ApiEndpoints.orders,
@@ -123,6 +132,8 @@ class OrdersService {
         if (pickupAddress != null) 'pickup_address': pickupAddress,
         if (deliveryAddress != null) 'delivery_address': deliveryAddress,
         if (notes != null) 'notes': notes,
+        if (paymentMode != null) 'payment_mode': paymentMode,
+        if (depositAmount != null) 'deposit_amount': depositAmount,
       },
       options: Options(headers: {'Idempotency-Key': idempotencyKey}),
     );
@@ -248,6 +259,17 @@ class OrdersService {
       options: Options(headers: {'Idempotency-Key': idempotencyKey}),
     );
     return Commande.fromJson(json);
+  }
+
+  /// Transporteur : confirme avoir reçu les 95 % en espèces de l'acheteur
+  /// (mode cash à la livraison). Déclenche la libération du dépôt 5 %,
+  /// le crédit virtuel des 95 % au wallet vendeur, et le paiement
+  /// transporteur. La commande passe à COMPLETED.
+  Future<Map<String, dynamic>> confirmCashDelivery(String orderId) async {
+    return _api.post<Map<String, dynamic>>(
+      '/orders/$orderId/confirm-cash-delivery',
+      body: {},
+    );
   }
 
   /// Met à jour le statut d'une commande (typiquement SELLER : ACCEPTED →

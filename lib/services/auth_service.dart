@@ -233,8 +233,12 @@ class AuthService {
   Future<void> updateRoleProfile({
     required UserRole role,
     required Map<String, dynamic> profile,
+    bool force = false,
   }) async {
-    if (profile.isEmpty) return;
+    // `force` permet d'appeler l'endpoint même avec un payload vide
+    // (utilisé par la page « Compléter mon profil » qui crée le profil
+    // étendu avec les défauts backend quand il manque).
+    if (profile.isEmpty && !force) return;
     final String endpoint;
     switch (role) {
       case UserRole.farmer:

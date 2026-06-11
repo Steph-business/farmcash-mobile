@@ -36,7 +36,13 @@ mixin _$Cooperative {
   String? get presidentId => throw _privateConstructorUsedError;
   String? get logoUrl => throw _privateConstructorUsedError;
   String? get description => throw _privateConstructorUsedError;
-  DateTime? get createdAt => throw _privateConstructorUsedError;
+  DateTime? get createdAt =>
+      throw _privateConstructorUsedError; // ─── Parrainage local (chantier 5) ────────────────────────────
+  // Affiché côté acheteur quand les 3 champs sont remplis.
+  String? get ambassadeurNom => throw _privateConstructorUsedError;
+  String? get ambassadeurTitre => throw _privateConstructorUsedError;
+  String? get ambassadeurOrganisation => throw _privateConstructorUsedError;
+  DateTime? get ambassadeurValidatedAt => throw _privateConstructorUsedError;
 
   /// Serializes this Cooperative to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -70,6 +76,10 @@ abstract class $CooperativeCopyWith<$Res> {
     String? logoUrl,
     String? description,
     DateTime? createdAt,
+    String? ambassadeurNom,
+    String? ambassadeurTitre,
+    String? ambassadeurOrganisation,
+    DateTime? ambassadeurValidatedAt,
   });
 }
 
@@ -102,6 +112,10 @@ class _$CooperativeCopyWithImpl<$Res, $Val extends Cooperative>
     Object? logoUrl = freezed,
     Object? description = freezed,
     Object? createdAt = freezed,
+    Object? ambassadeurNom = freezed,
+    Object? ambassadeurTitre = freezed,
+    Object? ambassadeurOrganisation = freezed,
+    Object? ambassadeurValidatedAt = freezed,
   }) {
     return _then(
       _value.copyWith(
@@ -161,6 +175,22 @@ class _$CooperativeCopyWithImpl<$Res, $Val extends Cooperative>
                 ? _value.createdAt
                 : createdAt // ignore: cast_nullable_to_non_nullable
                       as DateTime?,
+            ambassadeurNom: freezed == ambassadeurNom
+                ? _value.ambassadeurNom
+                : ambassadeurNom // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            ambassadeurTitre: freezed == ambassadeurTitre
+                ? _value.ambassadeurTitre
+                : ambassadeurTitre // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            ambassadeurOrganisation: freezed == ambassadeurOrganisation
+                ? _value.ambassadeurOrganisation
+                : ambassadeurOrganisation // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            ambassadeurValidatedAt: freezed == ambassadeurValidatedAt
+                ? _value.ambassadeurValidatedAt
+                : ambassadeurValidatedAt // ignore: cast_nullable_to_non_nullable
+                      as DateTime?,
           )
           as $Val,
     );
@@ -191,6 +221,10 @@ abstract class _$$CooperativeImplCopyWith<$Res>
     String? logoUrl,
     String? description,
     DateTime? createdAt,
+    String? ambassadeurNom,
+    String? ambassadeurTitre,
+    String? ambassadeurOrganisation,
+    DateTime? ambassadeurValidatedAt,
   });
 }
 
@@ -222,6 +256,10 @@ class __$$CooperativeImplCopyWithImpl<$Res>
     Object? logoUrl = freezed,
     Object? description = freezed,
     Object? createdAt = freezed,
+    Object? ambassadeurNom = freezed,
+    Object? ambassadeurTitre = freezed,
+    Object? ambassadeurOrganisation = freezed,
+    Object? ambassadeurValidatedAt = freezed,
   }) {
     return _then(
       _$CooperativeImpl(
@@ -281,6 +319,22 @@ class __$$CooperativeImplCopyWithImpl<$Res>
             ? _value.createdAt
             : createdAt // ignore: cast_nullable_to_non_nullable
                   as DateTime?,
+        ambassadeurNom: freezed == ambassadeurNom
+            ? _value.ambassadeurNom
+            : ambassadeurNom // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        ambassadeurTitre: freezed == ambassadeurTitre
+            ? _value.ambassadeurTitre
+            : ambassadeurTitre // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        ambassadeurOrganisation: freezed == ambassadeurOrganisation
+            ? _value.ambassadeurOrganisation
+            : ambassadeurOrganisation // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        ambassadeurValidatedAt: freezed == ambassadeurValidatedAt
+            ? _value.ambassadeurValidatedAt
+            : ambassadeurValidatedAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime?,
       ),
     );
   }
@@ -304,6 +358,10 @@ class _$CooperativeImpl implements _Cooperative {
     this.logoUrl,
     this.description,
     this.createdAt,
+    this.ambassadeurNom,
+    this.ambassadeurTitre,
+    this.ambassadeurOrganisation,
+    this.ambassadeurValidatedAt,
   }) : _produits = produits;
 
   factory _$CooperativeImpl.fromJson(Map<String, dynamic> json) =>
@@ -349,10 +407,20 @@ class _$CooperativeImpl implements _Cooperative {
   final String? description;
   @override
   final DateTime? createdAt;
+  // ─── Parrainage local (chantier 5) ────────────────────────────
+  // Affiché côté acheteur quand les 3 champs sont remplis.
+  @override
+  final String? ambassadeurNom;
+  @override
+  final String? ambassadeurTitre;
+  @override
+  final String? ambassadeurOrganisation;
+  @override
+  final DateTime? ambassadeurValidatedAt;
 
   @override
   String toString() {
-    return 'Cooperative(id: $id, userId: $userId, nom: $nom, numeroAgrement: $numeroAgrement, regionId: $regionId, villeId: $villeId, nbMembres: $nbMembres, produits: $produits, commissionRate: $commissionRate, autoDistribute: $autoDistribute, presidentId: $presidentId, logoUrl: $logoUrl, description: $description, createdAt: $createdAt)';
+    return 'Cooperative(id: $id, userId: $userId, nom: $nom, numeroAgrement: $numeroAgrement, regionId: $regionId, villeId: $villeId, nbMembres: $nbMembres, produits: $produits, commissionRate: $commissionRate, autoDistribute: $autoDistribute, presidentId: $presidentId, logoUrl: $logoUrl, description: $description, createdAt: $createdAt, ambassadeurNom: $ambassadeurNom, ambassadeurTitre: $ambassadeurTitre, ambassadeurOrganisation: $ambassadeurOrganisation, ambassadeurValidatedAt: $ambassadeurValidatedAt)';
   }
 
   @override
@@ -381,7 +449,18 @@ class _$CooperativeImpl implements _Cooperative {
             (identical(other.description, description) ||
                 other.description == description) &&
             (identical(other.createdAt, createdAt) ||
-                other.createdAt == createdAt));
+                other.createdAt == createdAt) &&
+            (identical(other.ambassadeurNom, ambassadeurNom) ||
+                other.ambassadeurNom == ambassadeurNom) &&
+            (identical(other.ambassadeurTitre, ambassadeurTitre) ||
+                other.ambassadeurTitre == ambassadeurTitre) &&
+            (identical(
+                  other.ambassadeurOrganisation,
+                  ambassadeurOrganisation,
+                ) ||
+                other.ambassadeurOrganisation == ambassadeurOrganisation) &&
+            (identical(other.ambassadeurValidatedAt, ambassadeurValidatedAt) ||
+                other.ambassadeurValidatedAt == ambassadeurValidatedAt));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -402,6 +481,10 @@ class _$CooperativeImpl implements _Cooperative {
     logoUrl,
     description,
     createdAt,
+    ambassadeurNom,
+    ambassadeurTitre,
+    ambassadeurOrganisation,
+    ambassadeurValidatedAt,
   );
 
   /// Create a copy of Cooperative
@@ -434,6 +517,10 @@ abstract class _Cooperative implements Cooperative {
     final String? logoUrl,
     final String? description,
     final DateTime? createdAt,
+    final String? ambassadeurNom,
+    final String? ambassadeurTitre,
+    final String? ambassadeurOrganisation,
+    final DateTime? ambassadeurValidatedAt,
   }) = _$CooperativeImpl;
 
   factory _Cooperative.fromJson(Map<String, dynamic> json) =
@@ -468,7 +555,16 @@ abstract class _Cooperative implements Cooperative {
   @override
   String? get description;
   @override
-  DateTime? get createdAt;
+  DateTime? get createdAt; // ─── Parrainage local (chantier 5) ────────────────────────────
+  // Affiché côté acheteur quand les 3 champs sont remplis.
+  @override
+  String? get ambassadeurNom;
+  @override
+  String? get ambassadeurTitre;
+  @override
+  String? get ambassadeurOrganisation;
+  @override
+  DateTime? get ambassadeurValidatedAt;
 
   /// Create a copy of Cooperative
   /// with the given fields replaced by the non-null parameter values.

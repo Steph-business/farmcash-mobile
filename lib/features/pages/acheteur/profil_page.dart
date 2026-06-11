@@ -16,6 +16,7 @@ import '../../../theme/app_dimens.dart';
 import '../../state/auth_state.dart';
 import '../../widgets/acheteur/profil/sous_ligne_identite_acheteur.dart';
 import '../../widgets/communs/chargement.dart';
+import '../../widgets/communs/dialog_changer_profil.dart';
 import '../../widgets/communs/profil/barre_superieure_profil.dart';
 import '../../widgets/communs/profil/bouton_deconnexion_profil.dart';
 import '../../widgets/communs/profil/carte_identite_profil.dart';
@@ -311,6 +312,15 @@ class _ContenuProfilAcheteur extends StatelessWidget {
                 icone: Icons.lock_outline,
                 label: 'Sécurité (PIN, sessions)',
                 onTap: () => context.push(RouteNames.securitePath),
+              ),
+              // V1 : un user = un rôle. Cette tuile gère les attentes
+              // de ceux qui veulent vendre ET acheter en proposant 2
+              // alternatives propres (2e compte / support).
+              TuileProfil(
+                icone: Icons.swap_horiz_rounded,
+                label: 'Changer de profil',
+                sousTitre: 'Acheteur · Producteur · Coopérative',
+                onTap: () => showDialogChangerProfil(context),
               ),
             ],
           ),

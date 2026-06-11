@@ -6,6 +6,7 @@ import '../../../../models/enums.dart';
 import '../../../../models/pagination.dart';
 import '../../../../models/prevision.dart';
 import '../../../../models/produit.dart';
+import '../../../../models/publication_coop.dart';
 import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
@@ -15,22 +16,28 @@ import '../../../widgets/acheteur/marche/controle_segmente_marche.dart';
 import '../../../widgets/acheteur/marche/filtres_secondaires_marche.dart';
 import '../../../widgets/acheteur/marche/grille_annonces_marche.dart';
 import '../../../widgets/acheteur/marche/grille_previsions_marche.dart';
+import '../../../widgets/acheteur/marche/offre_marche.dart';
 import '../../../widgets/acheteur/marche/sheet_filtres_avances_marche.dart';
 import '../../../widgets/communs/chargement.dart';
 import '../../../widgets/communs/entete_page_compacte_acheteur.dart';
 import '../../../widgets/communs/vue_erreur.dart';
 
-/// Bundle retourné par le provider d'écran : annonces + prévisions + le
-/// catalogue produit (pour résoudre `produit_id` côté prévisions, et pour
-/// les chips de filtre catégorie).
+/// Bundle retourné par le provider d'écran : annonces solo + publications
+/// coop unifiées en offres marché + prévisions + catalogue produit.
+///
+/// Refonte 2026-06-06 : avant, seules les `annonces_vente` solo des
+/// producteurs étaient affichées. Les publications coop (lots agrégés,
+/// souvent les gros volumes intéressants pour les industriels) étaient
+/// totalement invisibles côté acheteur — bug majeur. On fusionne les
+/// 2 sources via le wrapper `OffreMarche`.
 class _MarcheData {
   const _MarcheData({
-    required this.annonces,
+    required this.offres,
     required this.previsions,
     required this.produitsParId,
     required this.categories,
   });
-  final List<AnnonceVente> annonces;
+  final List<OffreMarche> offres;
   final List<Prevision> previsions;
   final Map<String, Produit> produitsParId;
   final List<Categorie> categories;
@@ -38,9 +45,10 @@ class _MarcheData {
 
 final _marcheAcheteurDataProvider =
     FutureProvider.autoDispose<_MarcheData>((ref) async {
-  final svc = ref.watch(marketplaceServiceProvider);
+  final mkt = ref.watch(marketplaceServiceProvider);
+  final coops = ref.watch(cooperativesServiceProvider);
   final results = await Future.wait<dynamic>([
-    svc.listAnnoncesVente(limit: 40).then<Object?>((v) => v).catchError(
+    mkt.listAnnoncesVente(limit: 40).then<Object?>((v) => v).catchError(
           (_) => const Paginated<AnnonceVente>(
             data: [],
             total: 0,
@@ -49,14 +57,25 @@ final _marcheAcheteurDataProvider =
             totalPages: 0,
           ),
         ),
-    svc.listPrevisions().then<Object?>((v) => v).catchError(
+    mkt.listPrevisions().then<Object?>((v) => v).catchError(
           (_) => const <Prevision>[],
         ),
-    svc.listProduits().then<Object?>((v) => v).catchError(
+    mkt.listProduits().then<Object?>((v) => v).catchError(
           (_) => const <Produit>[],
         ),
-    svc.listCategories().then<Object?>((v) => v).catchError(
+    mkt.listCategories().then<Object?>((v) => v).catchError(
           (_) => const <Categorie>[],
+        ),
+    // Publications coop publiques (toutes coops, pas de filtre coopId).
+    // Le service catch-all retourne page vide en cas d'erreur.
+    coops.listPublications(limit: 40).then<Object?>((v) => v).catchError(
+          (_) => const Paginated<PublicationCoop>(
+            data: [],
+            total: 0,
+            page: 1,
+            limit: 0,
+            totalPages: 0,
+          ),
         ),
   ]);
 
@@ -64,11 +83,25 @@ final _marcheAcheteurDataProvider =
   final previsions = results[1] as List<Prevision>;
   final produits = results[2] as List<Produit>;
   final categories = results[3] as List<Categorie>;
+  final publicationsCoop = results[4] as Paginated<PublicationCoop>;
   final produitsParId = <String, Produit>{
     for (final p in produits) p.id: p,
   };
+
+  // Fusionne annonces solo + publications coop en liste OffreMarche
+  // unifiée. Tri par date de création décroissante (plus récent en
+  // haut) — l'acheteur découvre d'abord ce qui vient d'arriver.
+  final offres = <OffreMarche>[
+    ...annoncesPage.data.map(OffreMarche.annonce),
+    ...publicationsCoop.data.map(OffreMarche.publicationCoop),
+  ]..sort((a, b) {
+      final dateA = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final dateB = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return dateB.compareTo(dateA);
+    });
+
   return _MarcheData(
-    annonces: annoncesPage.data,
+    offres: offres,
     previsions: previsions,
     produitsParId: produitsParId,
     categories: categories,
@@ -176,8 +209,8 @@ class _MarchePageState extends ConsumerState<MarchePage> {
   }
 
   Widget _buildContent(_MarcheData data) {
-    final annoncesFiltrees = _appliquerFiltres(
-      _filtrerParCategorie(data.annonces, data),
+    final offresFiltrees = _appliquerFiltres(
+      _filtrerParCategorie(data.offres, data),
     );
 
     return ListView(
@@ -185,7 +218,7 @@ class _MarchePageState extends ConsumerState<MarchePage> {
       children: [
         ControleSegmenteMarche(
           segment: _segment,
-          nbAnnonces: annoncesFiltrees.length,
+          nbAnnonces: offresFiltrees.length,
           nbPrevisions: data.previsions.length,
           onChanged: (s) => setState(() => _segment = s),
         ),
@@ -204,7 +237,7 @@ class _MarchePageState extends ConsumerState<MarchePage> {
         const SizedBox(height: 16),
         if (_segment == SegmentMarche.annonces)
           GrilleAnnoncesMarche(
-            annonces: annoncesFiltrees,
+            offres: offresFiltrees,
             produitsParId: data.produitsParId,
           )
         else
@@ -216,19 +249,19 @@ class _MarchePageState extends ConsumerState<MarchePage> {
     );
   }
 
-  List<AnnonceVente> _filtrerParCategorie(
-    List<AnnonceVente> annonces,
+  List<OffreMarche> _filtrerParCategorie(
+    List<OffreMarche> offres,
     _MarcheData data,
   ) {
-    if (_categorieIdSelectionnee == null) return annonces;
+    if (_categorieIdSelectionnee == null) return offres;
     final cat = data.categories.firstWhere(
       (c) => c.id == _categorieIdSelectionnee,
       orElse: () => const Categorie(id: '', slug: '', nom: ''),
     );
-    if (cat.id.isEmpty) return annonces;
+    if (cat.id.isEmpty) return offres;
     final sousCategoriesIds = cat.sousCategories.map((sc) => sc.id).toSet();
-    return annonces.where((a) {
-      final p = data.produitsParId[a.produitId];
+    return offres.where((o) {
+      final p = data.produitsParId[o.produitId];
       return p?.sousCategorieId != null &&
           sousCategoriesIds.contains(p!.sousCategorieId);
     }).toList(growable: false);
@@ -236,8 +269,9 @@ class _MarchePageState extends ConsumerState<MarchePage> {
 
   /// Applique successivement les filtres secondaires (Bio, Près de moi,
   /// Prix bas, Coop) et les filtres avancés (qualité, prix max, tri).
-  List<AnnonceVente> _appliquerFiltres(List<AnnonceVente> annonces) {
-    var resultat = annonces;
+  /// Travaille sur OffreMarche unifiée (annonces solo + publications coop).
+  List<OffreMarche> _appliquerFiltres(List<OffreMarche> offres) {
+    var resultat = offres;
 
     // Bio (chip ou qualité Bio dans la sheet).
     if (_filtres.contains(FiltreSecondaire.bio)) {
@@ -245,28 +279,31 @@ class _MarchePageState extends ConsumerState<MarchePage> {
     }
 
     // Près de moi : V1 sans regionId profil → garde les annonces ayant
-    // une localisation renseignée (région ou ville). Sera affiné quand
-    // le user aura un regionId persisté.
+    // une localisation renseignée (région ou ville). Les publications
+    // coop n'exposent pas region/ville sur la carte publique → on les
+    // garde (sinon disparition silencieuse — UX bizarre).
     if (_filtres.contains(FiltreSecondaire.presDeMoi)) {
       resultat = resultat
-          .where((a) =>
-              (a.regionNom?.trim().isNotEmpty ?? false) ||
-              (a.villeNom?.trim().isNotEmpty ?? false))
+          .where((o) =>
+              o.isPublicationCoop ||
+              (o.regionNom?.trim().isNotEmpty ?? false) ||
+              (o.villeNom?.trim().isNotEmpty ?? false))
           .toList(growable: false);
     }
 
-    // Coop : annonce assignée à une coop.
+    // Coop : annonce assignée à une coop OU publication coop directe.
     if (_filtres.contains(FiltreSecondaire.coop)) {
       resultat = resultat
-          .where((a) =>
-              (a.assignedToCooperativeId?.isNotEmpty ?? false))
+          .where((o) =>
+              o.isPublicationCoop ||
+              (o.assignedToCooperativeId?.isNotEmpty ?? false))
           .toList(growable: false);
     }
 
     // Filtre qualité (sheet avancée).
     if (_qualite != null) {
       resultat = resultat
-          .where((a) => a.qualite == _qualite)
+          .where((o) => o.qualite == _qualite)
           .toList(growable: false);
     }
 
@@ -274,7 +311,7 @@ class _MarchePageState extends ConsumerState<MarchePage> {
     final plafond = _prixMaxKg;
     if (plafond != null) {
       resultat = resultat
-          .where((a) => a.prixParKg <= plafond)
+          .where((o) => o.prixParKg <= plafond)
           .toList(growable: false);
     }
 
@@ -288,20 +325,20 @@ class _MarchePageState extends ConsumerState<MarchePage> {
     return resultat;
   }
 
-  bool _estBio(AnnonceVente a) {
-    if (a.qualite == ProductQuality.bio) return true;
-    for (final c in a.certifications) {
+  bool _estBio(OffreMarche o) {
+    if (o.qualite == ProductQuality.bio) return true;
+    for (final c in o.certifications) {
       final lower = c.toLowerCase();
       if (lower.contains('bio') || lower.contains('organic')) return true;
     }
     return false;
   }
 
-  List<AnnonceVente> _trier(
-    List<AnnonceVente> annonces,
+  List<OffreMarche> _trier(
+    List<OffreMarche> offres,
     TriMarche tri,
   ) {
-    final copie = [...annonces];
+    final copie = [...offres];
     switch (tri) {
       case TriMarche.recent:
         copie.sort((a, b) {

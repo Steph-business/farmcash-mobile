@@ -17,6 +17,7 @@ import '../../../theme/app_dimens.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../state/auth_state.dart';
 import '../../widgets/communs/chargement.dart';
+import '../../widgets/communs/dialog_changer_profil.dart';
 import '../../widgets/communs/profil/bouton_deconnexion_profil.dart';
 import '../../widgets/communs/profil/carte_identite_profil.dart';
 import '../../widgets/communs/profil/changer_photo_helper.dart';
@@ -353,6 +354,23 @@ class _ContenuProfilCooperative extends StatelessWidget {
         ),
         AppDimens.vGap16,
 
+        // 5b. SECTION NÉGOCIATIONS — accès aux contre-offres reçues
+        // des acheteurs sur les publications coop (table contre_offres_coop).
+        GroupeProfil(
+          titre: 'Négociations',
+          enfants: [
+            TuileProfil(
+              icone: Icons.handshake_outlined,
+              accent: true,
+              label: 'Contre-offres reçues',
+              sousTitre: 'Acheteurs qui négocient un lot publié',
+              onTap: () => context
+                  .push(RouteNames.cooperativeContreOffresRecuesPath),
+            ),
+          ],
+        ),
+        AppDimens.vGap16,
+
         // 6. SECTION PARAMÈTRES
         GroupeProfil(
           titre: 'Paramètres',
@@ -372,6 +390,13 @@ class _ContenuProfilCooperative extends StatelessWidget {
               icone: Icons.lock_outline,
               label: 'Sécurité (PIN, sessions)',
               onTap: () => context.push(RouteNames.securitePath),
+            ),
+            // V1 : un user = un rôle. Dialog explicatif.
+            TuileProfil(
+              icone: Icons.swap_horiz_rounded,
+              label: 'Changer de profil',
+              sousTitre: 'Acheteur · Producteur · Coopérative',
+              onTap: () => showDialogChangerProfil(context),
             ),
           ],
         ),

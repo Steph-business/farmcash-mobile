@@ -13,21 +13,23 @@ import '../../widgets/transporteur/profil/champ_formulaire_vehicule.dart';
 import '../../widgets/transporteur/profil/entete_ajouter_itineraire.dart';
 import '../../widgets/transporteur/profil/titre_section_formulaire.dart';
 
-/// Ajouter un itinéraire (route transporteur) — origine, destination,
-/// capacité kg, tarif kg, tarif minimum optionnel, délai typique.
+/// Ajouter un itinéraire de transport — origine, destination, capacité kg,
+/// tarif kg, tarif minimum optionnel, délai typique. POST sur
+/// `/logistics/routes`.
 ///
-/// Le titre historique de la page est "Véhicule" mais côté backend c'est
-/// une **route** qui se déclare (capacité = caractéristique de la route).
-class VehiculeAjouterTransporteurPage extends ConsumerStatefulWidget {
-  const VehiculeAjouterTransporteurPage({super.key});
+/// L'itinéraire définit où le transporteur peut prendre des missions
+/// et combien il facture. Distinct de la création de véhicule (qui
+/// décrit son matériel — type, immat, marque).
+class ItineraireCreerPage extends ConsumerStatefulWidget {
+  const ItineraireCreerPage({super.key});
 
   @override
-  ConsumerState<VehiculeAjouterTransporteurPage> createState() =>
-      _VehiculeAjouterTransporteurPageState();
+  ConsumerState<ItineraireCreerPage> createState() =>
+      _ItineraireCreerPageState();
 }
 
-class _VehiculeAjouterTransporteurPageState
-    extends ConsumerState<VehiculeAjouterTransporteurPage> {
+class _ItineraireCreerPageState
+    extends ConsumerState<ItineraireCreerPage> {
   final _origineCtrl = TextEditingController();
   final _destCtrl = TextEditingController();
   final _capaciteCtrl = TextEditingController(text: '1000');

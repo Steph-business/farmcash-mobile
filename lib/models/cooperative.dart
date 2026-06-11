@@ -22,6 +22,12 @@ class Cooperative with _$Cooperative {
     String? logoUrl,
     String? description,
     DateTime? createdAt,
+    // ─── Parrainage local (chantier 5) ────────────────────────────
+    // Affiché côté acheteur quand les 3 champs sont remplis.
+    String? ambassadeurNom,
+    String? ambassadeurTitre,
+    String? ambassadeurOrganisation,
+    DateTime? ambassadeurValidatedAt,
   }) = _Cooperative;
 
   factory Cooperative.fromJson(Map<String, dynamic> json) =>

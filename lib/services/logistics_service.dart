@@ -193,6 +193,28 @@ class LogisticsService {
     return Livraison.fromJson(json);
   }
 
+  /// Chantier 4 — Transport coop interne.
+  ///
+  /// Le vendeur (coop ou producteur) déclare qu'il livre lui-même avec
+  /// son propre véhicule. Crée un shipment is_internal_transport=true,
+  /// transporter_id = seller_id, prix = 0. Aucune commission FarmCash
+  /// sur le transport et aucune notif aux transporteurs externes.
+  Future<Map<String, dynamic>> declareInternalTransport({
+    required String commandeId,
+    String? pickupAddress,
+    String? deliveryAddress,
+    double? quantiteKg,
+  }) async {
+    return _api.post<Map<String, dynamic>>(
+      '/logistics/orders/$commandeId/declare-internal-transport',
+      body: {
+        if (pickupAddress != null) 'pickup_address': pickupAddress,
+        if (deliveryAddress != null) 'delivery_address': deliveryAddress,
+        if (quantiteKg != null) 'quantite_kg': quantiteKg,
+      },
+    );
+  }
+
   /// Point GPS périodique pendant le transit. Status optionnel — si fourni,
   /// transitionne (ex. `IN_TRANSIT`).
   Future<Livraison> trackPosition({

@@ -40,6 +40,25 @@ mixin _$Utilisateur {
   String? get cooperativeId => throw _privateConstructorUsedError;
   DateTime? get createdAt => throw _privateConstructorUsedError;
 
+  /// Flag explicite backend : `true` si le profil étendu rôle existe.
+  /// Si `false` côté FARMER/BUYER/COOPERATIVE → l'utilisateur a un user
+  /// mais sans son profil rôle (le push best-effort post-inscription a
+  /// échoué). Le guard mobile route alors vers la page de complétion.
+  /// Default `true` pour rétrocompat (endpoints qui ne renvoient pas
+  /// ce flag — login-pin minimal, anciens caches).
+  @JsonKey(name: 'has_role_profile')
+  bool get hasRoleProfile => throw _privateConstructorUsedError;
+
+  /// Flag backend (`/auth/me`) : `true` si le profil rôle a TOUTES les
+  /// informations essentielles renseignées. Si `false` côté FARMER /
+  /// BUYER / COOPERATIVE → le guard force le wizard d'onboarding pour
+  /// bloquer l'entrée dans l'app tant que les champs minimaux ne sont
+  /// pas remplis (sinon écosystème pourri par des profils vides).
+  /// Default `true` pour rétrocompat (endpoints minimaux + transporteur
+  /// qui a son propre onboarding).
+  @JsonKey(name: 'essential_fields_complete')
+  bool get essentialFieldsComplete => throw _privateConstructorUsedError;
+
   /// Serializes this Utilisateur to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
@@ -70,6 +89,8 @@ abstract class $UtilisateurCopyWith<$Res> {
     @FlexDouble() double walletBalance,
     String? cooperativeId,
     DateTime? createdAt,
+    @JsonKey(name: 'has_role_profile') bool hasRoleProfile,
+    @JsonKey(name: 'essential_fields_complete') bool essentialFieldsComplete,
   });
 }
 
@@ -100,6 +121,8 @@ class _$UtilisateurCopyWithImpl<$Res, $Val extends Utilisateur>
     Object? walletBalance = null,
     Object? cooperativeId = freezed,
     Object? createdAt = freezed,
+    Object? hasRoleProfile = null,
+    Object? essentialFieldsComplete = null,
   }) {
     return _then(
       _value.copyWith(
@@ -151,6 +174,14 @@ class _$UtilisateurCopyWithImpl<$Res, $Val extends Utilisateur>
                 ? _value.createdAt
                 : createdAt // ignore: cast_nullable_to_non_nullable
                       as DateTime?,
+            hasRoleProfile: null == hasRoleProfile
+                ? _value.hasRoleProfile
+                : hasRoleProfile // ignore: cast_nullable_to_non_nullable
+                      as bool,
+            essentialFieldsComplete: null == essentialFieldsComplete
+                ? _value.essentialFieldsComplete
+                : essentialFieldsComplete // ignore: cast_nullable_to_non_nullable
+                      as bool,
           )
           as $Val,
     );
@@ -179,6 +210,8 @@ abstract class _$$UtilisateurImplCopyWith<$Res>
     @FlexDouble() double walletBalance,
     String? cooperativeId,
     DateTime? createdAt,
+    @JsonKey(name: 'has_role_profile') bool hasRoleProfile,
+    @JsonKey(name: 'essential_fields_complete') bool essentialFieldsComplete,
   });
 }
 
@@ -208,6 +241,8 @@ class __$$UtilisateurImplCopyWithImpl<$Res>
     Object? walletBalance = null,
     Object? cooperativeId = freezed,
     Object? createdAt = freezed,
+    Object? hasRoleProfile = null,
+    Object? essentialFieldsComplete = null,
   }) {
     return _then(
       _$UtilisateurImpl(
@@ -259,6 +294,14 @@ class __$$UtilisateurImplCopyWithImpl<$Res>
             ? _value.createdAt
             : createdAt // ignore: cast_nullable_to_non_nullable
                   as DateTime?,
+        hasRoleProfile: null == hasRoleProfile
+            ? _value.hasRoleProfile
+            : hasRoleProfile // ignore: cast_nullable_to_non_nullable
+                  as bool,
+        essentialFieldsComplete: null == essentialFieldsComplete
+            ? _value.essentialFieldsComplete
+            : essentialFieldsComplete // ignore: cast_nullable_to_non_nullable
+                  as bool,
       ),
     );
   }
@@ -280,6 +323,9 @@ class _$UtilisateurImpl implements _Utilisateur {
     @FlexDouble() this.walletBalance = 0.0,
     this.cooperativeId,
     this.createdAt,
+    @JsonKey(name: 'has_role_profile') this.hasRoleProfile = true,
+    @JsonKey(name: 'essential_fields_complete')
+    this.essentialFieldsComplete = true,
   });
 
   factory _$UtilisateurImpl.fromJson(Map<String, dynamic> json) =>
@@ -320,9 +366,30 @@ class _$UtilisateurImpl implements _Utilisateur {
   @override
   final DateTime? createdAt;
 
+  /// Flag explicite backend : `true` si le profil étendu rôle existe.
+  /// Si `false` côté FARMER/BUYER/COOPERATIVE → l'utilisateur a un user
+  /// mais sans son profil rôle (le push best-effort post-inscription a
+  /// échoué). Le guard mobile route alors vers la page de complétion.
+  /// Default `true` pour rétrocompat (endpoints qui ne renvoient pas
+  /// ce flag — login-pin minimal, anciens caches).
+  @override
+  @JsonKey(name: 'has_role_profile')
+  final bool hasRoleProfile;
+
+  /// Flag backend (`/auth/me`) : `true` si le profil rôle a TOUTES les
+  /// informations essentielles renseignées. Si `false` côté FARMER /
+  /// BUYER / COOPERATIVE → le guard force le wizard d'onboarding pour
+  /// bloquer l'entrée dans l'app tant que les champs minimaux ne sont
+  /// pas remplis (sinon écosystème pourri par des profils vides).
+  /// Default `true` pour rétrocompat (endpoints minimaux + transporteur
+  /// qui a son propre onboarding).
+  @override
+  @JsonKey(name: 'essential_fields_complete')
+  final bool essentialFieldsComplete;
+
   @override
   String toString() {
-    return 'Utilisateur(id: $id, phone: $phone, role: $role, fullName: $fullName, photoUrl: $photoUrl, email: $email, isVerified: $isVerified, isActive: $isActive, rating: $rating, walletBalance: $walletBalance, cooperativeId: $cooperativeId, createdAt: $createdAt)';
+    return 'Utilisateur(id: $id, phone: $phone, role: $role, fullName: $fullName, photoUrl: $photoUrl, email: $email, isVerified: $isVerified, isActive: $isActive, rating: $rating, walletBalance: $walletBalance, cooperativeId: $cooperativeId, createdAt: $createdAt, hasRoleProfile: $hasRoleProfile, essentialFieldsComplete: $essentialFieldsComplete)';
   }
 
   @override
@@ -348,7 +415,14 @@ class _$UtilisateurImpl implements _Utilisateur {
             (identical(other.cooperativeId, cooperativeId) ||
                 other.cooperativeId == cooperativeId) &&
             (identical(other.createdAt, createdAt) ||
-                other.createdAt == createdAt));
+                other.createdAt == createdAt) &&
+            (identical(other.hasRoleProfile, hasRoleProfile) ||
+                other.hasRoleProfile == hasRoleProfile) &&
+            (identical(
+                  other.essentialFieldsComplete,
+                  essentialFieldsComplete,
+                ) ||
+                other.essentialFieldsComplete == essentialFieldsComplete));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -367,6 +441,8 @@ class _$UtilisateurImpl implements _Utilisateur {
     walletBalance,
     cooperativeId,
     createdAt,
+    hasRoleProfile,
+    essentialFieldsComplete,
   );
 
   /// Create a copy of Utilisateur
@@ -397,6 +473,9 @@ abstract class _Utilisateur implements Utilisateur {
     @FlexDouble() final double walletBalance,
     final String? cooperativeId,
     final DateTime? createdAt,
+    @JsonKey(name: 'has_role_profile') final bool hasRoleProfile,
+    @JsonKey(name: 'essential_fields_complete')
+    final bool essentialFieldsComplete,
   }) = _$UtilisateurImpl;
 
   factory _Utilisateur.fromJson(Map<String, dynamic> json) =
@@ -431,6 +510,27 @@ abstract class _Utilisateur implements Utilisateur {
   String? get cooperativeId;
   @override
   DateTime? get createdAt;
+
+  /// Flag explicite backend : `true` si le profil étendu rôle existe.
+  /// Si `false` côté FARMER/BUYER/COOPERATIVE → l'utilisateur a un user
+  /// mais sans son profil rôle (le push best-effort post-inscription a
+  /// échoué). Le guard mobile route alors vers la page de complétion.
+  /// Default `true` pour rétrocompat (endpoints qui ne renvoient pas
+  /// ce flag — login-pin minimal, anciens caches).
+  @override
+  @JsonKey(name: 'has_role_profile')
+  bool get hasRoleProfile;
+
+  /// Flag backend (`/auth/me`) : `true` si le profil rôle a TOUTES les
+  /// informations essentielles renseignées. Si `false` côté FARMER /
+  /// BUYER / COOPERATIVE → le guard force le wizard d'onboarding pour
+  /// bloquer l'entrée dans l'app tant que les champs minimaux ne sont
+  /// pas remplis (sinon écosystème pourri par des profils vides).
+  /// Default `true` pour rétrocompat (endpoints minimaux + transporteur
+  /// qui a son propre onboarding).
+  @override
+  @JsonKey(name: 'essential_fields_complete')
+  bool get essentialFieldsComplete;
 
   /// Create a copy of Utilisateur
   /// with the given fields replaced by the non-null parameter values.

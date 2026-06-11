@@ -12,6 +12,7 @@ import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_text_styles.dart';
 import '../../../state/auth_state.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/post_acceptation_negociation.dart';
 import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/communs/vue_erreur.dart';
 import '../../../widgets/producteur/offres/offre_modeles.dart';
@@ -106,12 +107,19 @@ class _DiscussionOffrePageState extends ConsumerState<DiscussionOffrePage> {
     setState(() => _acting = true);
     try {
       final svc = ref.read(negotiationServiceProvider);
-      if (widget.offre.kind == OffreKind.candidature) {
-        await svc.traiterCandidature(id: widget.offre.id, action: action);
-      } else {
-        await svc.traiterProposition(id: widget.offre.id, action: action);
-      }
+      final result = widget.offre.kind == OffreKind.candidature
+          ? await svc.traiterCandidature(id: widget.offre.id, action: action)
+          : await svc.traiterProposition(id: widget.offre.id, action: action);
       if (!mounted) return;
+      // Côté producteur (vendeur), si ACCEPTED la commande est créée pour
+      // l'acheteur — on lui notifie que c'est en attente de paiement.
+      if (action == NegotiationAction.accept && result.commandeId != null) {
+        await apresAcceptationNegociation(
+          context,
+          result,
+          fromAcheteurSide: false,
+        );
+      }
       // MAJ locale du statut pour basculer l'UI immédiatement.
       setState(() {
         switch (action) {
@@ -129,10 +137,11 @@ class _DiscussionOffrePageState extends ConsumerState<DiscussionOffrePage> {
             break;
         }
       });
-      Snackbars.showSucces(
-        context,
-        _toastForAction(action),
-      );
+      // Snackbar simple uniquement si pas d'acceptation (sinon le helper
+      // au-dessus a déjà affiché un snackbar enrichi).
+      if (action != NegotiationAction.accept) {
+        Snackbars.showSucces(context, _toastForAction(action));
+      }
     } on ApiException catch (e) {
       if (mounted) Snackbars.showErreur(context, e.message);
     } finally {

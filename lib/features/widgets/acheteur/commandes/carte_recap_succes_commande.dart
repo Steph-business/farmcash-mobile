@@ -26,7 +26,19 @@ class CarteRecapSuccesCommande extends StatelessWidget {
         ? df.format(commande.livraisonDate!)
         : 'À planifier';
     final qte = '${_nf.format(commande.quantiteKg.round())} kg';
-    final montant = '${_nf.format(commande.montantTotal.round())} F';
+
+    // En mode STAGED, on affiche le montant DU DÉPÔT (ce qui vient
+    // d'être payé), pas le total — sinon l'acheteur croit avoir tout
+    // payé alors qu'il reste le solde à la livraison.
+    final estStaged = commande.paymentMode == 'STAGED' &&
+        commande.depositAmount != null;
+    final montantPaye = estStaged
+        ? commande.depositAmount!.round()
+        : commande.montantTotal.round();
+    final montant = '${_nf.format(montantPaye)} F';
+    final solde = estStaged
+        ? (commande.montantTotal - commande.depositAmount!).round()
+        : 0;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
@@ -41,9 +53,9 @@ class CarteRecapSuccesCommande extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Label discret
+          // Label discret — distingue clairement acompte vs paiement intégral
           Text(
-            'MONTANT PAYÉ',
+            estStaged ? 'ACOMPTE PAYÉ' : 'MONTANT PAYÉ',
             style: AppTextStyles.bodySmall.copyWith(
               fontSize: 11,
               fontWeight: FontWeight.w700,
@@ -64,6 +76,25 @@ class CarteRecapSuccesCommande extends StatelessWidget {
               height: 1.1,
             ),
           ),
+          if (estStaged) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF3C7),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFFCD34D)),
+              ),
+              child: Text(
+                'Solde ${_nf.format(solde)} F à régler à la livraison',
+                style: AppTextStyles.bodySmall.copyWith(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF92400E),
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           // Séparateur fin de la même teinte primary atténuée — relie
           // le montant aux 2 chips d'info ci-dessous.

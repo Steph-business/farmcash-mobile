@@ -9,6 +9,7 @@ import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
+import '../../../widgets/communs/badge_parrainage_coop.dart';
 import '../../../widgets/communs/chargement.dart';
 import '../../../widgets/communs/snackbars.dart';
 
@@ -271,14 +272,30 @@ class _CarteCoop extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      coop.nom,
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        fontFamily: 'Poppins',
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.text,
-                      ),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            coop.nom,
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              fontFamily: 'Poppins',
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.text,
+                            ),
+                          ),
+                        ),
+                        if (coop.ambassadeurValidatedAt != null) ...[
+                          const SizedBox(width: 6),
+                          BadgeParrainageCoop(
+                            ambassadeurNom: coop.ambassadeurNom,
+                            ambassadeurTitre: coop.ambassadeurTitre,
+                            ambassadeurOrganisation:
+                                coop.ambassadeurOrganisation,
+                            compact: true,
+                          ),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: 3),
                     Row(
@@ -421,6 +438,16 @@ class _SheetDemandeAdhesionState extends State<_SheetDemandeAdhesion> {
                 height: 1.4,
               ),
             ),
+            // Parrainage local — apporte de la confiance avant de rejoindre.
+            if (widget.coop.ambassadeurValidatedAt != null) ...[
+              const SizedBox(height: 12),
+              BadgeParrainageCoop(
+                ambassadeurNom: widget.coop.ambassadeurNom,
+                ambassadeurTitre: widget.coop.ambassadeurTitre,
+                ambassadeurOrganisation:
+                    widget.coop.ambassadeurOrganisation,
+              ),
+            ],
             const SizedBox(height: 16),
             Text(
               'Message (optionnel)',

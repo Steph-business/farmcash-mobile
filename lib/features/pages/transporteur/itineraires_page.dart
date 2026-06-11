@@ -21,8 +21,7 @@ final _itinerairesProvider =
 });
 
 /// Liste des routes (origin → destination) que le transporteur dessert.
-/// Le bouton "Ajouter" pousse vers `vehicule_ajouter_page` qui sert aussi
-/// de formulaire de route (V1 simplifié).
+/// Le bouton "Ajouter" pousse vers `itineraire_creer_page`.
 class ItinerairesTransporteurPage extends ConsumerStatefulWidget {
   const ItinerairesTransporteurPage({super.key});
 

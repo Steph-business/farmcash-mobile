@@ -14,6 +14,7 @@ import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
 import '../../state/auth_state.dart';
 import '../../widgets/communs/chargement.dart';
+import '../../widgets/communs/dialog_changer_profil.dart';
 import '../../widgets/communs/profil/barre_superieure_profil.dart';
 import '../../widgets/communs/profil/bouton_deconnexion_profil.dart';
 import '../../widgets/communs/profil/carte_identite_profil.dart';
@@ -320,6 +321,13 @@ class _ContenuProfilProducteur extends StatelessWidget {
               icone: Icons.lock_outline,
               label: 'Sécurité (PIN, sessions)',
               onTap: () => context.push(RouteNames.securitePath),
+            ),
+            // V1 : un user = un rôle. Dialog explicatif + 2 alternatives.
+            TuileProfil(
+              icone: Icons.swap_horiz_rounded,
+              label: 'Changer de profil',
+              sousTitre: 'Acheteur · Producteur · Coopérative',
+              onTap: () => showDialogChangerProfil(context),
             ),
           ],
         ),

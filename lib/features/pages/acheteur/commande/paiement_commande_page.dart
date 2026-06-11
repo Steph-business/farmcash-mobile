@@ -20,6 +20,7 @@ import '../../../widgets/acheteur/commandes/bandeau_confiance_escrow.dart';
 import '../../../widgets/acheteur/commandes/bandeau_solde_insuffisant.dart';
 import '../../../widgets/acheteur/commandes/carte_adresse_livraison.dart';
 import '../../../widgets/acheteur/commandes/carte_montants_paiement.dart';
+import '../../../widgets/acheteur/commandes/carte_choix_mode_paiement.dart';
 import '../../../widgets/acheteur/commandes/carte_recap_paiement.dart';
 import '../../../widgets/acheteur/commandes/champ_note_vendeur.dart';
 import '../../../widgets/acheteur/commandes/grille_methodes_paiement.dart';
@@ -86,6 +87,12 @@ class PaiementCommandePage extends ConsumerStatefulWidget {
 class _PaiementCommandePageState extends ConsumerState<PaiementCommandePage> {
   MobileProvider _provider = MobileProvider.wallet;
   ModeLivraisonPaiement _livraison = ModeLivraisonPaiement.auto;
+  /// Mode de paiement choisi par l'acheteur :
+  ///   • FULL    — paye 100 % maintenant, libéré au vendeur à la livraison
+  ///   • STAGED  — paye un acompte (20 % par défaut), solde à la livraison
+  ///               → la coop reçoit immédiatement 80 % de l'acompte pour
+  ///               payer ses producteurs
+  ModePaiementAcheteur _modePaiement = ModePaiementAcheteur.full;
   final TextEditingController _noteCtrl = TextEditingController();
   bool _busy = false;
 
@@ -169,6 +176,15 @@ class _PaiementCommandePageState extends ConsumerState<PaiementCommandePage> {
               // l'acheteur sur le paiement 100% upfront, surtout pour
               // les gros volumes coopérative (5T = 4-5 M F).
               BandeauConfianceEscrow(montantTotal: total),
+              const SizedBox(height: 14),
+              // Choix mode paiement (intégral ou étagé). Le mode étagé
+              // permet à la coop de payer ses producteurs dès la
+              // commande (80% du dépôt libéré immédiatement).
+              CarteChoixModePaiement(
+                montantTotal: total.toDouble(),
+                mode: _modePaiement,
+                onChange: (m) => setState(() => _modePaiement = m),
+              ),
               const SizedBox(height: 18),
               const TitreSectionPaiement('Mode de livraison'),
               const SizedBox(height: 10),
@@ -320,7 +336,9 @@ class _PaiementCommandePageState extends ConsumerState<PaiementCommandePage> {
         autoAssign = true;
       }
 
-      // 4) Crée la commande avec tous les paramètres logistique.
+      // 4) Crée la commande avec tous les paramètres logistique +
+      //    mode de paiement (FULL ou STAGED). Le backend applique la
+      //    grille adaptative pour le montant du dépôt si STAGED.
       final commande = await ref.read(ordersServiceProvider).createOrder(
             sourceType: OrderSourceType.directAnnonceVente,
             annonceVenteId: annonce.id,
@@ -330,6 +348,7 @@ class _PaiementCommandePageState extends ConsumerState<PaiementCommandePage> {
             autoAssignTransporter: autoAssign,
             deliveryAddress: deliveryAddress,
             idempotencyKey: idempotencyKey,
+            paymentMode: _modePaiement.apiValue,
           );
 
       // 3) Nettoyage post-commande : vider TOUT le panier. V1 est

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
 import '../../../theme/app_text_styles.dart';
+import '../communs/validators_transporteur.dart';
 import 'label_champ_inscription.dart';
 
 final List<TextInputFormatter> _decimalFormatters = [
@@ -67,22 +68,27 @@ class ChampsInscriptionTransporter extends StatelessWidget {
       children: [
         LabelChampInscription(
           label: 'Numéro de permis',
-          child: TextField(
+          child: TextFormField(
             controller: permisCtrl,
             enabled: !loading,
+            textCapitalization: TextCapitalization.characters,
+            autovalidateMode: AutovalidateMode.onUserInteraction,
             decoration: const InputDecoration(
               hintText: 'Ex : CI-PERM-2020-456789',
             ),
+            validator: validatePermisCI,
           ),
         ),
         AppDimens.vGap16,
         LabelChampInscription(
           label: 'Immatriculation',
-          child: TextField(
+          child: TextFormField(
             controller: immatCtrl,
             enabled: !loading,
             textCapitalization: TextCapitalization.characters,
+            autovalidateMode: AutovalidateMode.onUserInteraction,
             decoration: const InputDecoration(hintText: 'Ex : 4567 AB 01'),
+            validator: validatePlaqueCI,
           ),
         ),
         AppDimens.vGap16,

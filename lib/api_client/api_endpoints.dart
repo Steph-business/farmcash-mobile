@@ -317,7 +317,27 @@ class ApiEndpoints {
   static const String assistantHistory = '/ai/assistant/history';
   static const String assistantReset = '/ai/assistant/reset';
   static const String insightsMy = '/ai/insights/my';
+  // ─── OCR — extraction documents (multipart `file`, 10 MB max) ────
+  // Réservés à des rôles précis côté backend (BUYER + COOPERATIVE pour
+  // RCCM, tous les rôles authentifiés pour la pièce d'identité).
+  // Rate limit 10/h/user appliqué backend — pas de gestion mobile.
+  static const String aiOcrIdentityCard = '/ai/ocr/identity-card';
+  static const String aiOcrRccm = '/ai/ocr/rccm';
   static const String news = '/ai/news';
   static String newsById(String id) => '/ai/news/$id';
   static const String adminNews = '/ai/admin/news';
+
+  // ─── AI — Matching intelligent ───────────────────────────────────────
+  // Opportunités pour le producteur connecté (demandes d'achat actives qui
+  // matchent ses cultures déclarées).
+  static const String aiMatchingOpportunities = '/ai/matching/opportunities';
+  // Producteurs matchant une demande d'achat précise (vue acheteur/coop).
+  static String aiMatchingSuppliersFor(String annonceId) =>
+      '/ai/matching/suppliers/$annonceId';
+
+  // ─── AI — Estimation prix marché ────────────────────────────────────
+  /// Prédiction prix juste : médiane + min/max sur N jours pour un
+  /// produit donné, éventuellement filtré par région et qualité.
+  /// Endpoint accessible à tous les rôles authentifiés.
+  static const String aiPriceEstimate = '/ai/price-estimate';
 }

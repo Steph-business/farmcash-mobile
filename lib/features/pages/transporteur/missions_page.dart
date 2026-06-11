@@ -11,6 +11,7 @@ import '../../../theme/app_dimens.dart';
 import '../../widgets/communs/chargement.dart';
 import '../../widgets/communs/header_utilisateur.dart';
 import '../../widgets/communs/vue_erreur.dart';
+import '../../widgets/transporteur/missions/bandeau_aucun_itineraire.dart';
 import '../../widgets/transporteur/missions/barre_onglets_missions.dart';
 import '../../widgets/transporteur/missions/carte_mission_liste.dart';
 import '../../widgets/transporteur/missions/etat_vide_missions.dart';
@@ -29,14 +30,19 @@ const Set<ShipmentStatus> _kTerminees = {
 };
 
 /// Bundle missions transporteur : ses missions (statuts confondus) +
-/// les missions disponibles à accepter (pour le compteur de l'onglet).
+/// les missions disponibles à accepter + nb routes actives.
 class _MissionsData {
   const _MissionsData({
     required this.mesShipments,
     required this.disponibles,
+    required this.nbRoutesActives,
   });
   final List<Livraison> mesShipments;
   final List<Livraison> disponibles;
+  /// Si 0, le transporteur ne reçoit pas de missions car il n'a aucun
+  /// itinéraire déclaré. On affiche un bandeau explicite plutôt qu'une
+  /// liste vide cryptique.
+  final int nbRoutesActives;
 }
 
 /// On charge à la fois les missions disponibles (pour le compteur
@@ -49,13 +55,20 @@ class _MissionsData {
 final _missionsTransporteurProvider =
     FutureProvider.autoDispose<_MissionsData>((ref) async {
   final svc = ref.watch(logisticsServiceProvider);
+  final routes = svc.listMyRoutes();
   final results = await Future.wait([
     svc.getMyMissions(),
     svc.getAvailableMissions(),
   ]);
+  // Best-effort sur les routes — si l'endpoint échoue, on assume
+  // qu'il y en a (pour ne pas afficher un bandeau erroné).
+  final nbRoutesActives = await routes
+      .then((rs) => rs.where((r) => r.isActive).length)
+      .catchError((_) => 1);
   return _MissionsData(
     mesShipments: results[0],
     disponibles: results[1],
+    nbRoutesActives: nbRoutesActives,
   );
 });
 
@@ -142,6 +155,10 @@ class _MissionsTransporteurPageState
             onSelect: (t) => setState(() => _tab = t),
           ),
           AppDimens.vGap12,
+          // Bandeau pédagogique si le transporteur n'a aucun itinéraire
+          // actif — sinon il ne comprend pas pourquoi sa liste est vide.
+          if (data.nbRoutesActives == 0)
+            const BandeauAucunItineraire(),
           if (listeFiltree.isEmpty)
             EtatVideMissions(tab: _tab)
           else
