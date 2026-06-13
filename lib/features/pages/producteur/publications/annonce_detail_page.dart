@@ -11,10 +11,10 @@ import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/communs/vue_erreur.dart';
 import '../../../widgets/producteur/publications/banniere_motif_rejet.dart';
-import '../../../widgets/producteur/publications/header_annonce_detail.dart';
 import '../../../widgets/producteur/publications/hero_annonce_detail.dart';
 import '../../../widgets/producteur/publications/kpi_row_annonce.dart';
 import '../../../widgets/producteur/publications/section_acheteurs_interesses.dart';
@@ -24,18 +24,18 @@ import '../../../widgets/producteur/publications/sticky_buttons_annonce.dart';
 /// Provider familial : récupère une annonce de vente par id.
 final _annonceDetailProvider = FutureProvider.autoDispose
     .family<AnnonceVente, String>((ref, id) async {
-  return ref.watch(marketplaceServiceProvider).getAnnonceVente(id);
-});
+      return ref.watch(marketplaceServiceProvider).getAnnonceVente(id);
+    });
 
 /// Provider familial : candidatures reçues sur l'annonce (filtre côté
 /// client sur `annonceId` car l'endpoint backend retourne toutes les
 /// candidatures incoming du farmer connecté).
 final _candidaturesProvider = FutureProvider.autoDispose
     .family<List<Candidature>, String>((ref, annonceId) async {
-  final svc = ref.watch(negotiationServiceProvider);
-  final all = await svc.listCandidatures(direction: 'incoming');
-  return all.where((c) => c.annonceId == annonceId).toList(growable: false);
-});
+      final svc = ref.watch(negotiationServiceProvider);
+      final all = await svc.listCandidatures(direction: 'incoming');
+      return all.where((c) => c.annonceId == annonceId).toList(growable: false);
+    });
 
 /// Détail d'une annonce de vente côté producteur — hero, KPIs, caracs,
 /// acheteurs intéressés, sticky bouton.
@@ -55,13 +55,13 @@ class AnnonceDetailPage extends ConsumerWidget {
         child: async.when(
           loading: () => const Column(
             children: [
-              HeaderAnnonceDetail(),
+              EntetePageStandard(titre: 'Mon annonce'),
               Expanded(child: Chargement(size: 22)),
             ],
           ),
           error: (e, _) => Column(
             children: [
-              const HeaderAnnonceDetail(),
+              const EntetePageStandard(titre: 'Mon annonce'),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(AppDimens.pagePaddingH),
@@ -129,19 +129,14 @@ Future<void> _confirmAndDelete(
         ),
         TextButton(
           onPressed: () => Navigator.of(ctx).pop(true),
-          child: Text(
-            'Supprimer',
-            style: TextStyle(color: AppColors.error),
-          ),
+          child: Text('Supprimer', style: TextStyle(color: AppColors.error)),
         ),
       ],
     ),
   );
   if (ok != true || !context.mounted) return;
   try {
-    await ref
-        .read(marketplaceServiceProvider)
-        .deleteAnnonceVente(annonce.id);
+    await ref.read(marketplaceServiceProvider).deleteAnnonceVente(annonce.id);
     if (!context.mounted) return;
     Snackbars.showSucces(context, 'Annonce supprimée.');
     Navigator.of(context).pop(true);
@@ -161,8 +156,7 @@ class _Content extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final candidaturesAsync =
-        ref.watch(_candidaturesProvider(annonce.id));
+    final candidaturesAsync = ref.watch(_candidaturesProvider(annonce.id));
     final candidatures = candidaturesAsync.maybeWhen(
       data: (list) => list,
       orElse: () => const <Candidature>[],
@@ -170,10 +164,19 @@ class _Content extends ConsumerWidget {
 
     return Column(
       children: [
-        HeaderAnnonceDetail(
-          onEdit: () => _confirmAndDelete(context, ref, annonce),
-          editIcon: Icons.delete_outline,
-          editTooltip: 'Supprimer',
+        EntetePageStandard(
+          titre: 'Mon annonce',
+          actions: [
+            IconButton(
+              tooltip: 'Supprimer',
+              onPressed: () => _confirmAndDelete(context, ref, annonce),
+              icon: const Icon(
+                Icons.delete_outline,
+                size: AppDimens.iconL,
+                color: AppColors.text,
+              ),
+            ),
+          ],
         ),
         Expanded(
           child: ListView(
@@ -215,10 +218,7 @@ class _Content extends ConsumerWidget {
         StickyButtonsAnnonce(
           paused: annonce.status == ProductStatus.paused,
           onPause: () => _confirmAndPause(context, ref, annonce),
-          onModifier: () => Snackbars.showInfo(
-            context,
-            'Édition — à venir',
-          ),
+          onModifier: () => Snackbars.showInfo(context, 'Édition — à venir'),
         ),
       ],
     );

@@ -10,6 +10,7 @@ import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
 import '../../../state/auth_state.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/vue_erreur.dart';
 import '../../../widgets/communs/wallet/wallet_widgets.dart';
 
@@ -44,16 +45,7 @@ class _WalletPageState extends ConsumerState<WalletPage> {
         bottom: false,
         child: Column(
           children: [
-            EnteteWallet(
-              titre: 'Mon wallet',
-              actions: const [
-                SizedBox(
-                  width: 40,
-                  height: 40,
-                  child: Icon(Icons.search, size: 20, color: AppColors.text),
-                ),
-              ],
-            ),
+            const EntetePageStandard(titre: 'Mon portefeuille'),
             Expanded(
               child: async.when(
                 loading: () => const Padding(
@@ -70,9 +62,9 @@ class _WalletPageState extends ConsumerState<WalletPage> {
                 data: (bundle) {
                   final items = bundle.transactions.data.isEmpty
                       ? kMockTransactionsProducteur
-                      : MappingTransaction.depuisListe(bundle.transactions.data)
-                          .take(8)
-                          .toList();
+                      : MappingTransaction.depuisListe(
+                          bundle.transactions.data,
+                        ).take(8).toList();
                   return _corps(
                     context,
                     balance: bundle.wallet.balance,
@@ -108,8 +100,7 @@ class _WalletPageState extends ConsumerState<WalletPage> {
             ActionSolde(
               label: 'Retirer',
               primaire: true,
-              onTap: () =>
-                  context.push(RouteNames.producteurWalletRetirerPath),
+              onTap: () => context.push(RouteNames.producteurWalletRetirerPath),
             ),
             ActionSolde(
               label: 'Recharger',
@@ -126,8 +117,7 @@ class _WalletPageState extends ConsumerState<WalletPage> {
         if (ref.watch(currentUserProvider)?.cooperativeId != null) ...[
           AppDimens.vGap12,
           _TuileVentesCoop(
-            onTap: () =>
-                context.push(RouteNames.producteurVentesCoopPath),
+            onTap: () => context.push(RouteNames.producteurVentesCoopPath),
           ),
         ],
         AppDimens.vGap16,
@@ -152,12 +142,12 @@ class _WalletPageState extends ConsumerState<WalletPage> {
 /// les mocks visuels).
 @visibleForTesting
 Widget walletErrorView(VoidCallback onRetry) => Padding(
-      padding: const EdgeInsets.all(AppDimens.pagePaddingH),
-      child: VueErreur(
-        message: 'Impossible de charger le wallet.',
-        onRetry: onRetry,
-      ),
-    );
+  padding: const EdgeInsets.all(AppDimens.pagePaddingH),
+  child: VueErreur(
+    message: 'Impossible de charger le wallet.',
+    onRetry: onRetry,
+  ),
+);
 
 /// Tuile premium d'accès à la page « Mes ventes coop ». Style pleine
 /// largeur avec icône pastille verte, titre + sous-titre, chevron.

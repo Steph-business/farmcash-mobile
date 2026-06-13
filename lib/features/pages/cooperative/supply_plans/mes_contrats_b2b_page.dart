@@ -15,7 +15,7 @@ import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
-import '../../../widgets/communs/entete_page_compacte_coop.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 
 final _mesContratsProvider = FutureProvider.autoDispose<
     List<Map<String, dynamic>>>((ref) async {
@@ -37,7 +37,7 @@ class MesContratsB2BPage extends ConsumerWidget {
         bottom: false,
         child: Column(
           children: [
-            const EntetePageCompacteCoop(title: 'Mes contrats B2B'),
+            const EntetePageStandard(titre: 'Mes contrats B2B'),
             Expanded(
               child: contratsAsync.when(
                 data: (contrats) => contrats.isEmpty

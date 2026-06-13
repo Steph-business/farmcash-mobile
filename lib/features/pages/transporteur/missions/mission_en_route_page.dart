@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../theme/app_colors.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/transporteur/missions/bande_cargo_mission.dart';
 import '../../../widgets/transporteur/missions/bandeau_info_trajet.dart';
 import '../../../widgets/transporteur/missions/barre_action_scan_arrivee.dart';
 import '../../../widgets/transporteur/missions/carte_destination_producteur.dart';
 import '../../../widgets/transporteur/missions/carte_placeholder_trajet.dart';
-import '../../../widgets/transporteur/missions/entete_mission_en_route.dart';
 
 /// Vue "en route" pendant qu'un transporteur se rend chez le producteur :
 /// carte placeholder, cargo strip, info distance/ETA, destination, CTA
@@ -25,7 +25,7 @@ class MissionEnRoutePage extends ConsumerWidget {
         bottom: false,
         child: Column(
           children: [
-            const EnteteMissionEnRoute(),
+            const EntetePageStandard(titre: 'En route vers producteur'),
             Expanded(
               child: ListView(
                 padding: EdgeInsets.zero,

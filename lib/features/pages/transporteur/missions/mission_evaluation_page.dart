@@ -6,6 +6,7 @@ import '../../../../routing/route_names.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 
 const Color _kPrimarySoft = Color(0xFFE8F5E9);
 
@@ -27,7 +28,14 @@ class MissionEvaluationPage extends ConsumerWidget {
         bottom: false,
         child: Column(
           children: [
-            const _Header(),
+            // Écran terminal post-livraison : le back ramène aux missions
+            // (pas de pop vers le scanner/détail intermédiaire).
+            EntetePageStandard(
+              titre: 'Évaluer le client',
+              onBack: () => context.canPop()
+                  ? context.pop()
+                  : context.go(RouteNames.transporteurMissionsPath),
+            ),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
@@ -77,56 +85,6 @@ class MissionEvaluationPage extends ConsumerWidget {
             _StickyAction(missionId: missionId),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _Header extends StatelessWidget {
-  const _Header();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.background,
-        border: Border(
-          bottom: BorderSide(
-              color: AppColors.border, width: AppDimens.borderThin),
-        ),
-      ),
-      padding: const EdgeInsets.fromLTRB(
-        AppDimens.space16,
-        AppDimens.space8,
-        AppDimens.space16,
-        AppDimens.space12,
-      ),
-      child: Row(
-        children: [
-          const SizedBox(width: 40),
-          Expanded(
-            child: Center(
-              child: Text(
-                'Évaluer le client',
-                style: AppTextStyles.titleSmall.copyWith(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ),
-          InkWell(
-            onTap: () => context.canPop()
-                ? context.pop()
-                : context.go(RouteNames.transporteurMissionsPath),
-            borderRadius: BorderRadius.circular(20),
-            child: const SizedBox(
-              width: 40,
-              height: 40,
-              child: Icon(Icons.close, size: 22, color: AppColors.text),
-            ),
-          ),
-        ],
       ),
     );
   }

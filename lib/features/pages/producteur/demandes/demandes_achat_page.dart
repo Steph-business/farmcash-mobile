@@ -5,17 +5,19 @@ import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/producteur/demandes/corps_liste_demandes_achat.dart';
 import '../../../widgets/producteur/demandes/demande_achat_modeles.dart';
-import '../../../widgets/producteur/demandes/header_demandes_achat.dart';
 
 /// Récupère les demandes d'achat publiques depuis le backend. Pas de
 /// fallback mock — si l'API renvoie vide ou échoue, l'UI affiche un état
 /// vide / erreur honnête.
-final _demandesProvider =
-    FutureProvider.autoDispose<List<MockDemande>>((ref) async {
-  final paginated =
-      await ref.read(marketplaceServiceProvider).listAnnoncesAchat();
+final _demandesProvider = FutureProvider.autoDispose<List<MockDemande>>((
+  ref,
+) async {
+  final paginated = await ref
+      .read(marketplaceServiceProvider)
+      .listAnnoncesAchat();
   return paginated.data.map(annonceAchatToMock).toList(growable: false);
 });
 
@@ -32,21 +34,23 @@ class _DemandesAchatPageState extends ConsumerState<DemandesAchatPage> {
 
   List<MockDemande> _filtrer(List<MockDemande> items) {
     if (_activeFilter == 'all') return items;
-    return items.where((d) {
-      final n = d.produitNom.toLowerCase();
-      switch (_activeFilter) {
-        case 'mais':
-          return n.contains('maïs') || n.contains('mais');
-        case 'manioc':
-          return n.contains('manioc');
-        case 'tomate':
-          return n.contains('tomate');
-        case 'banane':
-          return n.contains('banane') || n.contains('plantain');
-        default:
-          return true;
-      }
-    }).toList(growable: false);
+    return items
+        .where((d) {
+          final n = d.produitNom.toLowerCase();
+          switch (_activeFilter) {
+            case 'mais':
+              return n.contains('maïs') || n.contains('mais');
+            case 'manioc':
+              return n.contains('manioc');
+            case 'tomate':
+              return n.contains('tomate');
+            case 'banane':
+              return n.contains('banane') || n.contains('plantain');
+            default:
+              return true;
+          }
+        })
+        .toList(growable: false);
   }
 
   @override
@@ -59,7 +63,7 @@ class _DemandesAchatPageState extends ConsumerState<DemandesAchatPage> {
         bottom: false,
         child: Column(
           children: [
-            const HeaderDemandesAchat(),
+            const EntetePageStandard(titre: 'Acheteurs qui cherchent'),
             Expanded(
               child: async.when(
                 loading: () => const Padding(

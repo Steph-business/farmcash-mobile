@@ -9,6 +9,7 @@ import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../widgets/communs/chargement.dart';
+import '../../widgets/communs/entete_page_standard.dart';
 import '../../widgets/communs/vue_erreur.dart';
 
 final NumberFormat _nf = NumberFormat('#,##0', 'fr_FR');
@@ -40,6 +41,7 @@ class _VenteCoop {
   final String publicationStatus;
 
   final double maQuantiteKg;
+
   /// Part dans le lot (0.0 - 1.0).
   final double maPartPct;
 
@@ -61,8 +63,9 @@ class _VenteCoop {
 /// (liste annonces + contexte par annonce). TODO backend : endpoint
 /// agrégé `GET /producteur/mes-contributions-coop` pour économiser
 /// les round-trips quand le producteur a 20+ annonces dans la coop.
-final _ventesCoopProvider =
-    FutureProvider.autoDispose<List<_VenteCoop>>((ref) async {
+final _ventesCoopProvider = FutureProvider.autoDispose<List<_VenteCoop>>((
+  ref,
+) async {
   final svc = ref.read(cooperativesServiceProvider);
   final annonces = await svc.listMyAnnoncesInCoop();
   if (annonces.isEmpty) return const <_VenteCoop>[];
@@ -71,9 +74,10 @@ final _ventesCoopProvider =
   // fetch échoue, on garde les autres).
   final contexts = await Future.wait(
     annonces.map(
-      (a) => svc.getMyAnnonceContext(a.id).then<Map<String, dynamic>?>(
-            (v) => v,
-          ).catchError((_) => null),
+      (a) => svc
+          .getMyAnnonceContext(a.id)
+          .then<Map<String, dynamic>?>((v) => v)
+          .catchError((_) => null),
     ),
   );
 
@@ -85,24 +89,26 @@ final _ventesCoopProvider =
     if (pub is! Map) continue; // annonce pas encore dans une publication
     final myShare = ctx['my_share'] as Map?;
     final revenue = ctx['projected_revenue'] as Map?;
-    ventes.add(_VenteCoop(
-      annonce: annonces[i],
-      publicationId: pub['id'] as String? ?? '',
-      publicationStatus: pub['status'] as String? ?? 'ACTIVE',
-      maQuantiteKg: _toDouble(myShare?['quantite_kg']),
-      maPartPct: _toDouble(myShare?['part_pct']),
-      brutAttendu: _toDouble(revenue?['gross']),
-      farmcashFee: _toDouble(revenue?['farmcash_fee']),
-      coopCommission: _toDouble(revenue?['coop_commission']),
-      avancesRecues: _toDouble(revenue?['advances_received']),
-      netFinal: _toDouble(revenue?['net_after_advances']),
-      paidAmount: myShare?['paid_amount'] != null
-          ? _toDouble(myShare?['paid_amount'])
-          : null,
-      paidAt: myShare?['paid_at'] is String
-          ? DateTime.tryParse(myShare!['paid_at'] as String)
-          : null,
-    ));
+    ventes.add(
+      _VenteCoop(
+        annonce: annonces[i],
+        publicationId: pub['id'] as String? ?? '',
+        publicationStatus: pub['status'] as String? ?? 'ACTIVE',
+        maQuantiteKg: _toDouble(myShare?['quantite_kg']),
+        maPartPct: _toDouble(myShare?['part_pct']),
+        brutAttendu: _toDouble(revenue?['gross']),
+        farmcashFee: _toDouble(revenue?['farmcash_fee']),
+        coopCommission: _toDouble(revenue?['coop_commission']),
+        avancesRecues: _toDouble(revenue?['advances_received']),
+        netFinal: _toDouble(revenue?['net_after_advances']),
+        paidAmount: myShare?['paid_amount'] != null
+            ? _toDouble(myShare?['paid_amount'])
+            : null,
+        paidAt: myShare?['paid_at'] is String
+            ? DateTime.tryParse(myShare!['paid_at'] as String)
+            : null,
+      ),
+    );
   }
   return ventes;
 });
@@ -133,12 +139,7 @@ class VentesCoopPage extends ConsumerWidget {
         bottom: false,
         child: Column(
           children: [
-            _Header(
-              count: async.maybeWhen(
-                data: (l) => l.length,
-                orElse: () => 0,
-              ),
-            ),
+            const EntetePageStandard(titre: 'Mes ventes coop'),
             Expanded(
               child: async.when(
                 loading: () => const Padding(
@@ -161,10 +162,7 @@ class VentesCoopPage extends ConsumerWidget {
                   child: items.isEmpty
                       ? ListView(
                           padding: const EdgeInsets.all(20),
-                          children: const [
-                            SizedBox(height: 24),
-                            _EtatVide(),
-                          ],
+                          children: const [SizedBox(height: 24), _EtatVide()],
                         )
                       : ListView.separated(
                           padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
@@ -183,53 +181,6 @@ class VentesCoopPage extends ConsumerWidget {
   }
 }
 
-class _Header extends StatelessWidget {
-  const _Header({required this.count});
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 4, 16, 8),
-      child: Row(
-        children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back, color: AppColors.text),
-            onPressed: () => context.pop(),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Mes ventes coop',
-                  style: AppTextStyles.titleLarge.copyWith(
-                    fontFamily: 'Poppins',
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.3,
-                    color: AppColors.text,
-                  ),
-                ),
-                Text(
-                  count == 0
-                      ? 'Tes contributions aux lots de la coop'
-                      : '$count contribution${count > 1 ? "s" : ""}',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _CarteVente extends StatelessWidget {
   const _CarteVente({required this.vente});
   final _VenteCoop vente;
@@ -239,9 +190,7 @@ class _CarteVente extends StatelessWidget {
     final isPaid = vente.isPaid;
     final qte = _nf.format(vente.maQuantiteKg.round());
     final pct = (vente.maPartPct * 100).round();
-    final montant = _nf.format(
-      (vente.paidAmount ?? vente.netFinal).round(),
-    );
+    final montant = _nf.format((vente.paidAmount ?? vente.netFinal).round());
     final pubRef = vente.publicationId.length >= 8
         ? vente.publicationId.substring(0, 8).toUpperCase()
         : vente.publicationId.toUpperCase();
@@ -427,7 +376,10 @@ class _SheetBreakdown extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 20),
-              _LigneBreakdown(label: 'Mon brut attendu', val: vente.brutAttendu),
+              _LigneBreakdown(
+                label: 'Mon brut attendu',
+                val: vente.brutAttendu,
+              ),
               const SizedBox(height: 6),
               _LigneBreakdown(
                 label: '− FarmCash (3 %)',
@@ -460,8 +412,10 @@ class _SheetBreakdown extends StatelessWidget {
               const SizedBox(height: 20),
               if (vente.isPaid)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primary.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(10),
@@ -489,8 +443,10 @@ class _SheetBreakdown extends StatelessWidget {
                 )
               else
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFFEF3C7),
                     borderRadius: BorderRadius.circular(10),

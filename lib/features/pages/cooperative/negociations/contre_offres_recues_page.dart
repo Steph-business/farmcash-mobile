@@ -12,7 +12,7 @@ import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
 import '../../../widgets/communs/chargement.dart';
-import '../../../widgets/communs/entete_page_compacte_coop.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/post_acceptation_negociation.dart';
 import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/communs/vue_erreur.dart';
@@ -152,7 +152,7 @@ class _ContreOffresRecuesCoopPageState
         bottom: false,
         child: Column(
           children: [
-            const EntetePageCompacteCoop(title: 'Contre-offres reçues'),
+            const EntetePageStandard(titre: 'Contre-offres reçues'),
             _FiltresStatut(
               actif: _filtre,
               onChange: (v) => setState(() => _filtre = v),

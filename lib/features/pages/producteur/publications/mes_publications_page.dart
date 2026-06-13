@@ -9,40 +9,38 @@ import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_text_styles.dart';
 import '../../../state/auth_state.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/producteur/publications/body_annonces_publications.dart';
 import '../../../widgets/producteur/publications/body_previsions_publications.dart';
-import '../../../widgets/producteur/publications/header_mes_publications.dart';
 import '../../../widgets/producteur/publications/segmented_mes_publications.dart';
 
 /// Provider — liste des annonces du farmer connecté (filtrage client-side).
-final _mesAnnoncesProvider = FutureProvider.autoDispose<List<AnnonceVente>>(
-  (ref) async {
-    final svc = ref.watch(marketplaceServiceProvider);
-    final user = ref.watch(currentUserProvider);
-    final farmerId = user?.id;
-    final paginated = await svc.listAnnoncesVente(limit: 50);
-    if (farmerId == null) return paginated.data;
-    return paginated.data
-        .where((a) => a.farmerId == farmerId)
-        .toList(growable: false);
-  },
-);
+final _mesAnnoncesProvider = FutureProvider.autoDispose<List<AnnonceVente>>((
+  ref,
+) async {
+  final svc = ref.watch(marketplaceServiceProvider);
+  final user = ref.watch(currentUserProvider);
+  final farmerId = user?.id;
+  final paginated = await svc.listAnnoncesVente(limit: 50);
+  if (farmerId == null) return paginated.data;
+  return paginated.data
+      .where((a) => a.farmerId == farmerId)
+      .toList(growable: false);
+});
 
 /// Provider — liste des prévisions du farmer connecté. Le backend filtre
 /// déjà côté serveur (par `farmer_id` du JWT) mais on refiltre côté client
 /// pour être robuste si l'endpoint élargit son scope.
-final _mesPrevisionsProvider = FutureProvider.autoDispose<List<Prevision>>(
-  (ref) async {
-    final svc = ref.watch(marketplaceServiceProvider);
-    final user = ref.watch(currentUserProvider);
-    final farmerId = user?.id;
-    final list = await svc.listPrevisions();
-    if (farmerId == null) return list;
-    return list
-        .where((p) => p.farmerId == farmerId)
-        .toList(growable: false);
-  },
-);
+final _mesPrevisionsProvider = FutureProvider.autoDispose<List<Prevision>>((
+  ref,
+) async {
+  final svc = ref.watch(marketplaceServiceProvider);
+  final user = ref.watch(currentUserProvider);
+  final farmerId = user?.id;
+  final list = await svc.listPrevisions();
+  if (farmerId == null) return list;
+  return list.where((p) => p.farmerId == farmerId).toList(growable: false);
+});
 
 /// Mes publications producteur — toggle entre Annonces actives et Prévisions.
 ///
@@ -97,7 +95,7 @@ class _MesPublicationsPageState extends ConsumerState<MesPublicationsPage> {
         bottom: false,
         child: Column(
           children: [
-            const HeaderMesPublications(),
+            const EntetePageStandard(titre: 'Mes publications'),
             SegmentedMesPublications(
               index: _index,
               annoncesCount: asyncAnnonces.maybeWhen(

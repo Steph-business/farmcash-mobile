@@ -8,9 +8,9 @@ import '../../../../routing/route_names.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
+import '../../communs/entete_page_standard.dart';
 import '../offres/offre_modeles.dart';
 import 'demande_recap_card.dart';
-import 'demande_repondre_header.dart';
 
 const Color _kPrimarySoft = Color(0xFFE8F5E9);
 
@@ -34,7 +34,7 @@ class DemandeDejaCandidateView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        const DemandeRepondreHeader(),
+        const EntetePageStandard(titre: 'Demande d\'achat'),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),

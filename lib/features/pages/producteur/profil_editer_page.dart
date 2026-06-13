@@ -9,15 +9,16 @@ import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../state/auth_state.dart';
+import '../../widgets/communs/entete_page_standard.dart';
 import '../../widgets/communs/snackbars.dart';
-import '../../widgets/producteur/profil/header_profil_editer.dart';
 import '../../widgets/producteur/profil/label_profil_editer.dart';
 import '../../widgets/producteur/profil/text_field_profil_editer.dart';
 import '../../widgets/producteur/profil/ville_dropdown_profil_editer.dart';
 
 /// Charge la liste des villes CI une fois — sert pour le dropdown ville.
-final _villesProfilProvider =
-    FutureProvider.autoDispose<List<Ville>>((ref) async {
+final _villesProfilProvider = FutureProvider.autoDispose<List<Ville>>((
+  ref,
+) async {
   try {
     return await ref.read(marketplaceServiceProvider).listVilles();
   } catch (_) {
@@ -63,7 +64,9 @@ class _ProfilEditerPageState extends ConsumerState<ProfilEditerPage> {
     setState(() => _saving = true);
     try {
       // 1. Update profile de base (nom + email).
-      await ref.read(authServiceProvider).updateProfile(
+      await ref
+          .read(authServiceProvider)
+          .updateProfile(
             fullName: _nomCtrl.text.trim(),
             email: _emailCtrl.text.trim().isEmpty
                 ? null
@@ -98,7 +101,35 @@ class _ProfilEditerPageState extends ConsumerState<ProfilEditerPage> {
         bottom: false,
         child: Column(
           children: [
-            HeaderProfilEditer(busy: _saving, onSave: _onSave),
+            EntetePageStandard(
+              titre: 'Modifier le profil',
+              montrerNotifications: false,
+              actions: [
+                if (_saving)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  )
+                else
+                  TextButton(
+                    onPressed: _onSave,
+                    child: Text(
+                      'Enregistrer',
+                      style: AppTextStyles.link.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
             Expanded(
               child: Form(
                 key: _formKey,

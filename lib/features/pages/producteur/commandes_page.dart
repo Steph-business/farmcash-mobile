@@ -23,10 +23,10 @@ import '../../widgets/producteur/commandes/titre_page_commandes.dart';
 /// invalide ce provider.
 final _commandesProducteurProvider =
     FutureProvider.autoDispose<List<OrderListItem>>((ref) async {
-  final svc = ref.watch(ordersServiceProvider);
-  final page = await svc.listMyOrdersWithJoins(side: 'seller', limit: 50);
-  return page.data;
-});
+      final svc = ref.watch(ordersServiceProvider);
+      final page = await svc.listMyOrdersWithJoins(side: 'seller', limit: 50);
+      return page.data;
+    });
 
 /// Page « Commandes » du producteur — 2 onglets principaux symétriques
 /// à la page acheteur :
@@ -81,13 +81,14 @@ class _CommandesProducteurPageState
   Widget build(BuildContext context) {
     // Badge sur l'onglet Réservations : compte les réservations en
     // attente d'action (PENDING/CONFIRMED non encore livrées).
-    final reservationsAsync =
-        ref.watch(reservationsRecuesProducteurProvider);
+    final reservationsAsync = ref.watch(reservationsRecuesProducteurProvider);
     final reservationsBadge = reservationsAsync.maybeWhen(
       data: (items) => items
-          .where((it) =>
-              it.reservation.status.toUpperCase() == 'PENDING' ||
-              it.reservation.status.toUpperCase() == 'CONFIRMED')
+          .where(
+            (it) =>
+                it.reservation.status.toUpperCase() == 'PENDING' ||
+                it.reservation.status.toUpperCase() == 'CONFIRMED',
+          )
           .length,
       orElse: () => 0,
     );
@@ -137,9 +138,7 @@ class _ContenuMesVentesState extends ConsumerState<_ContenuMesVentes> {
   OrderTab _tab = OrderTab.enCours;
 
   void _ouvrirCommande(OrderListItem item) {
-    context.push(
-      RouteNames.producteurCommandeDetailPathFor(item.commande.id),
-    );
+    context.push(RouteNames.producteurCommandeDetailPathFor(item.commande.id));
   }
 
   @override
@@ -151,8 +150,9 @@ class _ContenuMesVentesState extends ConsumerState<_ContenuMesVentes> {
           current: _tab,
           enCoursCount: async.maybeWhen(
             data: (items) => items
-                .where((o) =>
-                    tabForStatus(o.commande.status) == OrderTab.enCours)
+                .where(
+                  (o) => tabForStatus(o.commande.status) == OrderTab.enCours,
+                )
                 .length,
             orElse: () => 0,
           ),
@@ -160,9 +160,8 @@ class _ContenuMesVentesState extends ConsumerState<_ContenuMesVentes> {
         ),
         Expanded(
           child: async.when(
-            loading: () => const Center(
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
+            loading: () =>
+                const Center(child: CircularProgressIndicator(strokeWidth: 2)),
             error: (err, _) => EtatErreurListeCommandes(
               message: err is ApiException
                   ? err.message

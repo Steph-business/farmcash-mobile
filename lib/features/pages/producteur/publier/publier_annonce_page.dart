@@ -323,15 +323,19 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
             ),
             const Divider(height: 1, color: AppColors.border),
             ListTile(
-              leading: const Icon(Icons.photo_camera_outlined,
-                  color: AppColors.primary),
+              leading: const Icon(
+                Icons.photo_camera_outlined,
+                color: AppColors.primary,
+              ),
               title: const Text('Prendre une photo'),
               onTap: () => Navigator.of(ctx).pop(ImageSource.camera),
             ),
             const Divider(height: 1, color: AppColors.border),
             ListTile(
-              leading: const Icon(Icons.photo_library_outlined,
-                  color: AppColors.primary),
+              leading: const Icon(
+                Icons.photo_library_outlined,
+                color: AppColors.primary,
+              ),
               title: const Text('Choisir dans la galerie'),
               onTap: () => Navigator.of(ctx).pop(ImageSource.gallery),
             ),
@@ -550,7 +554,7 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
           photoOk
               ? 'Ton annonce est en ligne et visible par les acheteurs.'
               : 'Annonce publiée, mais la photo n\'a pas pu être ajoutée. '
-                'Tu pourras la rajouter depuis le détail.',
+                    'Tu pourras la rajouter depuis le détail.',
           style: AppTextStyles.bodyMedium.copyWith(fontSize: 14, height: 1.4),
         ),
         actionsAlignment: MainAxisAlignment.spaceBetween,
@@ -561,7 +565,8 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
             child: const Text('Publier une autre'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.of(ctx).pop(_PostSubmitAction.mesAnnonces),
+            onPressed: () =>
+                Navigator.of(ctx).pop(_PostSubmitAction.mesAnnonces),
             child: const Text('Voir mes annonces'),
           ),
         ],
@@ -757,18 +762,28 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
               ),
               const SizedBox(height: 16),
               InkWell(
-                onTap: () => context.push(RouteNames.producteurAnnonceExpressPath),
+                onTap: () =>
+                    context.push(RouteNames.producteurAnnonceExpressPath),
                 borderRadius: BorderRadius.circular(AppDimens.radiusCard),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.background,
-                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.3),
+                    ),
                     borderRadius: BorderRadius.circular(AppDimens.radiusCard),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.mic_none_outlined, size: 16, color: AppColors.primary),
+                      const Icon(
+                        Icons.mic_none_outlined,
+                        size: 16,
+                        color: AppColors.primary,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -780,7 +795,11 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
                           ),
                         ),
                       ),
-                      const Icon(Icons.chevron_right, size: 18, color: AppColors.primary),
+                      const Icon(
+                        Icons.chevron_right,
+                        size: 18,
+                        color: AppColors.primary,
+                      ),
                     ],
                   ),
                 ),
@@ -834,8 +853,9 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
               TextField(
                 controller: _qteCtrl,
                 enabled: !_isSubmitting,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 inputFormatters: [
                   FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
                 ],
@@ -850,17 +870,20 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
                 ),
               ),
               const SizedBox(height: 8),
-              ChipsKgRapides(onPick: (kg) {
-                _qteCtrl.text = kg.toString();
-              }),
+              ChipsKgRapides(
+                onPick: (kg) {
+                  _qteCtrl.text = kg.toString();
+                },
+              ),
               const SizedBox(height: 20),
               const TitreSection('Prix par kg'),
               AppDimens.vGap12,
               TextField(
                 controller: _prixCtrl,
                 enabled: !_isSubmitting,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 inputFormatters: [
                   FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
                 ],
@@ -894,10 +917,7 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
               // prix d'affichage en connaissance de cause.
               if (_prix != null) ...[
                 const SizedBox(height: 8),
-                ApercuPrixNet(
-                  prixBrutKg: _prix!,
-                  tauxFarmcash: 0.03,
-                ),
+                ApercuPrixNet(prixBrutKg: _prix!, tauxFarmcash: 0.03),
               ],
               if (_total > 0) ...[
                 const SizedBox(height: 10),
@@ -1074,8 +1094,10 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
-                  Text('Veuillez d\'abord sélectionner une culture',
-                      style: AppTextStyles.bodyMedium),
+                  Text(
+                    'Veuillez d\'abord sélectionner une culture',
+                    style: AppTextStyles.bodyMedium,
+                  ),
                   const SizedBox(height: 20),
                   ElevatedButton(
                     onPressed: () {
@@ -1203,8 +1225,7 @@ class _PublierAnnoncePageState extends ConsumerState<PublierAnnoncePage> {
                         ),
                         if (_dateRecolte != null && !_isSubmitting)
                           InkWell(
-                            onTap: () =>
-                                setState(() => _dateRecolte = null),
+                            onTap: () => setState(() => _dateRecolte = null),
                             borderRadius: BorderRadius.circular(16),
                             child: const Padding(
                               padding: EdgeInsets.all(4),

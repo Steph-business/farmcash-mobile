@@ -9,11 +9,11 @@ import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
 import '../../widgets/communs/chargement.dart';
+import '../../widgets/communs/entete_page_standard.dart';
 import '../../widgets/communs/snackbars.dart';
 import '../../widgets/communs/vue_erreur.dart';
 import '../../widgets/transporteur/profil/bouton_ajouter_vehicule.dart';
 import '../../widgets/transporteur/profil/carte_vehicule.dart';
-import '../../widgets/transporteur/profil/entete_mes_vehicules.dart';
 import '../../widgets/transporteur/profil/etat_vide_vehicules.dart';
 
 /// Provider liste des véhicules du transporteur connecté.
@@ -36,7 +36,7 @@ class MesVehiculesPage extends ConsumerWidget {
         bottom: false,
         child: Column(
           children: [
-            const EnteteMesVehicules(),
+            const EntetePageStandard(titre: 'Mes véhicules'),
             Expanded(
               child: async.when(
                 loading: () => const Padding(

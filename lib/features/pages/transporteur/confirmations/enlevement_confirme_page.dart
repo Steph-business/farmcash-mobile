@@ -6,9 +6,9 @@ import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/transporteur/confirmations/barre_action_demarrer_livraison.dart';
 import '../../../widgets/transporteur/confirmations/carte_recap_enlevement.dart';
-import '../../../widgets/transporteur/confirmations/entete_enlevement_confirme.dart';
 import '../../../widgets/transporteur/confirmations/hero_check_enlevement.dart';
 import '../../../widgets/transporteur/confirmations/mini_timeline_enlevement.dart';
 import '../../../widgets/transporteur/confirmations/titre_section_enlevement.dart';
@@ -42,7 +42,7 @@ class EnlevementConfirmePage extends ConsumerWidget {
         bottom: false,
         child: Column(
           children: [
-            const EnteteEnlevementConfirme(title: 'Enlèvement confirmé'),
+            const EntetePageStandard(titre: 'Enlèvement confirmé'),
             Expanded(
               child: async.when(
                 loading: () => const Padding(

@@ -33,15 +33,18 @@ String _prenomDe(String? fullName) =>
 /// Helper top-level (pas méthode du Widget) pour pouvoir le tester
 /// indépendamment et garder le build() lisible.
 String? _construireSousTitreProducteur(
-    AsyncValue<AccueilProducteurData> async) {
+  AsyncValue<AccueilProducteurData> async,
+) {
   final data = async.value;
   if (data == null) return null;
 
   // 1. Candidatures actionnables = action prioritaire
   final candidaturesActives = data.offresIncoming
-      .where((c) =>
-          c.status == NegotiationStatus.pending ||
-          c.status == NegotiationStatus.counterOffered)
+      .where(
+        (c) =>
+            c.status == NegotiationStatus.pending ||
+            c.status == NegotiationStatus.counterOffered,
+      )
       .length;
   if (candidaturesActives > 0) {
     return candidaturesActives == 1
@@ -67,113 +70,121 @@ String? _construireSousTitreProducteur(
 /// vide et les sections concernées sont masquées (graceful degradation).
 final accueilDataProducteurProvider =
     FutureProvider.autoDispose<AccueilProducteurData>((ref) async {
-  final marketplace = ref.watch(marketplaceServiceProvider);
-  final finance = ref.watch(financeServiceProvider);
-  final negotiation = ref.watch(negotiationServiceProvider);
-  final ai = ref.watch(aiServiceProvider);
-  final cooperatives = ref.watch(cooperativesServiceProvider);
-  final user = ref.watch(currentUserProvider);
-  final coopId = user?.cooperativeId;
+      final marketplace = ref.watch(marketplaceServiceProvider);
+      final finance = ref.watch(financeServiceProvider);
+      final negotiation = ref.watch(negotiationServiceProvider);
+      final ai = ref.watch(aiServiceProvider);
+      final cooperatives = ref.watch(cooperativesServiceProvider);
+      final user = ref.watch(currentUserProvider);
+      final coopId = user?.cooperativeId;
 
-  final results = await Future.wait<dynamic>([
-    // 0 — wallet
-    finance.getWallet().then<Object?>((v) => v).catchError((_) => null),
-    // 1 — mes annonces (filtrées côté client par farmerId)
-    marketplace
-        .listAnnoncesVente(limit: 10)
-        .then<Object?>((v) => v)
-        .catchError((_) => null),
-    // 2 — candidatures incoming
-    negotiation
-        .listCandidatures(direction: 'incoming')
-        .then<Object?>((v) => v)
-        .catchError((_) => <Candidature>[]),
-    // 3 — insights IA
-    ai.getMyInsights().then<Object?>((v) => v).catchError((_) => null),
-    // 4 — annonces d'achat (acheteurs qui cherchent)
-    marketplace
-        .listAnnoncesAchat(limit: 10)
-        .then<Object?>((v) => v)
-        .catchError((_) => null),
-    // 5 — coopérative (si l'utilisateur est membre)
-    if (coopId != null)
-      cooperatives.getPublic(coopId).then<Object?>((v) => v).catchError((_) => null),
-    // 6 — publications coop récentes
-    if (coopId != null)
-      cooperatives
-          .listPublications(cooperativeId: coopId, limit: 3)
-          .then<Object?>((v) => v)
-          .catchError((_) => null),
-  ]);
+      final results = await Future.wait<dynamic>([
+        // 0 — wallet
+        finance.getWallet().then<Object?>((v) => v).catchError((_) => null),
+        // 1 — mes annonces (filtrées côté client par farmerId)
+        marketplace
+            .listAnnoncesVente(limit: 10)
+            .then<Object?>((v) => v)
+            .catchError((_) => null),
+        // 2 — candidatures incoming
+        negotiation
+            .listCandidatures(direction: 'incoming')
+            .then<Object?>((v) => v)
+            .catchError((_) => <Candidature>[]),
+        // 3 — insights IA
+        ai.getMyInsights().then<Object?>((v) => v).catchError((_) => null),
+        // 4 — annonces d'achat (acheteurs qui cherchent)
+        marketplace
+            .listAnnoncesAchat(limit: 10)
+            .then<Object?>((v) => v)
+            .catchError((_) => null),
+        // 5 — coopérative (si l'utilisateur est membre)
+        if (coopId != null)
+          cooperatives
+              .getPublic(coopId)
+              .then<Object?>((v) => v)
+              .catchError((_) => null),
+        // 6 — publications coop récentes
+        if (coopId != null)
+          cooperatives
+              .listPublications(cooperativeId: coopId, limit: 3)
+              .then<Object?>((v) => v)
+              .catchError((_) => null),
+      ]);
 
-  final walletBundle = results[0];
-  final annoncesRaw = results[1];
-  final candidatures = results[2];
-  final insights = results[3];
-  final acheteursRaw = results[4];
-  final coopInfo = coopId != null ? results[5] as Cooperative? : null;
-  final coopPublicationsRaw = coopId != null ? results[6] : null;
+      final walletBundle = results[0];
+      final annoncesRaw = results[1];
+      final candidatures = results[2];
+      final insights = results[3];
+      final acheteursRaw = results[4];
+      final coopInfo = coopId != null ? results[5] as Cooperative? : null;
+      final coopPublicationsRaw = coopId != null ? results[6] : null;
 
-  // Mes annonces (filtre côté client par farmerId).
-  final farmerId = user?.id;
-  final List<AnnonceVente> mesAnnonces = [];
-  if (annoncesRaw != null && farmerId != null) {
-    final data = (annoncesRaw as dynamic).data as List;
-    for (final a in data) {
-      if (a is AnnonceVente && a.farmerId == farmerId) {
-        mesAnnonces.add(a);
+      // Mes annonces (filtre côté client par farmerId).
+      final farmerId = user?.id;
+      final List<AnnonceVente> mesAnnonces = [];
+      if (annoncesRaw != null && farmerId != null) {
+        final data = (annoncesRaw as dynamic).data as List;
+        for (final a in data) {
+          if (a is AnnonceVente && a.farmerId == farmerId) {
+            mesAnnonces.add(a);
+          }
+        }
       }
-    }
-  }
 
-  // Acheteurs qui cherchent — filtrage côté client : garder les annonces
-  // dont le produitId matche un produit que le farmer cultive (déduit de
-  // ses annonces actives). Si aucun match : on garde toutes les annonces.
-  final List<AnnonceAchat> acheteurs = [];
-  if (acheteursRaw != null) {
-    final data = (acheteursRaw as dynamic).data as List;
-    final mesProduitIds = mesAnnonces.map((a) => a.produitId).toSet();
-    final List<AnnonceAchat> tous = [];
-    for (final a in data) {
-      if (a is AnnonceAchat) tous.add(a);
-    }
-    if (mesProduitIds.isEmpty) {
-      acheteurs.addAll(tous);
-    } else {
-      final matchs = tous.where((a) => mesProduitIds.contains(a.produitId)).toList();
-      acheteurs.addAll(matchs.isEmpty ? tous : matchs);
-    }
-  }
+      // Acheteurs qui cherchent — filtrage côté client : garder les annonces
+      // dont le produitId matche un produit que le farmer cultive (déduit de
+      // ses annonces actives). Si aucun match : on garde toutes les annonces.
+      final List<AnnonceAchat> acheteurs = [];
+      if (acheteursRaw != null) {
+        final data = (acheteursRaw as dynamic).data as List;
+        final mesProduitIds = mesAnnonces.map((a) => a.produitId).toSet();
+        final List<AnnonceAchat> tous = [];
+        for (final a in data) {
+          if (a is AnnonceAchat) tous.add(a);
+        }
+        if (mesProduitIds.isEmpty) {
+          acheteurs.addAll(tous);
+        } else {
+          final matchs = tous
+              .where((a) => mesProduitIds.contains(a.produitId))
+              .toList();
+          acheteurs.addAll(matchs.isEmpty ? tous : matchs);
+        }
+      }
 
-  // Publications coop.
-  final List<PublicationCoop> coopPubs = [];
-  if (coopPublicationsRaw != null) {
-    final data = (coopPublicationsRaw as dynamic).data as List;
-    for (final p in data) {
-      if (p is PublicationCoop) coopPubs.add(p);
-    }
-  }
+      // Publications coop.
+      final List<PublicationCoop> coopPubs = [];
+      if (coopPublicationsRaw != null) {
+        final data = (coopPublicationsRaw as dynamic).data as List;
+        for (final p in data) {
+          if (p is PublicationCoop) coopPubs.add(p);
+        }
+      }
 
-  return AccueilProducteurData(
-    wallet: walletBundle == null ? null : (walletBundle as dynamic).wallet as Portefeuille,
-    annonces: mesAnnonces,
-    offresIncoming: (candidatures as List<Candidature>?) ?? const [],
-    insights: insights as AiInsights?,
-    acheteursQuiCherchent: acheteurs,
-    coopInfo: coopInfo,
-    coopPublications: coopPubs,
-  );
-});
+      return AccueilProducteurData(
+        wallet: walletBundle == null
+            ? null
+            : (walletBundle as dynamic).wallet as Portefeuille,
+        annonces: mesAnnonces,
+        offresIncoming: (candidatures as List<Candidature>?) ?? const [],
+        insights: insights as AiInsights?,
+        acheteursQuiCherchent: acheteurs,
+        coopInfo: coopInfo,
+        coopPublications: coopPubs,
+      );
+    });
 
 /// Compteur de parcelles du farmer — utilisé par le bandeau d'alerte
 /// au-dessus du flux principal de l'accueil. Provider dédié pour ne pas
 /// polluer le bundle d'accueil et pouvoir être invalidé seul après
 /// création d'une parcelle.
-final accueilProducteurParcellesCountProvider =
-    FutureProvider.autoDispose<int>((ref) async {
-  final list = await ref.watch(marketplaceServiceProvider).listParcelles();
-  return list.length;
-});
+final accueilProducteurParcellesCountProvider = FutureProvider.autoDispose<int>(
+  (ref) async {
+    final list = await ref.watch(marketplaceServiceProvider).listParcelles();
+    return list.length;
+  },
+);
 
 /// Accueil producteur — CTA publier, KPIs, à traiter, demandes acheteurs,
 /// coopérative, outils IA, mes annonces, conseils du jour.
@@ -188,8 +199,7 @@ class AccueilPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(accueilDataProducteurProvider);
-    final parcellesCount =
-        ref.watch(accueilProducteurParcellesCountProvider);
+    final parcellesCount = ref.watch(accueilProducteurParcellesCountProvider);
     final user = ref.watch(currentUserProvider);
     final prenom = _prenomDe(user?.fullName);
 
@@ -224,8 +234,7 @@ class AccueilPage extends ConsumerWidget {
                     color: AppColors.primary,
                     onRefresh: () async {
                       ref.invalidate(accueilDataProducteurProvider);
-                      ref.invalidate(
-                          accueilProducteurParcellesCountProvider);
+                      ref.invalidate(accueilProducteurParcellesCountProvider);
                     },
                     child: ContenuAccueil(
                       data: data,

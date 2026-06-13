@@ -8,9 +8,9 @@ import '../../../../theme/app_dimens.dart';
 import '../../../widgets/acheteur/commandes/args_devis_transporteur.dart';
 import '../../../widgets/acheteur/commandes/carte_devis_transporteur.dart';
 import '../../../widgets/acheteur/commandes/etats_vides_transporteur.dart';
-import '../../../widgets/acheteur/commandes/header_choisir_transporteur.dart';
 import '../../../widgets/acheteur/commandes/info_trajet_transporteur.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/vue_erreur.dart';
 
 final _quotesProvider = FutureProvider.autoDispose
@@ -53,7 +53,7 @@ class ChoisirTransporteurPage extends ConsumerWidget {
         bottom: false,
         child: Column(
           children: [
-            const HeaderChoisirTransporteur(),
+            const EntetePageStandard(titre: 'Choisir mon transporteur'),
             Expanded(child: _body(context, ref)),
           ],
         ),

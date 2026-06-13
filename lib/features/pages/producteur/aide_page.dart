@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
 import '../../../theme/app_text_styles.dart';
+import '../../widgets/communs/entete_page_standard.dart';
 import '../../widgets/communs/snackbars.dart';
 
 const Color _kPrimarySoft = Color(0xFFE8F5E9);
@@ -16,101 +17,105 @@ class AidePage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: const BackButton(color: AppColors.text),
-        title: Text(
-          "Centre d'aide",
-          style: AppTextStyles.titleSmall.copyWith(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        centerTitle: false,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(
-          AppDimens.pagePaddingH,
-          AppDimens.space8,
-          AppDimens.pagePaddingH,
-          AppDimens.space24,
-        ),
-        children: [
-          Text(
-            'Comment pouvons-nous t’aider ?',
-            style: AppTextStyles.titleMedium.copyWith(
-              fontSize: 17,
-              fontWeight: FontWeight.w700,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            const EntetePageStandard(titre: "Centre d'aide"),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(
+                  AppDimens.pagePaddingH,
+                  AppDimens.space8,
+                  AppDimens.pagePaddingH,
+                  AppDimens.space24,
+                ),
+                children: [
+                  Text(
+                    'Comment pouvons-nous t’aider ?',
+                    style: AppTextStyles.titleMedium.copyWith(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  AppDimens.vGap16,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _QuickAction(
+                          icon: Icons.chat_bubble_outline,
+                          label: 'Chat',
+                          onTap: () => Snackbars.showInfo(
+                            context,
+                            'Chat support — à venir',
+                          ),
+                        ),
+                      ),
+                      AppDimens.hGap12,
+                      Expanded(
+                        child: _QuickAction(
+                          icon: Icons.phone_outlined,
+                          label: 'Appeler',
+                          onTap: () => Snackbars.showInfo(
+                            context,
+                            'Appel support — à venir',
+                          ),
+                        ),
+                      ),
+                      AppDimens.hGap12,
+                      Expanded(
+                        child: _QuickAction(
+                          icon: Icons.message_outlined,
+                          label: 'WhatsApp',
+                          onTap: () =>
+                              Snackbars.showInfo(context, 'WhatsApp — à venir'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  AppDimens.vGap24,
+                  Text(
+                    'Questions fréquentes',
+                    style: AppTextStyles.titleSmall.copyWith(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  AppDimens.vGap8,
+                  const _FaqItem(
+                    question: 'Comment publier ma première annonce ?',
+                    answer:
+                        'Appuie sur le bouton + au centre de la barre du bas, '
+                        'choisis "Annonce de vente" puis sélectionne ta culture, '
+                        'indique quantité, prix et photo. Tu peux relire avant '
+                        'publication.',
+                  ),
+                  const _FaqItem(
+                    question: 'Comment fonctionnent les paiements ?',
+                    answer:
+                        'Le paiement est sécurisé : l’acheteur dépose le montant '
+                        'sur ton wallet bloqué. Une fois la livraison confirmée, les '
+                        'fonds sont débloqués et retirables.',
+                  ),
+                  const _FaqItem(
+                    question: 'Quels documents pour la KYC ?',
+                    answer:
+                        'Pièce d’identité (CNI recto/verso), justificatif '
+                        'd’adresse et photos de ton exploitation. Tout est chiffré '
+                        'et vérifié sous 48h.',
+                  ),
+                  const _FaqItem(
+                    question: 'Comment rejoindre une coopérative ?',
+                    answer:
+                        'Demande au président de ta coop d’envoyer une '
+                        'invitation, ou contacte le support pour qu’on te mette en '
+                        'relation.',
+                  ),
+                ],
+              ),
             ),
-          ),
-          AppDimens.vGap16,
-          Row(
-            children: [
-              Expanded(
-                child: _QuickAction(
-                  icon: Icons.chat_bubble_outline,
-                  label: 'Chat',
-                  onTap: () =>
-                      Snackbars.showInfo(context, 'Chat support — à venir'),
-                ),
-              ),
-              AppDimens.hGap12,
-              Expanded(
-                child: _QuickAction(
-                  icon: Icons.phone_outlined,
-                  label: 'Appeler',
-                  onTap: () =>
-                      Snackbars.showInfo(context, 'Appel support — à venir'),
-                ),
-              ),
-              AppDimens.hGap12,
-              Expanded(
-                child: _QuickAction(
-                  icon: Icons.message_outlined,
-                  label: 'WhatsApp',
-                  onTap: () =>
-                      Snackbars.showInfo(context, 'WhatsApp — à venir'),
-                ),
-              ),
-            ],
-          ),
-          AppDimens.vGap24,
-          Text(
-            'Questions fréquentes',
-            style: AppTextStyles.titleSmall.copyWith(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          AppDimens.vGap8,
-          const _FaqItem(
-            question: 'Comment publier ma première annonce ?',
-            answer: 'Appuie sur le bouton + au centre de la barre du bas, '
-                'choisis "Annonce de vente" puis sélectionne ta culture, '
-                'indique quantité, prix et photo. Tu peux relire avant '
-                'publication.',
-          ),
-          const _FaqItem(
-            question: 'Comment fonctionnent les paiements ?',
-            answer: 'Le paiement est sécurisé : l’acheteur dépose le montant '
-                'sur ton wallet bloqué. Une fois la livraison confirmée, les '
-                'fonds sont débloqués et retirables.',
-          ),
-          const _FaqItem(
-            question: 'Quels documents pour la KYC ?',
-            answer: 'Pièce d’identité (CNI recto/verso), justificatif '
-                'd’adresse et photos de ton exploitation. Tout est chiffré '
-                'et vérifié sous 48h.',
-          ),
-          const _FaqItem(
-            question: 'Comment rejoindre une coopérative ?',
-            answer: 'Demande au président de ta coop d’envoyer une '
-                'invitation, ou contacte le support pour qu’on te mette en '
-                'relation.',
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

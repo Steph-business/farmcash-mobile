@@ -3,11 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
+import '../../communs/entete_page_standard.dart';
 import '../../communs/snackbars.dart';
 import 'parcelle_ajouter_culture_sheet.dart';
 import 'parcelle_danger_link.dart';
 import 'parcelle_detail_data.dart';
-import 'parcelle_detail_header.dart';
 import 'parcelle_hero_card.dart';
 import 'parcelle_section_cultures.dart';
 
@@ -32,10 +32,7 @@ class ParcelleDetailContent extends ConsumerWidget {
     final parcelle = data.parcelle!;
     return Column(
       children: [
-        ParcelleDetailHeader(
-          titre: parcelle.nom,
-          sousTitre: 'Détail de la parcelle',
-        ),
+        EntetePageStandard(titre: parcelle.nom),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(

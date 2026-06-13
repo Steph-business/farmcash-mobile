@@ -10,8 +10,8 @@ import '../../widgets/acheteur/profil/bouton_ajouter_adresse.dart';
 import '../../widgets/acheteur/profil/carte_adresse_livraison.dart';
 import '../../widgets/acheteur/profil/etat_vide_adresses.dart';
 import '../../widgets/acheteur/profil/feuille_ajout_adresse.dart';
-import '../../widgets/acheteur/profil/header_adresses_livraison.dart';
 import '../../widgets/communs/chargement.dart';
+import '../../widgets/communs/entete_page_standard.dart';
 import '../../widgets/communs/snackbars.dart';
 import '../../widgets/communs/vue_erreur.dart';
 
@@ -116,7 +116,7 @@ class _AdressesLivraisonAcheteurPageState
         bottom: false,
         child: Column(
           children: [
-            const HeaderAdressesLivraison(),
+            const EntetePageStandard(titre: 'Adresses de livraison'),
             Expanded(
               child: async.when(
                 loading: () => const Padding(

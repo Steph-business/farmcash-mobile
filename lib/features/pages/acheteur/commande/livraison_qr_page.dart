@@ -12,10 +12,10 @@ import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../widgets/acheteur/commandes/bandeau_info_livraison_qr.dart';
 import '../../../widgets/acheteur/commandes/carte_qr_livraison.dart';
-import '../../../widgets/acheteur/commandes/header_livraison_qr.dart';
 import '../../../widgets/acheteur/commandes/lien_signaler_livraison.dart';
 import '../../../widgets/acheteur/commandes/mini_recap_livraison_qr.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/vue_erreur.dart';
 
 // ─── Provider ─────────────────────────────────────────────────────────
@@ -112,13 +112,13 @@ class LivraisonQrPage extends ConsumerWidget {
         child: async.when(
           loading: () => const Column(
             children: [
-              HeaderLivraisonQr(),
+              EntetePageStandard(titre: 'Mon QR de réception'),
               Expanded(child: Chargement(size: 22)),
             ],
           ),
           error: (e, _) => Column(
             children: [
-              const HeaderLivraisonQr(),
+              const EntetePageStandard(titre: 'Mon QR de réception'),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(AppDimens.pagePaddingH),
@@ -149,7 +149,7 @@ class LivraisonQrPage extends ConsumerWidget {
 
     return Column(
       children: [
-        const HeaderLivraisonQr(),
+        const EntetePageStandard(titre: 'Mon QR de réception'),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),

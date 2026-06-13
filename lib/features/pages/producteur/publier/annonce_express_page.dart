@@ -23,6 +23,7 @@ import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
 import '../../../state/auth_state.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/produit/selecteur_choix_premium.dart';
 import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/producteur/publier/_couleurs_publier.dart';
@@ -220,10 +221,10 @@ class _AnnonceExpressPageState extends ConsumerState<AnnonceExpressPage> {
       _ampSub = _audioRecorder
           .onAmplitudeChanged(const Duration(milliseconds: 200))
           .listen((amp) {
-        if (!mounted) return;
-        final norm = ((amp.current + 45) / 45).clamp(0.0, 1.0);
-        setState(() => _amplitude = norm);
-      });
+            if (!mounted) return;
+            final norm = ((amp.current + 45) / 45).clamp(0.0, 1.0);
+            setState(() => _amplitude = norm);
+          });
     } catch (_) {
       if (mounted) setState(() => _state = _ExpressState.selectMedia);
       if (context.mounted) {
@@ -337,7 +338,9 @@ class _AnnonceExpressPageState extends ConsumerState<AnnonceExpressPage> {
           matchedCulture = _cultures.firstWhere(
             (c) =>
                 c.produitNom != null &&
-                c.produitNom!.toLowerCase().contains(result.productName!.toLowerCase()),
+                c.produitNom!.toLowerCase().contains(
+                  result.productName!.toLowerCase(),
+                ),
           );
         } catch (_) {
           // Si aucun match exact, on prend la première par défaut
@@ -393,7 +396,10 @@ class _AnnonceExpressPageState extends ConsumerState<AnnonceExpressPage> {
         setState(() => _state = _ExpressState.selectMedia);
       }
       if (context.mounted) {
-        Snackbars.showErreur(context, "L'analyse a échoué. Réessaie avec un autre fichier.");
+        Snackbars.showErreur(
+          context,
+          "L'analyse a échoué. Réessaie avec un autre fichier.",
+        );
       }
     }
   }
@@ -401,7 +407,9 @@ class _AnnonceExpressPageState extends ConsumerState<AnnonceExpressPage> {
   // ─── Publication Finale ──────────────────────────────────────────
 
   Future<void> _publier() async {
-    if (_culture == null || _qte == null || _prix == null || _isSubmitting) return;
+    if (_culture == null || _qte == null || _prix == null || _isSubmitting) {
+      return;
+    }
     setState(() => _isSubmitting = true);
 
     try {
@@ -409,7 +417,10 @@ class _AnnonceExpressPageState extends ConsumerState<AnnonceExpressPage> {
       final serviceOk = await Geolocator.isLocationServiceEnabled();
       if (!mounted) return;
       if (!serviceOk) {
-        Snackbars.showErreur(context, 'Active la localisation de ton téléphone.');
+        Snackbars.showErreur(
+          context,
+          'Active la localisation de ton téléphone.',
+        );
         setState(() => _isSubmitting = false);
         return;
       }
@@ -425,7 +436,9 @@ class _AnnonceExpressPageState extends ConsumerState<AnnonceExpressPage> {
         return;
       }
       final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
       );
       if (!mounted) return;
 
@@ -453,7 +466,9 @@ class _AnnonceExpressPageState extends ConsumerState<AnnonceExpressPage> {
         for (final t in _traitements) {'produit_traitement_nom': t},
       ];
       if (_traitementAutreCtrl.text.trim().isNotEmpty) {
-        traitements.add({'produit_traitement_nom': _traitementAutreCtrl.text.trim()});
+        traitements.add({
+          'produit_traitement_nom': _traitementAutreCtrl.text.trim(),
+        });
       }
 
       // Création de l'annonce
@@ -465,7 +480,9 @@ class _AnnonceExpressPageState extends ConsumerState<AnnonceExpressPage> {
         lat: position.latitude,
         lng: position.longitude,
         qualite: _qualite,
-        description: _descriptionCtrl.text.trim().isEmpty ? null : _descriptionCtrl.text.trim(),
+        description: _descriptionCtrl.text.trim().isEmpty
+            ? null
+            : _descriptionCtrl.text.trim(),
         dateRecolte: _dateRecolte,
         assignedToCooperativeId: coopId,
         certifications: certifs.toList(growable: false),
@@ -541,7 +558,8 @@ class _AnnonceExpressPageState extends ConsumerState<AnnonceExpressPage> {
             child: const Text('Publier une autre'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.of(ctx).pop(_PostSubmitAction.mesAnnonces),
+            onPressed: () =>
+                Navigator.of(ctx).pop(_PostSubmitAction.mesAnnonces),
             child: const Text('Voir mes annonces'),
           ),
         ],
@@ -640,7 +658,9 @@ class _AnnonceExpressPageState extends ConsumerState<AnnonceExpressPage> {
       builder: (BuildContext context) => Container(
         height: 250,
         padding: const EdgeInsets.only(top: 6.0),
-        margin: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        margin: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
         color: CupertinoColors.systemBackground.resolveFrom(context),
         child: SafeArea(
           top: false,
@@ -669,37 +689,31 @@ class _AnnonceExpressPageState extends ConsumerState<AnnonceExpressPage> {
       canPop: !_isSubmitting && _state != _ExpressState.processing,
       child: Scaffold(
         backgroundColor: AppColors.background,
-        appBar: AppBar(
-          backgroundColor: AppColors.background,
-          elevation: 0,
-          scrolledUnderElevation: 0,
-          toolbarHeight: 64,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, size: AppDimens.iconL),
-            onPressed: (_isSubmitting || _state == _ExpressState.processing)
-                ? null
-                : () {
-                    if (_state == _ExpressState.recordingAudio) {
-                      _cancelAudioRecording();
-                    } else if (_state == _ExpressState.editFields) {
-                      setState(() => _state = _ExpressState.selectMedia);
-                    } else {
-                      Navigator.of(context).pop();
-                    }
-                  },
-          ),
-          title: Text(
-            'Annonce Express par IA',
-            style: AppTextStyles.titleMedium.copyWith(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
         body: SafeArea(
-          child: _loadingCultures
-              ? const Center(child: Chargement(size: 24))
-              : _buildCurrentState(),
+          child: Column(
+            children: [
+              EntetePageStandard(
+                titre: 'Annonce Express par IA',
+                montrerNotifications: false,
+                onBack: (_isSubmitting || _state == _ExpressState.processing)
+                    ? () {}
+                    : () {
+                        if (_state == _ExpressState.recordingAudio) {
+                          _cancelAudioRecording();
+                        } else if (_state == _ExpressState.editFields) {
+                          setState(() => _state = _ExpressState.selectMedia);
+                        } else {
+                          Navigator.of(context).pop();
+                        }
+                      },
+              ),
+              Expanded(
+                child: _loadingCultures
+                    ? const Center(child: Chargement(size: 24))
+                    : _buildCurrentState(),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -878,8 +892,9 @@ class _AnnonceExpressPageState extends ConsumerState<AnnonceExpressPage> {
               width: 5,
               height: hauteur,
               decoration: BoxDecoration(
-                color: AppColors.primary
-                    .withValues(alpha: 0.4 + 0.5 * _amplitude),
+                color: AppColors.primary.withValues(
+                  alpha: 0.4 + 0.5 * _amplitude,
+                ),
                 borderRadius: BorderRadius.circular(3),
               ),
             );
@@ -912,7 +927,10 @@ class _AnnonceExpressPageState extends ConsumerState<AnnonceExpressPage> {
                 onPressed: _cancelAudioRecording,
                 child: const Text(
                   'Annuler',
-                  style: TextStyle(color: AppColors.error, fontWeight: FontWeight.w500),
+                  style: TextStyle(
+                    color: AppColors.error,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ],
@@ -965,7 +983,8 @@ class _AnnonceExpressPageState extends ConsumerState<AnnonceExpressPage> {
     }
 
     final user = ref.watch(currentUserProvider);
-    final aDesCoop = user?.cooperativeId != null && user!.cooperativeId!.isNotEmpty;
+    final aDesCoop =
+        user?.cooperativeId != null && user!.cooperativeId!.isNotEmpty;
 
     return Column(
       children: [
@@ -996,8 +1015,11 @@ class _AnnonceExpressPageState extends ConsumerState<AnnonceExpressPage> {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.info_outline,
-                          size: 20, color: Color(0xFFB45309)),
+                      const Icon(
+                        Icons.info_outline,
+                        size: 20,
+                        color: Color(0xFFB45309),
+                      ),
                       AppDimens.hGap12,
                       Expanded(
                         child: Text(
@@ -1044,8 +1066,12 @@ class _AnnonceExpressPageState extends ConsumerState<AnnonceExpressPage> {
               AppDimens.vGap12,
               TextField(
                 controller: _qteCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                ],
                 decoration: const InputDecoration(
                   hintText: '0',
                   suffixText: 'kg',
@@ -1060,8 +1086,12 @@ class _AnnonceExpressPageState extends ConsumerState<AnnonceExpressPage> {
               AppDimens.vGap12,
               TextField(
                 controller: _prixCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                ],
                 decoration: const InputDecoration(
                   hintText: '0',
                   suffixText: 'F CFA / kg',
@@ -1121,7 +1151,9 @@ class _AnnonceExpressPageState extends ConsumerState<AnnonceExpressPage> {
                         : 'Rejoins d\'abord une coopérative dans ton profil',
                     selected: aDesCoop && _audienceCoop,
                     enabled: aDesCoop && !_isSubmitting,
-                    onTap: aDesCoop ? () => setState(() => _audienceCoop = true) : null,
+                    onTap: aDesCoop
+                        ? () => setState(() => _audienceCoop = true)
+                        : null,
                   ),
                 ],
               ),
@@ -1135,7 +1167,9 @@ class _AnnonceExpressPageState extends ConsumerState<AnnonceExpressPage> {
                 child: TextField(
                   controller: _titreCtrl,
                   textCapitalization: TextCapitalization.sentences,
-                  decoration: const InputDecoration(hintText: 'Auto-généré si vide'),
+                  decoration: const InputDecoration(
+                    hintText: 'Auto-généré si vide',
+                  ),
                 ),
               ),
               const SizedBox(height: 14),
@@ -1145,7 +1179,9 @@ class _AnnonceExpressPageState extends ConsumerState<AnnonceExpressPage> {
                   controller: _descriptionCtrl,
                   maxLines: 2,
                   textCapitalization: TextCapitalization.sentences,
-                  decoration: const InputDecoration(hintText: 'Donne plus de détails sur le lot'),
+                  decoration: const InputDecoration(
+                    hintText: 'Donne plus de détails sur le lot',
+                  ),
                 ),
               ),
               const SizedBox(height: 14),
@@ -1160,7 +1196,10 @@ class _AnnonceExpressPageState extends ConsumerState<AnnonceExpressPage> {
                     decoration: BoxDecoration(
                       color: AppColors.background,
                       borderRadius: AppDimens.brInput,
-                      border: Border.all(color: AppColors.borderStrong, width: AppDimens.borderThin),
+                      border: Border.all(
+                        color: AppColors.borderStrong,
+                        width: AppDimens.borderThin,
+                      ),
                     ),
                     child: Row(
                       children: [
@@ -1170,17 +1209,27 @@ class _AnnonceExpressPageState extends ConsumerState<AnnonceExpressPage> {
                                 ? 'Optionnel — quand as-tu récolté ?'
                                 : _formatDate(_dateRecolte!),
                             style: AppTextStyles.bodyMedium.copyWith(
-                              color: _dateRecolte == null ? AppColors.textSubtle : AppColors.text,
+                              color: _dateRecolte == null
+                                  ? AppColors.textSubtle
+                                  : AppColors.text,
                             ),
                           ),
                         ),
                         if (_dateRecolte != null)
                           InkWell(
                             onTap: () => setState(() => _dateRecolte = null),
-                            child: const Icon(Icons.close, size: 16, color: AppColors.textSubtle),
+                            child: const Icon(
+                              Icons.close,
+                              size: 16,
+                              color: AppColors.textSubtle,
+                            ),
                           )
                         else
-                          const Icon(Icons.calendar_today_outlined, size: AppDimens.iconM, color: AppColors.textSecondary),
+                          const Icon(
+                            Icons.calendar_today_outlined,
+                            size: AppDimens.iconM,
+                            color: AppColors.textSecondary,
+                          ),
                       ],
                     ),
                   ),

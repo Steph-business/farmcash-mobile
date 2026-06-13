@@ -5,7 +5,7 @@ import '../../../theme/app_colors.dart';
 import '../../state/badges_state.dart';
 import '../../storage/prefs_storage.dart';
 import '../../widgets/acheteur/commandes/onglet_negociations.dart';
-import '../../widgets/communs/entete_page_compacte_acheteur.dart';
+import '../../widgets/communs/entete_page_standard.dart';
 
 /// Page « Négociations » côté acheteur — autonome, accessible via la
 /// tuile dédiée sur l'accueil (`/acheteur/negociations`).
@@ -55,7 +55,7 @@ class _NegociationsAcheteurPageState
         bottom: false,
         child: Column(
           children: [
-            const EntetePageCompacteAcheteur(title: 'Négociations'),
+            const EntetePageStandard(titre: 'Négociations'),
             const Expanded(child: OngletNegociations()),
           ],
         ),

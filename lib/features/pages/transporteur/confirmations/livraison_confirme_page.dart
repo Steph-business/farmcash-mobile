@@ -7,10 +7,10 @@ import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/transporteur/confirmations/banniere_credit_wallet.dart';
 import '../../../widgets/transporteur/confirmations/barre_actions_livraison.dart';
 import '../../../widgets/transporteur/confirmations/carte_recap_livraison.dart';
-import '../../../widgets/transporteur/confirmations/entete_livraison_confirme.dart';
 import '../../../widgets/transporteur/confirmations/hero_check_livraison.dart';
 import '../../../widgets/transporteur/confirmations/mini_timeline_livraison.dart';
 import '../../../widgets/transporteur/confirmations/titre_section_confirme.dart';
@@ -44,7 +44,7 @@ class LivraisonConfirmePage extends ConsumerWidget {
         bottom: false,
         child: Column(
           children: [
-            const EnteteLivraisonConfirme(title: 'Livraison confirmée'),
+            const EntetePageStandard(titre: 'Livraison confirmée'),
             Expanded(
               child: async.when(
                 loading: () => const Padding(

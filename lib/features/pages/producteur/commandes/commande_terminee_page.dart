@@ -5,8 +5,8 @@ import '../../../../models/commande.dart';
 import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/producteur/commandes/commande_terminee_constants.dart';
-import '../../../widgets/producteur/commandes/header_commande_terminee.dart';
 import '../../../widgets/producteur/commandes/hero_commande_terminee.dart';
 import '../../../widgets/producteur/commandes/qr_card_commande.dart';
 import '../../../widgets/producteur/commandes/recap_card_commande.dart';
@@ -16,8 +16,10 @@ import '../../../widgets/producteur/commandes/trace_card_commande.dart';
 /// Provider familial : essaie de charger la commande pour personnaliser
 /// le slug/ref affichés. Tombe sur les valeurs mock si l'API renvoie une
 /// erreur — l'écran reste fidèle à la maquette dans tous les cas.
-final _commandeProvider = FutureProvider.autoDispose
-    .family<Commande?, String>((ref, id) async {
+final _commandeProvider = FutureProvider.autoDispose.family<Commande?, String>((
+  ref,
+  id,
+) async {
   try {
     return await ref.watch(ordersServiceProvider).getOrder(id);
   } catch (_) {
@@ -50,7 +52,7 @@ class CommandeTermineePage extends ConsumerWidget {
         bottom: false,
         child: Column(
           children: [
-            const HeaderCommandeTerminee(),
+            const EntetePageStandard(titre: 'Commande livrée'),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),

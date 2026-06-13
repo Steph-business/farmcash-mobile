@@ -17,13 +17,13 @@ import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/communs/vue_erreur.dart';
 import '../../../widgets/producteur/demandes/demande_achat_modeles.dart';
 import '../../../widgets/producteur/demandes/demande_deja_candidate_view.dart';
 import '../../../widgets/producteur/demandes/demande_parcelle_selector.dart';
 import '../../../widgets/producteur/demandes/demande_recap_card.dart';
-import '../../../widgets/producteur/demandes/demande_repondre_header.dart';
 
 // ─── Provider ────────────────────────────────────────────────────────
 
@@ -45,35 +45,38 @@ class _RepondreBundle {
 
 final _repondreBundleProvider = FutureProvider.autoDispose
     .family<_RepondreBundle, String>((ref, demandeId) async {
-  final marketSvc = ref.read(marketplaceServiceProvider);
-  final negoSvc = ref.read(negotiationServiceProvider);
-  // 3 appels parallèles : la demande (critique), les parcelles
-  // (optionnel) et les propositions sortantes — pour détecter une
-  // candidature existante sur cette demande et éviter un 409 backend.
-  final results = await Future.wait<dynamic>([
-    marketSvc.getAnnonceAchat(demandeId),
-    marketSvc.listParcelles().then<Object?>((v) => v).catchError(
-      (Object _) => const <Parcelle>[],
-    ),
-    negoSvc
-        .listPropositions(direction: 'outgoing')
-        .then<Object?>((v) => v)
-        .catchError((Object _) => const <Proposition>[]),
-  ]);
-  final propositions = (results[2] as List<Proposition>);
-  final dejaCandidate = propositions
-      .where((p) =>
-          p.annonceAchatId == demandeId &&
-          (p.status == NegotiationStatus.pending ||
-              p.status == NegotiationStatus.counterOffered))
-      .cast<Proposition?>()
-      .firstOrNull;
-  return _RepondreBundle(
-    demande: results[0] as AnnonceAchat,
-    parcelles: results[1] as List<Parcelle>,
-    dejaCandidate: dejaCandidate,
-  );
-});
+      final marketSvc = ref.read(marketplaceServiceProvider);
+      final negoSvc = ref.read(negotiationServiceProvider);
+      // 3 appels parallèles : la demande (critique), les parcelles
+      // (optionnel) et les propositions sortantes — pour détecter une
+      // candidature existante sur cette demande et éviter un 409 backend.
+      final results = await Future.wait<dynamic>([
+        marketSvc.getAnnonceAchat(demandeId),
+        marketSvc
+            .listParcelles()
+            .then<Object?>((v) => v)
+            .catchError((Object _) => const <Parcelle>[]),
+        negoSvc
+            .listPropositions(direction: 'outgoing')
+            .then<Object?>((v) => v)
+            .catchError((Object _) => const <Proposition>[]),
+      ]);
+      final propositions = (results[2] as List<Proposition>);
+      final dejaCandidate = propositions
+          .where(
+            (p) =>
+                p.annonceAchatId == demandeId &&
+                (p.status == NegotiationStatus.pending ||
+                    p.status == NegotiationStatus.counterOffered),
+          )
+          .cast<Proposition?>()
+          .firstOrNull;
+      return _RepondreBundle(
+        demande: results[0] as AnnonceAchat,
+        parcelles: results[1] as List<Parcelle>,
+        dejaCandidate: dejaCandidate,
+      );
+    });
 
 // ─── Page : DÉTAILS + sticky CTA « Candidater » ─────────────────────
 
@@ -137,16 +140,16 @@ class _DemandeAchatRepondrePageState
       //    pas un timestamp). >=0 même si date dans le passé proche.
       int? delaiJ;
       if (r.dateLivraison != null) {
-        final d = r.dateLivraison!
-            .difference(DateTime.now())
-            .inDays;
+        final d = r.dateLivraison!.difference(DateTime.now()).inDays;
         delaiJ = d < 0 ? 0 : d;
       }
 
       // 3. Map parcelle choisie → nom (lieu_livraison côté backend).
       String? lieuLivraison;
       if (r.parcelleId != null) {
-        final bundle = ref.read(_repondreBundleProvider(widget.demandeId)).value;
+        final bundle = ref
+            .read(_repondreBundleProvider(widget.demandeId))
+            .value;
         final p = bundle?.parcelles.firstWhere(
           (e) => e.id == r.parcelleId,
           orElse: () => bundle.parcelles.first,
@@ -187,20 +190,21 @@ class _DemandeAchatRepondrePageState
         child: async.when(
           loading: () => const Column(
             children: [
-              DemandeRepondreHeader(),
+              EntetePageStandard(titre: 'Demande d\'achat'),
               Expanded(child: Chargement(size: 22)),
             ],
           ),
           error: (e, _) => Column(
             children: [
-              const DemandeRepondreHeader(),
+              const EntetePageStandard(titre: 'Demande d\'achat'),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(AppDimens.pagePaddingH),
                   child: VueErreur(
                     message: 'Impossible de charger la demande. $e',
-                    onRetry: () => ref
-                        .invalidate(_repondreBundleProvider(widget.demandeId)),
+                    onRetry: () => ref.invalidate(
+                      _repondreBundleProvider(widget.demandeId),
+                    ),
                   ),
                 ),
               ),
@@ -226,7 +230,7 @@ class _DemandeAchatRepondrePageState
 
     return Column(
       children: [
-        const DemandeRepondreHeader(),
+        const EntetePageStandard(titre: 'Demande d\'achat'),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
@@ -250,10 +254,7 @@ class _DemandeAchatRepondrePageState
 // ─── Sticky CTA « Candidater » ──────────────────────────────────────
 
 class _StickyCandidater extends StatelessWidget {
-  const _StickyCandidater({
-    required this.isSubmitting,
-    required this.onTap,
-  });
+  const _StickyCandidater({required this.isSubmitting, required this.onTap});
 
   final bool isSubmitting;
   final VoidCallback onTap;
@@ -329,9 +330,7 @@ class _BlocCommentCaMarche extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.primary.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.18),
-        ),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.18)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -405,10 +404,7 @@ class _CandidatureFormResult {
 // ─── Bottom sheet : formulaire de candidature ───────────────────────
 
 class _FeuilleCandidater extends StatefulWidget {
-  const _FeuilleCandidater({
-    required this.demande,
-    required this.parcelles,
-  });
+  const _FeuilleCandidater({required this.demande, required this.parcelles});
 
   final AnnonceAchat demande;
   final List<Parcelle> parcelles;
@@ -560,39 +556,40 @@ class _FeuilleCandidaterState extends State<_FeuilleCandidater> {
 
   void _envoyer() {
     if (!_valide) {
-      Snackbars.showErreur(
-        context,
-        'Indique une quantité et un prix valides.',
-      );
+      Snackbars.showErreur(context, 'Indique une quantité et un prix valides.');
       return;
     }
-    Navigator.of(context).pop(_CandidatureFormResult(
-      qte: _qte,
-      prix: _prix,
-      parcelleId: _parcelleId,
-      dateLivraison: _dateLivraison,
-      message: _msgCtrl.text.trim().isEmpty ? null : _msgCtrl.text.trim(),
-      photos: List.unmodifiable(_photos),
-    ));
+    Navigator.of(context).pop(
+      _CandidatureFormResult(
+        qte: _qte,
+        prix: _prix,
+        parcelleId: _parcelleId,
+        dateLivraison: _dateLivraison,
+        message: _msgCtrl.text.trim().isEmpty ? null : _msgCtrl.text.trim(),
+        photos: List.unmodifiable(_photos),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final d = widget.demande;
-    final double? maxDispo = (_parcelleId != null && widget.parcelles.isNotEmpty)
+    final double? maxDispo =
+        (_parcelleId != null && widget.parcelles.isNotEmpty)
         ? widget.parcelles
-            .firstWhere(
-              (p) => p.id == _parcelleId,
-              orElse: () => widget.parcelles.first,
-            )
-            .superficieHa
+              .firstWhere(
+                (p) => p.id == _parcelleId,
+                orElse: () => widget.parcelles.first,
+              )
+              .superficieHa
         : null;
 
     // Comparaison prix vs max acheteur — pour micro-feedback dans la
     // total card (« -5% vs max » en vert, « +X% au-dessus » en ambre).
     final double prixMax = d.prixMaxKg;
-    final double diffPct =
-        (prixMax > 0 && _prix > 0) ? (_prix - prixMax) / prixMax * 100 : 0;
+    final double diffPct = (prixMax > 0 && _prix > 0)
+        ? (_prix - prixMax) / prixMax * 100
+        : 0;
 
     return DraggableScrollableSheet(
       initialChildSize: 0.90,
@@ -637,15 +634,12 @@ class _FeuilleCandidaterState extends State<_FeuilleCandidater> {
                     _SectionPremium(
                       icon: Icons.photo_library_outlined,
                       label: 'PHOTOS DU PRODUIT',
-                      trailing: _CompteurBadge(
-                        valeur: '${_photos.length}/3',
-                      ),
+                      trailing: _CompteurBadge(valeur: '${_photos.length}/3'),
                       child: _GrillePhotosPremium(
                         photos: _photos,
                         onAjouter: _ajouterPhoto,
                         onGalerie: _ajouterPhotoGalerie,
-                        onSupprimer: (i) =>
-                            setState(() => _photos.removeAt(i)),
+                        onSupprimer: (i) => setState(() => _photos.removeAt(i)),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -656,13 +650,14 @@ class _FeuilleCandidaterState extends State<_FeuilleCandidater> {
                       label: 'QUANTITÉ QUE JE PEUX FOURNIR',
                       helper: maxDispo != null
                           ? 'Parcelle de ${_fmt(maxDispo)} ha — adapte la '
-                              'quantité selon ta récolte.'
+                                'quantité selon ta récolte.'
                           : null,
                       child: _ChampNumeriquePremium(
                         controller: _qteCtrl,
                         unit: 'kg',
-                        keyboardType:
-                            const TextInputType.numberWithOptions(decimal: false),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: false,
+                        ),
                         formatters: [
                           FilteringTextInputFormatter.allow(RegExp(r'[0-9]')),
                         ],
@@ -674,13 +669,15 @@ class _FeuilleCandidaterState extends State<_FeuilleCandidater> {
                     _SectionPremium(
                       icon: Icons.payments_outlined,
                       label: 'PRIX PROPOSÉ',
-                      helper: "Max acheteur : ${_fmt(d.prixMaxKg)} F/kg — "
+                      helper:
+                          "Max acheteur : ${_fmt(d.prixMaxKg)} F/kg — "
                           "baisse un peu pour gagner l'offre.",
                       child: _ChampNumeriquePremium(
                         controller: _prixCtrl,
                         unit: 'F / kg',
-                        keyboardType:
-                            const TextInputType.numberWithOptions(decimal: false),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: false,
+                        ),
                         formatters: [
                           FilteringTextInputFormatter.allow(RegExp(r'[0-9]')),
                         ],
@@ -689,10 +686,7 @@ class _FeuilleCandidaterState extends State<_FeuilleCandidater> {
                     const SizedBox(height: 12),
 
                     // 4. Total estimé — HERO card visuelle (vert plein).
-                    _CarteTotalHero(
-                      total: _total,
-                      diffPctVsMax: diffPct,
-                    ),
+                    _CarteTotalHero(total: _total, diffPctVsMax: diffPct),
                     const SizedBox(height: 12),
 
                     // 5. Localisation (= parcelle, renommée pour clarté)
@@ -734,9 +728,7 @@ class _FeuilleCandidaterState extends State<_FeuilleCandidater> {
               Container(
                 decoration: const BoxDecoration(
                   color: Colors.white,
-                  border: Border(
-                    top: BorderSide(color: AppColors.border),
-                  ),
+                  border: Border(top: BorderSide(color: AppColors.border)),
                 ),
                 padding: EdgeInsets.fromLTRB(
                   16,
@@ -1068,8 +1060,8 @@ class _CarteTotalHero extends StatelessWidget {
         : const Color(0xFFFEF3C7);
     final String deltaLabel = total > 0
         ? (isCompetitif
-            ? '${diffPctVsMax.abs().toStringAsFixed(0)} % sous le max'
-            : '+${diffPctVsMax.toStringAsFixed(0)} % au-dessus du max')
+              ? '${diffPctVsMax.abs().toStringAsFixed(0)} % sous le max'
+              : '+${diffPctVsMax.toStringAsFixed(0)} % au-dessus du max')
         : '';
 
     return Container(
@@ -1077,10 +1069,7 @@ class _CarteTotalHero extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            AppColors.primary,
-            AppColors.primaryHover,
-          ],
+          colors: [AppColors.primary, AppColors.primaryHover],
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [

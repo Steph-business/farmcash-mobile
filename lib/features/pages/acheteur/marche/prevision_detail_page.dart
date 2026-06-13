@@ -8,7 +8,6 @@ import '../../../../routing/route_names.dart';
 import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
-import '../../../widgets/acheteur/marche/header_prevision_detail.dart';
 import '../../../widgets/acheteur/marche/hero_prevision_detail.dart';
 import '../../../widgets/acheteur/marche/info_acompte_card_prevision.dart';
 import '../../../widgets/acheteur/marche/prevision_detail_constants.dart';
@@ -18,6 +17,7 @@ import '../../../widgets/acheteur/marche/section_vendeur_prevision.dart';
 import '../../../widgets/acheteur/marche/sticky_bottom_prevision.dart';
 import '../../../widgets/acheteur/marche/title_card_prevision.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/vue_erreur.dart';
 
 /// Charge une prévision par id en cherchant dans la liste globale — `null`
@@ -64,13 +64,13 @@ class _PrevisionDetailAcheteurPageState
         child: async.when(
           loading: () => const Column(
             children: [
-              HeaderPrevisionDetail(title: 'Chargement…'),
+              EntetePageStandard(titre: 'Chargement…'),
               Expanded(child: Chargement(size: 22)),
             ],
           ),
           error: (e, _) => Column(
             children: [
-              const HeaderPrevisionDetail(title: 'Prévision'),
+              const EntetePageStandard(titre: 'Prévision'),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(AppDimens.pagePaddingH),
@@ -106,7 +106,7 @@ class _PrevisionDetailAcheteurPageState
 
     return Column(
       children: [
-        HeaderPrevisionDetail(title: 'Prévision · $nom'),
+        EntetePageStandard(titre: 'Prévision · $nom'),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.only(bottom: 100),

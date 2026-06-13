@@ -3,9 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/producteur/publications/contribution_card_publication_coop.dart';
 import '../../../widgets/producteur/publications/header_card_publication_coop.dart';
-import '../../../widgets/producteur/publications/header_publication_coop.dart';
 import '../../../widgets/producteur/publications/prix_card_publication_coop.dart';
 import '../../../widgets/producteur/publications/publication_coop_constants.dart';
 import '../../../widgets/producteur/publications/quantite_card_publication_coop.dart';
@@ -44,7 +44,7 @@ class PublicationCoopDetailPage extends ConsumerWidget {
         bottom: false,
         child: Column(
           children: [
-            const HeaderPublicationCoop(),
+            const EntetePageStandard(titre: 'Publication coop'),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(

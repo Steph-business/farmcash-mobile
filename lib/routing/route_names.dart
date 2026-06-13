@@ -218,6 +218,12 @@ class RouteNames {
   static const producteurOpportunites = 'producteur-opportunites';
   static const producteurOpportunitesPath = '/producteur/opportunites';
 
+  // Tableau de bord analytique « Mes statistiques » — revenus 30j, KPI
+  // commerce, note, actions en attente, funnel de conversion par annonce.
+  // Branché sur les endpoints oversight/farmer/* (push hors shell).
+  static const producteurStatistiques = 'producteur-statistiques';
+  static const producteurStatistiquesPath = '/producteur/statistiques';
+
   // ─── Outils IA producteur (push hors shell) ──────────────────────────
   // Diagnostiquer une plante (photo → maladie + traitements)
   static const producteurAiAnalysePlante = 'producteur-ai-analyse-plante';

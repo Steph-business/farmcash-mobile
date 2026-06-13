@@ -11,6 +11,7 @@ import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../widgets/communs/chargement.dart';
+import '../../widgets/communs/entete_page_standard.dart';
 import '../../widgets/communs/snackbars.dart';
 import '../../widgets/communs/vue_erreur.dart';
 import '../../widgets/producteur/profil/add_button_kyc.dart';
@@ -20,12 +21,12 @@ import '../../widgets/producteur/profil/sheet_source_doc_kyc.dart';
 import '../../widgets/producteur/profil/sheet_type_doc_kyc.dart';
 
 /// Provider : liste des documents KYC du user connecté.
-final _kycDocsProvider = FutureProvider.autoDispose<List<KycDocument>>(
-  (ref) async {
-    final svc = ref.watch(authServiceProvider);
-    return svc.listMyKyc();
-  },
-);
+final _kycDocsProvider = FutureProvider.autoDispose<List<KycDocument>>((
+  ref,
+) async {
+  final svc = ref.watch(authServiceProvider);
+  return svc.listMyKyc();
+});
 
 /// Liste des documents KYC du producteur — branché sur l'API.
 class DocumentsKycPage extends ConsumerWidget {
@@ -37,103 +38,99 @@ class DocumentsKycPage extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: const BackButton(color: AppColors.text),
-        title: Text(
-          'Documents (KYC)',
-          style: AppTextStyles.titleSmall.copyWith(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        centerTitle: false,
-      ),
-      body: async.when(
-        loading: () => const Padding(
-          padding: EdgeInsets.only(top: AppDimens.space32),
-          child: Chargement(size: 22),
-        ),
-        error: (_, _) => Padding(
-          padding: const EdgeInsets.all(AppDimens.pagePaddingH),
-          child: VueErreur(
-            message: 'Impossible de charger tes documents.',
-            onRetry: () => ref.invalidate(_kycDocsProvider),
-          ),
-        ),
-        data: (docs) => RefreshIndicator(
-          color: AppColors.primary,
-          onRefresh: () async => ref.invalidate(_kycDocsProvider),
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(
-              AppDimens.pagePaddingH,
-              AppDimens.space8,
-              AppDimens.pagePaddingH,
-              AppDimens.space24,
-            ),
-            children: [
-              Text(
-                'Téléverse tes justificatifs pour activer l\'ensemble des '
-                'fonctionnalités de FarmCash (paiements, signature de contrats).',
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.textSecondary,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            const EntetePageStandard(titre: 'Documents (KYC)'),
+            Expanded(
+              child: async.when(
+                loading: () => const Padding(
+                  padding: EdgeInsets.only(top: AppDimens.space32),
+                  child: Chargement(size: 22),
                 ),
-              ),
-              AppDimens.vGap24,
-              if (docs.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 24),
-                  child: Text(
-                    'Aucun document pour l\'instant.',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                    textAlign: TextAlign.center,
+                error: (_, _) => Padding(
+                  padding: const EdgeInsets.all(AppDimens.pagePaddingH),
+                  child: VueErreur(
+                    message: 'Impossible de charger tes documents.',
+                    onRetry: () => ref.invalidate(_kycDocsProvider),
                   ),
-                )
-              else
-                for (final d in docs) ...[
-                  DocRowKyc(
-                    doc: d,
-                    onDelete: d.status == 'PENDING'
-                        ? () => _confirmAndDelete(context, ref, d.id)
-                        : null,
-                  ),
-                  AppDimens.vGap12,
-                ],
-              AppDimens.vGap8,
-              AddButtonKyc(onTap: () => _ouvrirAjout(context, ref)),
-              AppDimens.vGap24,
-              Container(
-                padding: const EdgeInsets.all(AppDimens.space12),
-                decoration: BoxDecoration(
-                  color: kPrimarySoftKyc,
-                  borderRadius: AppDimens.brCard,
                 ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.shield_outlined,
-                      size: 20,
-                      color: AppColors.primary,
+                data: (docs) => RefreshIndicator(
+                  color: AppColors.primary,
+                  onRefresh: () async => ref.invalidate(_kycDocsProvider),
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppDimens.pagePaddingH,
+                      AppDimens.space8,
+                      AppDimens.pagePaddingH,
+                      AppDimens.space24,
                     ),
-                    AppDimens.hGap8,
-                    Expanded(
-                      child: Text(
-                        'Tes documents sont chiffrés et utilisés uniquement à des '
-                        'fins de vérification.',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: AppColors.text,
+                    children: [
+                      Text(
+                        'Téléverse tes justificatifs pour activer l\'ensemble des '
+                        'fonctionnalités de FarmCash (paiements, signature de contrats).',
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.textSecondary,
                         ),
                       ),
-                    ),
-                  ],
+                      AppDimens.vGap24,
+                      if (docs.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 24),
+                          child: Text(
+                            'Aucun document pour l\'instant.',
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        )
+                      else
+                        for (final d in docs) ...[
+                          DocRowKyc(
+                            doc: d,
+                            onDelete: d.status == 'PENDING'
+                                ? () => _confirmAndDelete(context, ref, d.id)
+                                : null,
+                          ),
+                          AppDimens.vGap12,
+                        ],
+                      AppDimens.vGap8,
+                      AddButtonKyc(onTap: () => _ouvrirAjout(context, ref)),
+                      AppDimens.vGap24,
+                      Container(
+                        padding: const EdgeInsets.all(AppDimens.space12),
+                        decoration: BoxDecoration(
+                          color: kPrimarySoftKyc,
+                          borderRadius: AppDimens.brCard,
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.shield_outlined,
+                              size: 20,
+                              color: AppColors.primary,
+                            ),
+                            AppDimens.hGap8,
+                            Expanded(
+                              child: Text(
+                                'Tes documents sont chiffrés et utilisés uniquement à des '
+                                'fins de vérification.',
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  color: AppColors.text,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -181,10 +178,9 @@ class DocumentsKycPage extends ConsumerWidget {
       duration: const Duration(seconds: 30),
     );
     try {
-      await ref.read(authServiceProvider).uploadKyc(
-            file: file,
-            docType: docType.apiValue,
-          );
+      await ref
+          .read(authServiceProvider)
+          .uploadKyc(file: file, docType: docType.apiValue);
       messenger.hideCurrentSnackBar();
       if (!context.mounted) return;
       Snackbars.showSucces(context, 'Justificatif envoyé.');
@@ -219,10 +215,7 @@ class DocumentsKycPage extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(
-              'Supprimer',
-              style: TextStyle(color: AppColors.error),
-            ),
+            child: Text('Supprimer', style: TextStyle(color: AppColors.error)),
           ),
         ],
       ),

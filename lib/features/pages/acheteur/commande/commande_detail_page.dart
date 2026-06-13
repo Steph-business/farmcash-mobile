@@ -15,13 +15,13 @@ import '../../../../theme/app_dimens.dart';
 import '../../../widgets/acheteur/commandes/actions_commande_acheteur.dart';
 import '../../../widgets/acheteur/commandes/carte_resume_commande.dart';
 import '../../../widgets/acheteur/commandes/carte_vendeur_compacte.dart';
-import '../../../widgets/acheteur/commandes/entete_commande_detail.dart';
 import '../../../widgets/acheteur/commandes/section_parcours.dart';
 import '../../../widgets/acheteur/commandes/section_qr.dart';
 import '../../../widgets/acheteur/commandes/carte_a_regler.dart';
 import '../../../widgets/acheteur/commandes/carte_solde_a_payer.dart';
 import '../../../widgets/communs/carte_bon_de_commande_pdf.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/section_titre.dart';
 import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/communs/suivi_commande.dart';
@@ -113,13 +113,13 @@ class _CommandeDetailAcheteurPageState
         child: async.when(
           loading: () => const Column(
             children: [
-              EnteteCommandeDetail(),
+              EntetePageStandard(titre: 'Commande'),
               Expanded(child: Chargement(size: 22)),
             ],
           ),
           error: (e, _) => Column(
             children: [
-              const EnteteCommandeDetail(),
+              const EntetePageStandard(titre: 'Commande'),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(AppDimens.pagePaddingH),
@@ -148,7 +148,7 @@ class _CommandeDetailAcheteurPageState
 
     return Column(
       children: [
-        const EnteteCommandeDetail(),
+        const EntetePageStandard(titre: 'Commande'),
         Expanded(
           child: ListView(
             padding: EdgeInsets.zero,

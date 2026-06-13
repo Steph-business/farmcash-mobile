@@ -136,6 +136,13 @@ class ContenuAccueil extends StatelessWidget {
           titre: 'Mes gains',
           labelBouton: 'Mon wallet',
         ),
+        AppDimens.vGap12,
+        // B-stats. Raccourci « Voir mes stats » — accès rapide au tableau
+        //          de bord analytique (revenus, vues, conversion) depuis
+        //          l'accueil. Tap → page « Mes statistiques ».
+        _TuileVoirStats(
+          onTap: () => context.push(RouteNames.producteurStatistiquesPath),
+        ),
         AppDimens.vGap16,
         // B-bis. Opportunités de matching intelligent — demandes d'achat
         //        ciblées sur les cultures déclarées du producteur. Section
@@ -469,6 +476,83 @@ class _CarteOffreRecue extends StatelessWidget {
                           : 'Nouvelle offre · $relatif',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
+                color: AppColors.textSubtle,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Raccourci compact « Voir mes stats » — carte blanche sobre avec icône
+/// graphique, titre + sous-titre et chevron. Mène à la page « Mes
+/// statistiques » (tableau de bord analytique du producteur).
+class _TuileVoirStats extends StatelessWidget {
+  const _TuileVoirStats({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.bar_chart_rounded,
+                  size: 21,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Mes statistiques',
+                      style: AppTextStyles.titleSmall.copyWith(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.text,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Revenus, vues, taux de conversion',
                       style: AppTextStyles.bodySmall.copyWith(
                         fontSize: 12,
                         color: AppColors.textSecondary,

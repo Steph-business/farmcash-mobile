@@ -24,7 +24,7 @@ import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
 import '../../../theme/app_text_styles.dart';
-import '../../widgets/communs/entete_page_compacte_acheteur.dart';
+import '../../widgets/communs/entete_page_standard.dart';
 import '../../widgets/communs/snackbars.dart';
 
 const _docPermis = 'PERMIS_CONDUIRE';
@@ -48,7 +48,7 @@ class MesDocumentsTransporteurPage extends ConsumerWidget {
         bottom: false,
         child: Column(
           children: [
-            const EntetePageCompacteAcheteur(title: 'Mes documents'),
+            const EntetePageStandard(titre: 'Mes documents'),
             Expanded(
               child: docsAsync.when(
                 data: (docs) => RefreshIndicator(

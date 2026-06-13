@@ -10,9 +10,9 @@ import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../widgets/acheteur/commandes/etat_vide_evaluation_commande.dart';
 import '../../../widgets/acheteur/commandes/formulaire_evaluation_commande.dart';
-import '../../../widgets/acheteur/commandes/header_evaluation_commande.dart';
 import '../../../widgets/acheteur/commandes/vue_evaluation_existante_commande.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/communs/vue_erreur.dart';
 
@@ -106,7 +106,7 @@ class _EvaluationTransportPageState
         bottom: false,
         child: Column(
           children: [
-            const HeaderEvaluationCommande(),
+            const EntetePageStandard(titre: 'Évaluer le transport'),
             Expanded(
               child: async.when(
                 loading: () => const Padding(

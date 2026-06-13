@@ -10,7 +10,6 @@ import '../../../../theme/app_dimens.dart';
 import '../../../widgets/acheteur/demandes/champ_date_demande.dart';
 import '../../../widgets/acheteur/demandes/chips_qualite_demande.dart';
 import '../../../widgets/acheteur/demandes/dropdown_coop_demande.dart';
-import '../../../widgets/acheteur/demandes/header_publier_demande.dart';
 import '../../../widgets/acheteur/demandes/hero_photo_demande.dart';
 import '../../../widgets/acheteur/demandes/input_unite_demande.dart';
 import '../../../widgets/acheteur/demandes/publier_demande_constants.dart';
@@ -18,6 +17,7 @@ import '../../../widgets/acheteur/demandes/sticky_publier_demande.dart';
 import '../../../widgets/acheteur/demandes/titre_section_demande.dart';
 import '../../../widgets/acheteur/demandes/tuile_cible_demande.dart';
 // Sélecteur produit générique partagé (cohérence cross-acteurs).
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/produit/selecteur_choix_premium.dart';
 import '../../../widgets/communs/snackbars.dart';
 
@@ -175,7 +175,7 @@ class _PublierDemandePageState extends ConsumerState<PublierDemandePage> {
         bottom: false,
         child: Column(
           children: [
-            const HeaderPublierDemande(),
+            const EntetePageStandard(titre: 'Publier une demande'),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(24, 4, 24, 16),

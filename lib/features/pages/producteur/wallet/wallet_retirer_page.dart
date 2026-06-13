@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/communs/wallet/wallet_widgets.dart';
 
@@ -55,8 +56,10 @@ class _WalletRetirerPageState extends ConsumerState<WalletRetirerPage> {
     setState(() {
       _toutChipActive = true;
       _selectedChip = -1;
-      _amountCtrl.text =
-          NumberFormat('#,##0', 'fr_FR').format(_kBalance.toInt());
+      _amountCtrl.text = NumberFormat(
+        '#,##0',
+        'fr_FR',
+      ).format(_kBalance.toInt());
     });
   }
 
@@ -73,17 +76,20 @@ class _WalletRetirerPageState extends ConsumerState<WalletRetirerPage> {
         bottom: false,
         child: Column(
           children: [
-            const EnteteWallet(
+            const EntetePageStandard(
               titre: 'Retirer mon argent',
-              bordureBas: true,
-              tailleTitre: 15,
+              montrerNotifications: false,
             ),
             Expanded(
               child: GestureDetector(
                 onTap: () => FocusScope.of(context).unfocus(),
                 child: ListView(
-                  padding:
-                      const EdgeInsets.fromLTRB(20, AppDimens.space16, 20, 120),
+                  padding: const EdgeInsets.fromLTRB(
+                    20,
+                    AppDimens.space16,
+                    20,
+                    120,
+                  ),
                   children: [
                     const BandeauSoldeCompact(
                       balance: _kBalance,

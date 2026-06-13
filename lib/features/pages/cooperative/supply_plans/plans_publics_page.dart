@@ -15,7 +15,7 @@ import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
-import '../../../widgets/communs/entete_page_compacte_coop.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/cooperative/supply_plans/sheet_candidater_plan.dart';
 
 final plansPublicsProvider =
@@ -36,7 +36,7 @@ class PlansPublicsPage extends ConsumerWidget {
         bottom: false,
         child: Column(
           children: [
-            const EntetePageCompacteCoop(title: 'Plans B2B disponibles'),
+            const EntetePageStandard(titre: 'Plans B2B disponibles'),
             Expanded(
               child: plansAsync.when(
                 data: (plans) => plans.isEmpty

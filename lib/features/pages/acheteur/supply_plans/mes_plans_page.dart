@@ -15,7 +15,7 @@ import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
-import '../../../widgets/communs/entete_page_compacte_acheteur.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../routing/route_names.dart';
 
@@ -37,7 +37,7 @@ class MesPlansPage extends ConsumerWidget {
         bottom: false,
         child: Column(
           children: [
-            const EntetePageCompacteAcheteur(title: 'Mes plans B2B'),
+            const EntetePageStandard(titre: 'Mes plans B2B'),
             Expanded(
               child: plansAsync.when(
                 data: (plans) => plans.isEmpty

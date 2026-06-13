@@ -7,20 +7,21 @@ import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/vue_erreur.dart';
-import '../../../widgets/producteur/sollicitations/header_sollicitations_recues.dart';
 import '../../../widgets/producteur/sollicitations/liste_sollicitations_recues.dart';
 
 /// Récupère la liste des sollicitations actives **dont le producteur est
 /// destinataire** (table `sollicitation_recipients`).
 /// L'ancien appel `listSollicitations` est COOP-only → 403 pour FARMER.
-final _sollicitationsProvider =
-    FutureProvider.autoDispose<List<Sollicitation>>((ref) async {
-  final paginated = await ref
-      .watch(cooperativesServiceProvider)
-      .listSollicitationsPourMoi(status: 'OPEN', limit: 50);
-  return paginated.data;
-});
+final _sollicitationsProvider = FutureProvider.autoDispose<List<Sollicitation>>(
+  (ref) async {
+    final paginated = await ref
+        .watch(cooperativesServiceProvider)
+        .listSollicitationsPourMoi(status: 'OPEN', limit: 50);
+    return paginated.data;
+  },
+);
 
 /// Liste des sollicitations reçues par le producteur de sa coopérative.
 class SollicitationsRecuesPage extends ConsumerWidget {
@@ -36,11 +37,7 @@ class SollicitationsRecuesPage extends ConsumerWidget {
         bottom: false,
         child: Column(
           children: [
-            async.when(
-              data: (list) => HeaderSollicitationsRecues(count: list.length),
-              loading: () => const HeaderSollicitationsRecues(count: 0),
-              error: (_, _) => const HeaderSollicitationsRecues(count: 0),
-            ),
+            const EntetePageStandard(titre: 'Sollicitations de ma coop'),
             Expanded(
               child: async.when(
                 loading: () => const Padding(

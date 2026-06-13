@@ -6,8 +6,8 @@ import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/vue_erreur.dart';
-import '../../../widgets/producteur/commandes/header_enlevement_qr.dart';
 import '../../../widgets/producteur/commandes/mini_recap_enlevement.dart';
 import '../../../widgets/producteur/commandes/qr_card_enlevement.dart';
 import '../../../widgets/producteur/commandes/sticky_link_enlevement.dart';
@@ -27,23 +27,23 @@ class _QrEnlevementBundle {
 
 final _qrEnlevementProvider = FutureProvider.autoDispose
     .family<_QrEnlevementBundle, String>((ref, commandeId) async {
-  final logistics = ref.read(logisticsServiceProvider);
-  // 1) Retrouver le shipment associé à la commande. Le service retourne
-  //    désormais `null` quand pas de shipment — on tombe alors sur le
-  //    QR fallback (mode dégradé) sans crasher.
-  final shipment = await logistics.getShipmentByCommande(commandeId);
-  if (shipment == null) {
-    return const _QrEnlevementBundle(token: _kFallbackToken);
-  }
-  // 2) Demander un token signé (backend valide statut, ownership, etc.).
-  PickupQrToken? token;
-  try {
-    token = await logistics.generatePickupQrToken(shipment.id);
-  } catch (_) {
-    token = null;
-  }
-  return _QrEnlevementBundle(token: token?.token ?? _kFallbackToken);
-});
+      final logistics = ref.read(logisticsServiceProvider);
+      // 1) Retrouver le shipment associé à la commande. Le service retourne
+      //    désormais `null` quand pas de shipment — on tombe alors sur le
+      //    QR fallback (mode dégradé) sans crasher.
+      final shipment = await logistics.getShipmentByCommande(commandeId);
+      if (shipment == null) {
+        return const _QrEnlevementBundle(token: _kFallbackToken);
+      }
+      // 2) Demander un token signé (backend valide statut, ownership, etc.).
+      PickupQrToken? token;
+      try {
+        token = await logistics.generatePickupQrToken(shipment.id);
+      } catch (_) {
+        token = null;
+      }
+      return _QrEnlevementBundle(token: token?.token ?? _kFallbackToken);
+    });
 
 /// Bordereau d'enlèvement QR — montré au transporteur pour confirmer
 /// l'enlèvement (déclenche l'auto-release de l'escrow PRODUCT).
@@ -62,7 +62,7 @@ class EnlevementQrPage extends ConsumerWidget {
         bottom: false,
         child: Column(
           children: [
-            const HeaderEnlevementQr(),
+            const EntetePageStandard(titre: 'Bordereau d\'enlèvement'),
             Expanded(
               child: asyncBundle.when(
                 loading: () => const Padding(
@@ -72,11 +72,9 @@ class EnlevementQrPage extends ConsumerWidget {
                 error: (e, _) => Padding(
                   padding: const EdgeInsets.all(AppDimens.pagePaddingH),
                   child: VueErreur(
-                    message:
-                        'Impossible de générer le QR d\'enlèvement. $e',
-                    onRetry: () => ref.invalidate(
-                      _qrEnlevementProvider(commandeId),
-                    ),
+                    message: 'Impossible de générer le QR d\'enlèvement. $e',
+                    onRetry: () =>
+                        ref.invalidate(_qrEnlevementProvider(commandeId)),
                   ),
                 ),
                 data: (bundle) => ListView(

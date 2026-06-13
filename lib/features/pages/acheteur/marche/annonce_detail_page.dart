@@ -10,7 +10,6 @@ import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../state/badges_state.dart';
 import '../../../widgets/acheteur/marche/annonce_detail_constants.dart';
-import '../../../widgets/acheteur/marche/header_annonce_detail.dart';
 import '../../../widgets/acheteur/marche/hero_annonce.dart';
 import '../../../widgets/acheteur/marche/section_certifications_annonce.dart';
 import '../../../widgets/acheteur/marche/section_description_annonce.dart';
@@ -22,6 +21,7 @@ import '../../../widgets/acheteur/marche/badge_prix_negocie.dart';
 import '../../../widgets/acheteur/marche/title_card_annonce.dart';
 import '../../../widgets/communs/badge_prix_marche.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/communs/vue_erreur.dart';
 
@@ -64,13 +64,13 @@ class _AnnonceDetailAcheteurPageState
         child: async.when(
           loading: () => const Column(
             children: [
-              HeaderAnnonceDetail(title: 'Chargement…'),
+              EntetePageStandard(titre: 'Chargement…'),
               Expanded(child: Chargement(size: 22)),
             ],
           ),
           error: (e, _) => Column(
             children: [
-              const HeaderAnnonceDetail(title: 'Annonce'),
+              const EntetePageStandard(titre: 'Annonce'),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(AppDimens.pagePaddingH),
@@ -104,7 +104,7 @@ class _AnnonceDetailAcheteurPageState
 
     return Column(
       children: [
-        HeaderAnnonceDetail(title: titreHeader),
+        EntetePageStandard(titre: titreHeader),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.only(bottom: 120),

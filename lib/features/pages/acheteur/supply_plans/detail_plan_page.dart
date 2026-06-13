@@ -18,7 +18,7 @@ import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
-import '../../../widgets/communs/entete_page_compacte_acheteur.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/snackbars.dart';
 
 /// Bundle = plan + candidatures (2 appels parallélisés).
@@ -55,7 +55,7 @@ class DetailPlanPage extends ConsumerWidget {
         bottom: false,
         child: Column(
           children: [
-            const EntetePageCompacteAcheteur(title: 'Détail du plan'),
+            const EntetePageStandard(titre: 'Détail du plan'),
             Expanded(
               child: bundleAsync.when(
                 data: (b) => RefreshIndicator(

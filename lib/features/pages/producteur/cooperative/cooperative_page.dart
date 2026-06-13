@@ -13,11 +13,11 @@ import '../../../../theme/app_text_styles.dart';
 import '../../../state/auth_state.dart';
 import '../../../../services/providers.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/communs/vue_erreur.dart';
 import '../../../widgets/producteur/cooperative/bouton_membres_coop.dart';
 import '../../../widgets/producteur/cooperative/cooperative_modeles.dart';
-import '../../../widgets/producteur/cooperative/header_cooperative.dart';
 import '../../../widgets/producteur/cooperative/hero_carte_cooperative.dart';
 import '../../../widgets/producteur/cooperative/liste_publications_coop.dart';
 import '../../../widgets/producteur/cooperative/liste_sollicitations_coop.dart';
@@ -49,55 +49,53 @@ class _CoopBundle {
 /// Charge en parallèle : coop, publications en cours, total membres,
 /// sollicitations ouvertes. `autoDispose` → invalidé quand la page sort
 /// du shell, refetché à la prochaine visite (donnée fraîche).
-final _coopBundleProvider =
-    FutureProvider.autoDispose.family<_CoopBundle, String>((ref, coopId) async {
-  final svc = ref.watch(cooperativesServiceProvider);
+final _coopBundleProvider = FutureProvider.autoDispose
+    .family<_CoopBundle, String>((ref, coopId) async {
+      final svc = ref.watch(cooperativesServiceProvider);
 
-  final results = await Future.wait<dynamic>([
-    svc
-        .getPublic(coopId)
-        .then<Object?>((v) => v)
-        .catchError((_) => null),
-    svc
-        .listPublications(cooperativeId: coopId, limit: 10)
-        .then<Object?>((v) => v)
-        .catchError((_) => null),
-    // listMembers n'a pas de filtre coopId : le backend retourne les
-    // membres de la coop du JWT user. Limit=1 suffit, on lit `total`.
-    svc
-        .listMembers(limit: 1)
-        .then<Object?>((v) => v)
-        .catchError((_) => null),
-    // Côté producteur : on liste les sollicitations DONT il est
-    // destinataire (endpoint FARMER-friendly). L'ancien
-    // `listSollicitations` est COOP-only → 403.
-    svc
-        .listSollicitationsPourMoi(status: 'OPEN', limit: 10)
-        .then<Object?>((v) => v)
-        .catchError((_) => null),
-  ]);
+      final results = await Future.wait<dynamic>([
+        svc.getPublic(coopId).then<Object?>((v) => v).catchError((_) => null),
+        svc
+            .listPublications(cooperativeId: coopId, limit: 10)
+            .then<Object?>((v) => v)
+            .catchError((_) => null),
+        // listMembers n'a pas de filtre coopId : le backend retourne les
+        // membres de la coop du JWT user. Limit=1 suffit, on lit `total`.
+        svc
+            .listMembers(limit: 1)
+            .then<Object?>((v) => v)
+            .catchError((_) => null),
+        // Côté producteur : on liste les sollicitations DONT il est
+        // destinataire (endpoint FARMER-friendly). L'ancien
+        // `listSollicitations` est COOP-only → 403.
+        svc
+            .listSollicitationsPourMoi(status: 'OPEN', limit: 10)
+            .then<Object?>((v) => v)
+            .catchError((_) => null),
+      ]);
 
-  final coop = results[0] as Cooperative?;
-  final pubsPage = results[1];
-  final membresPage = results[2];
-  final sollicitsPage = results[3];
+      final coop = results[0] as Cooperative?;
+      final pubsPage = results[1];
+      final membresPage = results[2];
+      final sollicitsPage = results[3];
 
-  return _CoopBundle(
-    coop: coop,
-    publications: pubsPage is List
-        ? <PublicationCoop>[]
-        : (pubsPage as dynamic)?.data as List<PublicationCoop>? ?? const [],
-    nbMembres: membresPage is List
-        ? 0
-        : (membresPage as dynamic)?.total as int? ?? 0,
-    sollicitations: sollicitsPage is List
-        ? <Sollicitation>[]
-        : (sollicitsPage as dynamic)?.data as List<Sollicitation>? ?? const [],
-    nbSollicitationsOpen: sollicitsPage is List
-        ? 0
-        : (sollicitsPage as dynamic)?.total as int? ?? 0,
-  );
-});
+      return _CoopBundle(
+        coop: coop,
+        publications: pubsPage is List
+            ? <PublicationCoop>[]
+            : (pubsPage as dynamic)?.data as List<PublicationCoop>? ?? const [],
+        nbMembres: membresPage is List
+            ? 0
+            : (membresPage as dynamic)?.total as int? ?? 0,
+        sollicitations: sollicitsPage is List
+            ? <Sollicitation>[]
+            : (sollicitsPage as dynamic)?.data as List<Sollicitation>? ??
+                  const [],
+        nbSollicitationsOpen: sollicitsPage is List
+            ? 0
+            : (sollicitsPage as dynamic)?.total as int? ?? 0,
+      );
+    });
 
 // ─── Page ──────────────────────────────────────────────────────────
 
@@ -121,7 +119,7 @@ class CooperativePage extends ConsumerWidget {
         bottom: false,
         child: Column(
           children: [
-            const HeaderCooperative(),
+            const EntetePageStandard(titre: 'Ma coopérative'),
             Expanded(
               child: coopId == null
                   ? const _EtatPasDeCoop()
@@ -219,8 +217,7 @@ class _Liste extends StatelessWidget {
         else
           ListeSollicitationsCoop(
             items: sollicits.map(_sollicitToMock).toList(growable: false),
-            onTap: (_) =>
-                context.push(RouteNames.producteurSollicitationsPath),
+            onTap: (_) => context.push(RouteNames.producteurSollicitationsPath),
           ),
         AppDimens.vGap24,
 
@@ -228,15 +225,12 @@ class _Liste extends StatelessWidget {
         // contributions du producteur aux publications coop avec leur
         // breakdown brut / FarmCash / commission / avances / net.
         _TuileMesVentesCoop(
-          onTap: () =>
-              context.push(RouteNames.producteurVentesCoopPath),
+          onTap: () => context.push(RouteNames.producteurVentesCoopPath),
         ),
         AppDimens.vGap12,
         BoutonMembresCoop(
-          onTap: () => Snackbars.showInfo(
-            context,
-            'Liste des membres — à venir',
-          ),
+          onTap: () =>
+              Snackbars.showInfo(context, 'Liste des membres — à venir'),
         ),
       ],
     );
@@ -260,8 +254,8 @@ class _Liste extends StatelessWidget {
     final titre = qte != null
         ? '${_nf.format(qte)} kg demandés'
         : (s.message?.trim().isNotEmpty == true
-            ? s.message!.trim()
-            : 'Sollicitation reçue');
+              ? s.message!.trim()
+              : 'Sollicitation reçue');
     return SollicitationMock(
       id: s.id,
       titre: titre,

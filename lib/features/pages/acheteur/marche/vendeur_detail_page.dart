@@ -9,12 +9,12 @@ import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../widgets/acheteur/marche/cta_message_vendeur.dart';
 import '../../../widgets/acheteur/marche/etat_vide_vendeur.dart';
-import '../../../widgets/acheteur/marche/header_vendeur_detail.dart';
 import '../../../widgets/acheteur/marche/hero_card_vendeur.dart';
 import '../../../widgets/acheteur/marche/liste_annonces_vendeur.dart';
 import '../../../widgets/acheteur/marche/stats_row_vendeur.dart';
 import '../../../widgets/acheteur/marche/titre_section_vendeur.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/communs/vue_erreur.dart';
 
@@ -49,7 +49,7 @@ class VendeurDetailPage extends ConsumerWidget {
         bottom: false,
         child: Column(
           children: [
-            const HeaderVendeurDetail(),
+            const EntetePageStandard(titre: 'Profil vendeur'),
             Expanded(
               child: async.when(
                 loading: () => const Padding(

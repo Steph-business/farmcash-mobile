@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../api_client/api_exception.dart';
@@ -10,6 +9,7 @@ import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/snackbars.dart';
 
 /// Bundle invitations reçues + demandes envoyées (1 seul fetch parallèle).
@@ -19,8 +19,9 @@ class _InvitsBundle {
   final List<CoopJoinRequest> demandes;
 }
 
-final _invitsBundleProvider =
-    FutureProvider.autoDispose<_InvitsBundle>((ref) async {
+final _invitsBundleProvider = FutureProvider.autoDispose<_InvitsBundle>((
+  ref,
+) async {
   final svc = ref.read(cooperativesServiceProvider);
   final results = await Future.wait([
     svc.listMyInvitations(),
@@ -53,10 +54,9 @@ class _InvitationsCoopPageState extends ConsumerState<InvitationsCoopPage> {
     if (_busyId) return;
     setState(() => _busyId = true);
     try {
-      await ref.read(cooperativesServiceProvider).handleInvitation(
-            id: inv.id,
-            accept: accept,
-          );
+      await ref
+          .read(cooperativesServiceProvider)
+          .handleInvitation(id: inv.id, accept: accept);
       if (!mounted) return;
       Snackbars.showSucces(
         context,
@@ -83,7 +83,7 @@ class _InvitationsCoopPageState extends ConsumerState<InvitationsCoopPage> {
         bottom: false,
         child: Column(
           children: [
-            _Header(onBack: () => context.pop()),
+            const EntetePageStandard(titre: 'Adhésions'),
             Expanded(
               child: async.when(
                 loading: () => const Padding(
@@ -131,10 +131,8 @@ class _InvitationsCoopPageState extends ConsumerState<InvitationsCoopPage> {
                           _CarteInvitation(
                             inv: inv,
                             busy: _busyId,
-                            onAccepter: () =>
-                                _accepterInvitation(inv, true),
-                            onRefuser: () =>
-                                _accepterInvitation(inv, false),
+                            onAccepter: () => _accepterInvitation(inv, true),
+                            onRefuser: () => _accepterInvitation(inv, false),
                           ),
                           AppDimens.vGap12,
                         ],
@@ -166,39 +164,7 @@ class _InvitationsCoopPageState extends ConsumerState<InvitationsCoopPage> {
   }
 }
 
-// ─── Header + Section ─────────────────────────────────────────────
-
-class _Header extends StatelessWidget {
-  const _Header({required this.onBack});
-  final VoidCallback onBack;
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 6, 16, 4),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: onBack,
-            icon: const Icon(Icons.arrow_back_rounded, color: AppColors.text),
-          ),
-          const SizedBox(width: 4),
-          Expanded(
-            child: Text(
-              'Adhésions',
-              style: AppTextStyles.titleLarge.copyWith(
-                fontFamily: 'Poppins',
-                fontSize: 17,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.3,
-                color: AppColors.text,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+// ─── Section ──────────────────────────────────────────────────────
 
 class _Section extends StatelessWidget {
   const _Section({required this.titre, required this.sousTitre});
@@ -408,7 +374,8 @@ class _CarteDemande extends StatelessWidget {
               _BadgeStatut(status: demande.status),
             ],
           ),
-          if (demande.message != null && demande.message!.trim().isNotEmpty) ...[
+          if (demande.message != null &&
+              demande.message!.trim().isNotEmpty) ...[
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.all(10),
@@ -505,11 +472,7 @@ class _EtatVideSection extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.info_outline,
-            size: 18,
-            color: AppColors.textSubtle,
-          ),
+          const Icon(Icons.info_outline, size: 18, color: AppColors.textSubtle),
           const SizedBox(width: 10),
           Expanded(
             child: Text(

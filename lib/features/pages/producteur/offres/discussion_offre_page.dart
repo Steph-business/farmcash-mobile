@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../api_client/api_exception.dart';
@@ -12,6 +11,7 @@ import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_text_styles.dart';
 import '../../../state/auth_state.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/post_acceptation_negociation.dart';
 import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/communs/vue_erreur.dart';
@@ -166,13 +166,13 @@ class _DiscussionOffrePageState extends ConsumerState<DiscussionOffrePage> {
     final libelle = action == NegotiationAction.accept
         ? 'Accepter cette offre'
         : action == NegotiationAction.reject
-            ? 'Refuser cette offre'
-            : 'Annuler ma proposition';
+        ? 'Refuser cette offre'
+        : 'Annuler ma proposition';
     final corps = action == NegotiationAction.accept
         ? 'En acceptant, une commande sera créée et l\'acheteur sera notifié.'
         : action == NegotiationAction.reject
-            ? "L'offre sera marquée comme refusée. Cette action est définitive."
-            : 'Ta proposition sera retirée de la liste de l\'acheteur.';
+        ? "L'offre sera marquée comme refusée. Cette action est définitive."
+        : 'Ta proposition sera retirée de la liste de l\'acheteur.';
 
     final ok = await showDialog<bool>(
       context: context,
@@ -212,28 +212,15 @@ class _DiscussionOffrePageState extends ConsumerState<DiscussionOffrePage> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.text),
-          onPressed: () => context.pop(),
-        ),
-        title: Text(
-          isCandidature ? 'Discussion avec l\'acheteur' : 'Ma proposition',
-          style: AppTextStyles.titleSmall.copyWith(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: AppColors.text,
-          ),
-        ),
-        centerTitle: false,
-      ),
       body: SafeArea(
         bottom: false,
         child: Column(
           children: [
+            EntetePageStandard(
+              titre: isCandidature
+                  ? 'Discussion avec l\'acheteur'
+                  : 'Ma proposition',
+            ),
             _CarteContexteOffre(
               kind: widget.offre.kind,
               quantiteKg: widget.offre.quantiteKg,
@@ -350,13 +337,15 @@ class _DiscussionOffrePageState extends ConsumerState<DiscussionOffrePage> {
                           fillColor: Colors.transparent,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
-                            borderSide:
-                                const BorderSide(color: AppColors.border),
+                            borderSide: const BorderSide(
+                              color: AppColors.border,
+                            ),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
-                            borderSide:
-                                const BorderSide(color: AppColors.border),
+                            borderSide: const BorderSide(
+                              color: AppColors.border,
+                            ),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
@@ -486,9 +475,7 @@ class _CarteContexteOffre extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFFE8F5E9),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.25),
-        ),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -669,8 +656,9 @@ class _MessageBubble extends StatelessWidget {
     );
 
     return Row(
-      mainAxisAlignment:
-          isMine ? MainAxisAlignment.end : MainAxisAlignment.start,
+      mainAxisAlignment: isMine
+          ? MainAxisAlignment.end
+          : MainAxisAlignment.start,
       crossAxisAlignment: CrossAxisAlignment.end,
       children: isMine
           ? [bubble]

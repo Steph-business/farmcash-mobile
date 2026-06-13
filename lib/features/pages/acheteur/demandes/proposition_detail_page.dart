@@ -10,10 +10,10 @@ import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
 import '../../../widgets/acheteur/demandes/carte_proposition_demande.dart';
-import '../../../widgets/acheteur/demandes/header_propositions_demande.dart';
 import '../../../widgets/acheteur/demandes/section_fournisseurs_potentiels.dart';
 import 'discussion_negociation_page.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/post_acceptation_negociation.dart';
 import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/communs/vue_erreur.dart';
@@ -121,11 +121,9 @@ class _PropositionDetailAcheteurPageState
         bottom: false,
         child: Column(
           children: [
-            HeaderPropositionsDemande(
-              count: async.maybeWhen(
-                data: (b) => b.propositions.length,
-                orElse: () => 0,
-              ),
+            EntetePageStandard(
+              titre: 'Propositions reçues'
+                  '${async.maybeWhen(data: (b) => ' (${b.propositions.length})', orElse: () => '')}',
             ),
             Expanded(
               child: async.when(

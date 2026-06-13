@@ -7,10 +7,10 @@ import '../../../api_client/api_exception.dart';
 import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
+import '../../widgets/communs/entete_page_standard.dart';
 import '../../widgets/communs/snackbars.dart';
 import '../../widgets/transporteur/profil/bouton_principal_formulaire.dart';
 import '../../widgets/transporteur/profil/champ_formulaire_vehicule.dart';
-import '../../widgets/transporteur/profil/entete_ajouter_itineraire.dart';
 import '../../widgets/transporteur/profil/titre_section_formulaire.dart';
 
 /// Créer un véhicule du transporteur — type, capacité, immatriculation,
@@ -88,7 +88,7 @@ class _VehiculeCreerPageState extends ConsumerState<VehiculeCreerPage> {
         bottom: false,
         child: Column(
           children: [
-            const EnteteAjouterItineraire(title: 'Ajouter un véhicule'),
+            const EntetePageStandard(titre: 'Ajouter un véhicule'),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(

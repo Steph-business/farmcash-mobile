@@ -54,82 +54,85 @@ class ProfilSettingsProducteurPage extends ConsumerWidget {
                     initiales: initialesDepuisNom(user?.fullName),
                     photoUrl: user?.photoUrl,
                     sousTitre: 'Producteur',
-                    onModifier: () => context.push(
-                      RouteNames.producteurProfilEditerPath,
-                    ),
+                    onModifier: () =>
+                        context.push(RouteNames.producteurProfilEditerPath),
                   ),
                   const TitreSectionSettings('Mon compte'),
-                  GroupeSettings(rows: [
-                    TuileSettings(
-                      icon: Icons.person_outline,
-                      iconGreen: true,
-                      label: 'Mes informations',
-                      sub: 'Nom, téléphone, ville',
-                      onTap: () => context.push(
-                        RouteNames.producteurProfilEditerPath,
+                  GroupeSettings(
+                    rows: [
+                      TuileSettings(
+                        icon: Icons.person_outline,
+                        iconGreen: true,
+                        label: 'Mes informations',
+                        sub: 'Nom, téléphone, ville',
+                        onTap: () =>
+                            context.push(RouteNames.producteurProfilEditerPath),
                       ),
-                    ),
-                    TuileSettings(
-                      icon: Icons.description_outlined,
-                      iconGreen: true,
-                      label: 'Documents (KYC)',
-                      sub: 'CNI, photos exploitation',
-                      onTap: () => context.push(
-                        RouteNames.producteurDocumentsKycPath,
+                      TuileSettings(
+                        icon: Icons.description_outlined,
+                        iconGreen: true,
+                        label: 'Documents (KYC)',
+                        sub: 'CNI, photos exploitation',
+                        onTap: () =>
+                            context.push(RouteNames.producteurDocumentsKycPath),
                       ),
-                    ),
-                    TuileSettings(
-                      icon: Icons.account_balance_wallet_outlined,
-                      iconGreen: true,
-                      label: 'Wallet',
-                      sub: 'Solde et transactions',
-                      onTap: () =>
-                          context.push(RouteNames.producteurWalletPath),
-                    ),
-                  ]),
+                      TuileSettings(
+                        icon: Icons.account_balance_wallet_outlined,
+                        iconGreen: true,
+                        label: 'Wallet',
+                        sub: 'Solde et transactions',
+                        onTap: () =>
+                            context.push(RouteNames.producteurWalletPath),
+                      ),
+                    ],
+                  ),
                   AppDimens.vGap24,
                   const TitreSectionSettings('Application'),
-                  GroupeSettings(rows: [
-                    TuileSettings(
-                      icon: Icons.notifications_none,
-                      label: 'Notifications',
-                      onTap: () => Snackbars.showInfo(
-                        context,
-                        'Notifications — à venir',
+                  GroupeSettings(
+                    rows: [
+                      TuileSettings(
+                        icon: Icons.notifications_none,
+                        label: 'Notifications',
+                        onTap: () => Snackbars.showInfo(
+                          context,
+                          'Notifications — à venir',
+                        ),
                       ),
-                    ),
-                    TuileSettings(
-                      icon: Icons.language,
-                      label: 'Langue',
-                      sub: 'Français',
-                      onTap: () =>
-                          Snackbars.showInfo(context, 'Langue — à venir'),
-                    ),
-                    TuileSettings(
-                      icon: Icons.lock_outline,
-                      label: 'Sécurité (PIN, sessions)',
-                      onTap: () =>
-                          Snackbars.showInfo(context, 'Sécurité — à venir'),
-                    ),
-                  ]),
+                      TuileSettings(
+                        icon: Icons.language,
+                        label: 'Langue',
+                        sub: 'Français',
+                        onTap: () =>
+                            Snackbars.showInfo(context, 'Langue — à venir'),
+                      ),
+                      TuileSettings(
+                        icon: Icons.lock_outline,
+                        label: 'Sécurité (PIN, sessions)',
+                        onTap: () =>
+                            Snackbars.showInfo(context, 'Sécurité — à venir'),
+                      ),
+                    ],
+                  ),
                   AppDimens.vGap24,
                   const TitreSectionSettings('Support'),
-                  GroupeSettings(rows: [
-                    TuileSettings(
-                      icon: Icons.help_outline,
-                      label: "Centre d'aide",
-                      onTap: () =>
-                          context.push(RouteNames.producteurAidePath),
-                    ),
-                    TuileSettings(
-                      icon: Icons.description_outlined,
-                      label: 'Conditions & confidentialité',
-                      onTap: () => Snackbars.showInfo(
-                        context,
-                        'Conditions & confidentialité — à venir',
+                  GroupeSettings(
+                    rows: [
+                      TuileSettings(
+                        icon: Icons.help_outline,
+                        label: "Centre d'aide",
+                        onTap: () =>
+                            context.push(RouteNames.producteurAidePath),
                       ),
-                    ),
-                  ]),
+                      TuileSettings(
+                        icon: Icons.description_outlined,
+                        label: 'Conditions & confidentialité',
+                        onTap: () => Snackbars.showInfo(
+                          context,
+                          'Conditions & confidentialité — à venir',
+                        ),
+                      ),
+                    ],
+                  ),
                   AppDimens.vGap24,
                   BoutonDeconnexion(
                     onTap: () async {

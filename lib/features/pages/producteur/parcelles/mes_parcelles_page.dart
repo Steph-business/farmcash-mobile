@@ -10,6 +10,7 @@ import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
 import '../../../widgets/communs/bouton_principal.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/vue_erreur.dart';
 
 /// Liste des parcelles enregistrées par le farmer connecté.
@@ -41,40 +42,29 @@ class _MesParcellesPageState extends ConsumerState<MesParcellesPage> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, size: AppDimens.iconL),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          'Mes parcelles',
-          style: AppTextStyles.titleLarge.copyWith(
-            fontWeight: FontWeight.w700,
-            fontSize: 18,
-          ),
-        ),
-      ),
       body: SafeArea(
-        top: false,
-        child: async.when(
-          loading: () => const Padding(
-            padding: EdgeInsets.only(top: AppDimens.space32),
-            child: Chargement(size: 22),
-          ),
-          error: (e, _) => Padding(
-            padding: const EdgeInsets.all(AppDimens.pagePaddingH),
-            child: VueErreur(
-              message: 'Impossible de charger tes parcelles.',
-              onRetry: () => ref.invalidate(_mesParcellesProvider),
+        bottom: false,
+        child: Column(
+          children: [
+            const EntetePageStandard(titre: 'Mes parcelles'),
+            Expanded(
+              child: async.when(
+                loading: () => const Padding(
+                  padding: EdgeInsets.only(top: AppDimens.space32),
+                  child: Chargement(size: 22),
+                ),
+                error: (e, _) => Padding(
+                  padding: const EdgeInsets.all(AppDimens.pagePaddingH),
+                  child: VueErreur(
+                    message: 'Impossible de charger tes parcelles.',
+                    onRetry: () => ref.invalidate(_mesParcellesProvider),
+                  ),
+                ),
+                data: (parcelles) =>
+                    _Body(parcelles: parcelles, onAjouter: _ajouterParcelle),
+              ),
             ),
-          ),
-          data: (parcelles) => _Body(
-            parcelles: parcelles,
-            onAjouter: _ajouterParcelle,
-          ),
+          ],
         ),
       ),
     );
@@ -189,9 +179,7 @@ class _ParcelleCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ha = parcelle.superficieHa;
-    final superficieTexte = ha != null
-        ? '${ha.toStringAsFixed(1)} ha'
-        : '? ha';
+    final superficieTexte = ha != null ? '${ha.toStringAsFixed(1)} ha' : '? ha';
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppDimens.space16,

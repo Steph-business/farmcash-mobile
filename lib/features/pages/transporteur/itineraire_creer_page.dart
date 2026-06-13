@@ -7,10 +7,10 @@ import '../../../api_client/api_exception.dart';
 import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
+import '../../widgets/communs/entete_page_standard.dart';
 import '../../widgets/communs/snackbars.dart';
 import '../../widgets/transporteur/profil/bouton_principal_formulaire.dart';
 import '../../widgets/transporteur/profil/champ_formulaire_vehicule.dart';
-import '../../widgets/transporteur/profil/entete_ajouter_itineraire.dart';
 import '../../widgets/transporteur/profil/titre_section_formulaire.dart';
 
 /// Ajouter un itinéraire de transport — origine, destination, capacité kg,
@@ -104,7 +104,7 @@ class _ItineraireCreerPageState
         bottom: false,
         child: Column(
           children: [
-            const EnteteAjouterItineraire(),
+            const EntetePageStandard(titre: 'Créer un itinéraire'),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(

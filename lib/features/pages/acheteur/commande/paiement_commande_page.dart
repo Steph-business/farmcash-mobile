@@ -24,11 +24,11 @@ import '../../../widgets/acheteur/commandes/carte_choix_mode_paiement.dart';
 import '../../../widgets/acheteur/commandes/carte_recap_paiement.dart';
 import '../../../widgets/acheteur/commandes/champ_note_vendeur.dart';
 import '../../../widgets/acheteur/commandes/grille_methodes_paiement.dart';
-import '../../../widgets/acheteur/commandes/header_paiement_commande.dart';
 import '../../../widgets/acheteur/commandes/options_livraison.dart';
 import '../../../widgets/acheteur/commandes/sticky_bottom_paiement.dart';
 import '../../../widgets/acheteur/commandes/titre_section_paiement.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/moyen_paiement_ajout_sheet.dart';
 import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/communs/vue_erreur.dart';
@@ -118,13 +118,15 @@ class _PaiementCommandePageState extends ConsumerState<PaiementCommandePage> {
         child: async.when(
           loading: () => const Column(
             children: [
-              HeaderPaiementCommande(),
+              EntetePageStandard(
+                  titre: 'Paiement commande', montrerNotifications: false),
               Expanded(child: Chargement(size: 22)),
             ],
           ),
           error: (e, _) => Column(
             children: [
-              const HeaderPaiementCommande(),
+              const EntetePageStandard(
+            titre: 'Paiement commande', montrerNotifications: false),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(AppDimens.pagePaddingH),
@@ -164,7 +166,8 @@ class _PaiementCommandePageState extends ConsumerState<PaiementCommandePage> {
 
     return Column(
       children: [
-        const HeaderPaiementCommande(),
+        const EntetePageStandard(
+            titre: 'Paiement commande', montrerNotifications: false),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),

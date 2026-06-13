@@ -13,13 +13,13 @@ import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/communs/vue_erreur.dart';
 import '../../../widgets/producteur/publications/convertir_prevision_dialog.dart';
 import '../../../widgets/producteur/publications/banniere_motif_rejet.dart';
 import '../../../widgets/producteur/publications/coop_lock_banner.dart';
 import '../../../widgets/producteur/publications/editer_prevision_dialog.dart';
-import '../../../widgets/producteur/publications/header_prevision_detail.dart';
 import '../../../widgets/producteur/publications/hero_prevision.dart';
 import '../../../widgets/producteur/publications/info_card_prevision.dart';
 import '../../../widgets/producteur/publications/section_actions_prevision.dart';
@@ -31,19 +31,19 @@ import '../../../widgets/producteur/publications/sticky_convertir.dart';
 /// côté client.
 final _previsionDetailProvider = FutureProvider.autoDispose
     .family<Prevision?, String>((ref, id) async {
-  final list = await ref.read(marketplaceServiceProvider).listPrevisions();
-  return list.where((e) => e.id == id).firstOrNull;
-});
+      final list = await ref.read(marketplaceServiceProvider).listPrevisions();
+      return list.where((e) => e.id == id).firstOrNull;
+    });
 
 /// Réservations des acheteurs sur cette prévision (vue propriétaire).
 /// Le backend vérifie l'ownership ; en cas d'erreur, le widget affichera
 /// un état d'erreur avec bouton Réessayer.
 final _previsionReservationsProvider = FutureProvider.autoDispose
     .family<List<ReservationAcheteurInfo>, String>((ref, id) async {
-  return ref
-      .read(marketplaceServiceProvider)
-      .listReservationsParPrevision(id);
-});
+      return ref
+          .read(marketplaceServiceProvider)
+          .listReservationsParPrevision(id);
+    });
 
 /// Détail d'une prévision producteur — hero, info card, progression
 /// réservations, liste réservants, actions, sticky bouton désactivé.
@@ -63,13 +63,13 @@ class PrevisionDetailPage extends ConsumerWidget {
         child: async.when(
           loading: () => const Column(
             children: [
-              HeaderPrevisionDetail(),
+              EntetePageStandard(titre: 'Ma prévision'),
               Expanded(child: Chargement(size: 22)),
             ],
           ),
           error: (_, _) => Column(
             children: [
-              const HeaderPrevisionDetail(),
+              const EntetePageStandard(titre: 'Ma prévision'),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(AppDimens.pagePaddingH),
@@ -86,7 +86,7 @@ class PrevisionDetailPage extends ConsumerWidget {
             if (prevision == null) {
               return Column(
                 children: [
-                  const HeaderPrevisionDetail(),
+                  const EntetePageStandard(titre: 'Ma prévision'),
                   Expanded(
                     child: Center(
                       child: Padding(
@@ -125,7 +125,7 @@ class _Content extends ConsumerWidget {
     final reasonNonConvertible = _whyNotConvertible(prevision);
     return Column(
       children: [
-        const HeaderPrevisionDetail(),
+        const EntetePageStandard(titre: 'Ma prévision'),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.only(bottom: 130),
@@ -176,10 +176,10 @@ class _Content extends ConsumerWidget {
                 // Boutons désactivés si la prévision est figée :
                 //  • statut non-OPEN (déjà convertie, expirée, etc.)
                 //  • OU coop a VALIDATED / INCLUDED → c'est elle qui pilote.
-                disabled: prevision.status != PrevisionStatus.open ||
+                disabled:
+                    prevision.status != PrevisionStatus.open ||
                     prevision.isLockedByCoop,
-                onModifierDate: () =>
-                    _ouvrirEdition(context, ref, prevision),
+                onModifierDate: () => _ouvrirEdition(context, ref, prevision),
                 onAnnuler: () => _confirmerSuppression(context, ref, prevision),
               ),
             ],
@@ -284,8 +284,9 @@ Future<void> _confirmerSuppression(
   );
   if (confirm != true || !context.mounted) return;
   try {
-    final result =
-        await ref.read(marketplaceServiceProvider).deletePrevision(prevision.id);
+    final result = await ref
+        .read(marketplaceServiceProvider)
+        .deletePrevision(prevision.id);
     if (!context.mounted) return;
     // Message contextuel : si remboursements effectués, on affiche le
     // détail (nombre + montant). Sinon message simple.
@@ -344,9 +345,7 @@ Future<void> _convertirPrevision(
     if (!context.mounted) return;
     Snackbars.showSucces(context, 'Prévision convertie en annonce.');
     ref.invalidate(_previsionDetailProvider(prevision.id));
-    context.push(
-      RouteNames.producteurAnnonceDetailPathFor(annonce.id),
-    );
+    context.push(RouteNames.producteurAnnonceDetailPathFor(annonce.id));
   } on ApiException catch (e) {
     if (!context.mounted) return;
     Snackbars.showErreur(context, e.message);

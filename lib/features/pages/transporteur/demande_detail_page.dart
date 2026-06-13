@@ -10,6 +10,7 @@ import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../widgets/communs/chargement.dart';
+import '../../widgets/communs/entete_page_standard.dart';
 import '../../widgets/communs/snackbars.dart';
 import '../../widgets/communs/vue_erreur.dart';
 import '../../widgets/transporteur/missions/actions_sticky_demande.dart';
@@ -18,7 +19,6 @@ import '../../widgets/transporteur/missions/carte_marchandise_demande.dart';
 import '../../widgets/transporteur/missions/carte_montant_demande.dart';
 import '../../widgets/transporteur/missions/carte_notes_demande.dart';
 import '../../widgets/transporteur/missions/carte_trajet_demande.dart';
-import '../../widgets/transporteur/missions/entete_demande_detail.dart';
 import '../../widgets/transporteur/missions/titre_section_mission.dart';
 
 /// Charge la mission depuis la liste disponible (le back n'expose pas de
@@ -56,13 +56,13 @@ class _DemandeDetailPageState extends ConsumerState<DemandeDetailPage> {
         child: async.when(
           loading: () => const Column(
             children: [
-              EnteteDemandeDetail(),
+              EntetePageStandard(titre: 'Détail de la demande'),
               Expanded(child: Chargement(size: 22)),
             ],
           ),
           error: (e, _) => Column(
             children: [
-              const EnteteDemandeDetail(),
+              const EntetePageStandard(titre: 'Détail de la demande'),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(AppDimens.pagePaddingH),
@@ -79,7 +79,7 @@ class _DemandeDetailPageState extends ConsumerState<DemandeDetailPage> {
             if (m == null) {
               return Column(
                 children: [
-                  const EnteteDemandeDetail(),
+                  const EntetePageStandard(titre: 'Détail de la demande'),
                   Expanded(
                     child: Center(
                       child: Padding(
@@ -99,7 +99,7 @@ class _DemandeDetailPageState extends ConsumerState<DemandeDetailPage> {
             }
             return Column(
               children: [
-                const EnteteDemandeDetail(),
+                const EntetePageStandard(titre: 'Détail de la demande'),
                 Expanded(
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),

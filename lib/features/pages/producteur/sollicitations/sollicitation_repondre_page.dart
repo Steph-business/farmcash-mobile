@@ -6,6 +6,7 @@ import '../../../../api_client/api_exception.dart';
 import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/producteur/sollicitations/sollicitation_date_field.dart';
 import '../../../widgets/producteur/sollicitations/sollicitation_detail.dart';
@@ -16,7 +17,6 @@ import '../../../widgets/producteur/sollicitations/sollicitation_quand.dart';
 import '../../../widgets/producteur/sollicitations/sollicitation_recap_card.dart';
 import '../../../widgets/producteur/sollicitations/sollicitation_recap_card_error.dart';
 import '../../../widgets/producteur/sollicitations/sollicitation_recap_card_loading.dart';
-import '../../../widgets/producteur/sollicitations/sollicitation_repondre_header.dart';
 import '../../../widgets/producteur/sollicitations/sollicitation_section_title.dart';
 import '../../../widgets/producteur/sollicitations/sollicitation_sticky_actions.dart';
 import '../../../widgets/producteur/sollicitations/sollicitation_when_row.dart';
@@ -24,46 +24,49 @@ import '../../../widgets/producteur/sollicitations/sollicitation_when_row.dart';
 /// Charge le détail enrichi de la sollicitation depuis le backend.
 final _solDetailProvider = FutureProvider.autoDispose
     .family<SollicitationDetail, String>((ref, id) async {
-  final raw =
-      await ref.read(cooperativesServiceProvider).getSollicitation(id);
+      final raw = await ref
+          .read(cooperativesServiceProvider)
+          .getSollicitation(id);
 
-  final coop = raw['cooperative'] as Map<String, dynamic>?;
-  final annonce = raw['annonce'] as Map<String, dynamic>?;
-  final produit = (annonce?['produits_agricoles']
-          as Map<String, dynamic>?) ??
-      (annonce?['produit'] as Map<String, dynamic>?);
-  final medias = annonce?['medias'] as List<dynamic>?;
-  final firstPhoto = medias
-      ?.whereType<Map>()
-      .map((m) => (m['url'] ?? m['thumbnail_url'])?.toString())
-      .firstWhere((u) => u != null && u.isNotEmpty, orElse: () => null);
+      final coop = raw['cooperative'] as Map<String, dynamic>?;
+      final annonce = raw['annonce'] as Map<String, dynamic>?;
+      final produit =
+          (annonce?['produits_agricoles'] as Map<String, dynamic>?) ??
+          (annonce?['produit'] as Map<String, dynamic>?);
+      final medias = annonce?['medias'] as List<dynamic>?;
+      final firstPhoto = medias
+          ?.whereType<Map>()
+          .map((m) => (m['url'] ?? m['thumbnail_url'])?.toString())
+          .firstWhere((u) => u != null && u.isNotEmpty, orElse: () => null);
 
-  double? toDouble(dynamic v) {
-    if (v is num) return v.toDouble();
-    if (v is String) return double.tryParse(v);
-    return null;
-  }
+      double? toDouble(dynamic v) {
+        if (v is num) return v.toDouble();
+        if (v is String) return double.tryParse(v);
+        return null;
+      }
 
-  DateTime? toDate(dynamic v) {
-    if (v is String) return DateTime.tryParse(v);
-    return null;
-  }
+      DateTime? toDate(dynamic v) {
+        if (v is String) return DateTime.tryParse(v);
+        return null;
+      }
 
-  return SollicitationDetail(
-    coopNom: (coop?['nom'] as String?)?.trim().isNotEmpty == true
-        ? coop!['nom'] as String
-        : 'Ma coopérative',
-    coopLogoUrl: coop?['logo_url'] as String?,
-    produitNom: (produit?['nom'] as String?) ?? 'Produit',
-    produitThumb: firstPhoto,
-    quantiteKg: toDouble(raw['quantite_cible_kg']) ??
-        toDouble(annonce?['quantite_kg']),
-    prixMinKg: toDouble(annonce?['prix_max_kg']) ??
-        toDouble(annonce?['prix_par_kg']),
-    expiresAt: toDate(raw['expires_at']),
-    message: raw['message'] as String?,
-  );
-});
+      return SollicitationDetail(
+        coopNom: (coop?['nom'] as String?)?.trim().isNotEmpty == true
+            ? coop!['nom'] as String
+            : 'Ma coopérative',
+        coopLogoUrl: coop?['logo_url'] as String?,
+        produitNom: (produit?['nom'] as String?) ?? 'Produit',
+        produitThumb: firstPhoto,
+        quantiteKg:
+            toDouble(raw['quantite_cible_kg']) ??
+            toDouble(annonce?['quantite_kg']),
+        prixMinKg:
+            toDouble(annonce?['prix_max_kg']) ??
+            toDouble(annonce?['prix_par_kg']),
+        expiresAt: toDate(raw['expires_at']),
+        message: raw['message'] as String?,
+      );
+    });
 
 /// Page de réponse à une sollicitation reçue de la coopérative.
 class SollicitationRepondrePage extends ConsumerStatefulWidget {
@@ -124,7 +127,9 @@ class _SollicitationRepondrePageState
     }
     setState(() => _isSubmitting = true);
     try {
-      await ref.read(cooperativesServiceProvider).respondSollicitation(
+      await ref
+          .read(cooperativesServiceProvider)
+          .respondSollicitation(
             id: widget.sollicitationId,
             accept: accept,
             quantiteKg: accept ? _qteKg : null,
@@ -148,15 +153,14 @@ class _SollicitationRepondrePageState
 
   @override
   Widget build(BuildContext context) {
-    final detailAsync =
-        ref.watch(_solDetailProvider(widget.sollicitationId));
+    final detailAsync = ref.watch(_solDetailProvider(widget.sollicitationId));
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         bottom: false,
         child: Column(
           children: [
-            const SollicitationRepondreHeader(),
+            const EntetePageStandard(titre: 'Répondre à la sollicitation'),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),

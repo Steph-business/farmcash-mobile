@@ -12,11 +12,11 @@ import '../../../../theme/app_dimens.dart';
 import '../../../widgets/acheteur/marche/boites_montants_reservation_marche.dart';
 import '../../../widgets/acheteur/marche/cgv_row_reservation_marche.dart';
 import '../../../widgets/acheteur/marche/grille_methodes_reservation_marche.dart';
-import '../../../widgets/acheteur/marche/header_reservation_marche.dart';
 import '../../../widgets/acheteur/marche/recap_card_reservation_marche.dart';
 import '../../../widgets/acheteur/marche/sticky_bottom_reservation_marche.dart';
 import '../../../widgets/acheteur/marche/titre_section_reservation_marche.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/communs/vue_erreur.dart';
 
@@ -67,13 +67,13 @@ class _ReservationPaiementPageState
         child: async.when(
           loading: () => const Column(
             children: [
-              HeaderReservationMarche(title: 'Confirmer la réservation'),
+              EntetePageStandard(titre: 'Confirmer la réservation'),
               Expanded(child: Chargement(size: 22)),
             ],
           ),
           error: (e, _) => Column(
             children: [
-              const HeaderReservationMarche(title: 'Confirmer la réservation'),
+              const EntetePageStandard(titre: 'Confirmer la réservation'),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(AppDimens.pagePaddingH),
@@ -104,7 +104,7 @@ class _ReservationPaiementPageState
 
     return Column(
       children: [
-        const HeaderReservationMarche(title: 'Confirmer la réservation'),
+        const EntetePageStandard(titre: 'Confirmer la réservation'),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),

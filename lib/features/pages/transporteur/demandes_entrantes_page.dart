@@ -8,9 +8,9 @@ import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
 import '../../widgets/communs/chargement.dart';
+import '../../widgets/communs/entete_page_standard.dart';
 import '../../widgets/communs/vue_erreur.dart';
 import '../../widgets/transporteur/missions/carte_demande_entrante.dart';
-import '../../widgets/transporteur/missions/entete_demandes_entrantes.dart';
 import '../../widgets/transporteur/missions/etat_vide_demandes_entrantes.dart';
 
 /// Liste des missions disponibles (REQUESTED) matchant les routes du
@@ -33,7 +33,7 @@ class DemandesEntrantesTransporteurPage extends ConsumerWidget {
         bottom: false,
         child: Column(
           children: [
-            const EnteteDemandesEntrantes(),
+            const EntetePageStandard(titre: 'Demandes entrantes'),
             Expanded(
               child: async.when(
                 loading: () => const Padding(

@@ -1,7 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../models/publication_coop.dart';
@@ -14,6 +13,7 @@ import '../../../widgets/acheteur/marche/sheet_negocier_publication_coop.dart';
 import '../../../widgets/communs/badge_prix_marche.dart';
 import '../../../widgets/communs/bandeau_intervalle_recolte.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/communs/vue_erreur.dart';
 
@@ -47,7 +47,7 @@ class PublicationCoopDetailAcheteurPage extends ConsumerWidget {
         bottom: false,
         child: Column(
           children: [
-            _Header(onBack: () => context.pop()),
+            const EntetePageStandard(titre: 'Lot coopérative'),
             Expanded(
               child: async.when(
                 loading: () => const Padding(
@@ -111,40 +111,6 @@ class PublicationCoopDetailAcheteurPage extends ConsumerWidget {
       // immédiatement (peu probable mais cohérent avec le flow annonce).
       ref.invalidate(mesContreOffresCoopAccepteesProvider(pub.id));
     }
-  }
-}
-
-// ─── Header back simple ─────────────────────────────────────────────
-
-class _Header extends StatelessWidget {
-  const _Header({required this.onBack});
-  final VoidCallback onBack;
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 6, 16, 4),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: onBack,
-            icon: const Icon(Icons.arrow_back_rounded, color: AppColors.text),
-          ),
-          const SizedBox(width: 4),
-          Expanded(
-            child: Text(
-              'Lot coopérative',
-              style: AppTextStyles.titleLarge.copyWith(
-                fontFamily: 'Poppins',
-                fontSize: 17,
-                fontWeight: FontWeight.w800,
-                color: AppColors.text,
-                letterSpacing: -0.3,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
 

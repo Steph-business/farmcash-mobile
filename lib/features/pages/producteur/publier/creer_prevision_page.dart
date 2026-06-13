@@ -10,6 +10,7 @@ import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/produit/selecteur_choix_premium.dart';
 import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/communs/vue_erreur.dart';
@@ -37,18 +38,19 @@ class _CreerPrevisionBundle {
 /// prévision) → on laisse l'erreur remonter. Les parcelles sont optionnelles.
 final _creerPrevisionBundleProvider =
     FutureProvider.autoDispose<_CreerPrevisionBundle>((ref) async {
-  final svc = ref.watch(marketplaceServiceProvider);
-  final results = await Future.wait<dynamic>([
-    svc.listProduits(),
-    svc.listParcelles().then<Object?>((v) => v).catchError(
-      (Object _) => const <Parcelle>[],
-    ),
-  ]);
-  return _CreerPrevisionBundle(
-    produits: results[0] as List<Produit>,
-    parcelles: results[1] as List<Parcelle>,
-  );
-});
+      final svc = ref.watch(marketplaceServiceProvider);
+      final results = await Future.wait<dynamic>([
+        svc.listProduits(),
+        svc
+            .listParcelles()
+            .then<Object?>((v) => v)
+            .catchError((Object _) => const <Parcelle>[]),
+      ]);
+      return _CreerPrevisionBundle(
+        produits: results[0] as List<Produit>,
+        parcelles: results[1] as List<Parcelle>,
+      );
+    });
 
 /// Page de création d'une **prévision de récolte**.
 ///
@@ -103,8 +105,11 @@ class _CreerPrevisionPageState extends ConsumerState<CreerPrevisionPage> {
     // strictement `target.getTime() <= Date.now()` → si on sélectionne
     // aujourd'hui à 8h mais qu'on submit à 9h, getTime serait dans le
     // passé. En partant de demain, on est tranquille.
-    final tomorrow = DateTime(now.year, now.month, now.day)
-        .add(const Duration(days: 1));
+    final tomorrow = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).add(const Duration(days: 1));
     final picked = await showDatePicker(
       context: context,
       initialDate: _dateRecolte ?? tomorrow.add(const Duration(days: 29)),
@@ -160,36 +165,34 @@ class _CreerPrevisionPageState extends ConsumerState<CreerPrevisionPage> {
       canPop: !_isSubmitting,
       child: Scaffold(
         backgroundColor: AppColors.background,
-        appBar: AppBar(
-          backgroundColor: AppColors.background,
-          elevation: 0,
-          scrolledUnderElevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, size: AppDimens.iconL),
-            onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
-          ),
-          title: Text(
-            'Nouvelle prévision',
-            style: AppTextStyles.titleMedium.copyWith(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
         body: SafeArea(
-          top: false,
-          child: async.when(
-            loading: () => const Center(child: Chargement(size: 22)),
-            error: (e, _) => Padding(
-              padding: const EdgeInsets.all(AppDimens.pagePaddingH),
-              child: VueErreur(
-                message: e is ApiException
-                    ? e.message
-                    : 'Impossible de charger le catalogue produit.',
-                onRetry: () => ref.invalidate(_creerPrevisionBundleProvider),
+          bottom: false,
+          child: Column(
+            children: [
+              EntetePageStandard(
+                titre: 'Nouvelle prévision',
+                montrerNotifications: false,
+                onBack: _isSubmitting
+                    ? () {}
+                    : () => Navigator.of(context).pop(),
               ),
-            ),
-            data: (bundle) => _buildForm(bundle),
+              Expanded(
+                child: async.when(
+                  loading: () => const Center(child: Chargement(size: 22)),
+                  error: (e, _) => Padding(
+                    padding: const EdgeInsets.all(AppDimens.pagePaddingH),
+                    child: VueErreur(
+                      message: e is ApiException
+                          ? e.message
+                          : 'Impossible de charger le catalogue produit.',
+                      onRetry: () =>
+                          ref.invalidate(_creerPrevisionBundleProvider),
+                    ),
+                  ),
+                  data: (bundle) => _buildForm(bundle),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -233,8 +236,9 @@ class _CreerPrevisionPageState extends ConsumerState<CreerPrevisionPage> {
                 unit: 'kg',
                 enabled: !_isSubmitting,
                 onChanged: (_) => setState(() {}),
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: false),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: false,
+                ),
                 formatters: [
                   FilteringTextInputFormatter.allow(RegExp(r'[0-9]')),
                 ],
@@ -259,8 +263,9 @@ class _CreerPrevisionPageState extends ConsumerState<CreerPrevisionPage> {
                 controller: _prixCtrl,
                 unit: 'F / kg',
                 enabled: !_isSubmitting,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: false),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: false,
+                ),
                 formatters: [
                   FilteringTextInputFormatter.allow(RegExp(r'[0-9]')),
                 ],

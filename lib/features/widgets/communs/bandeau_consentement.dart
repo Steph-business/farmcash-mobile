@@ -134,9 +134,28 @@ class _DialogConsentementState
     }
   }
 
+  /// Met une majuscule initiale + le reste en minuscules. Le backend
+  /// stocke souvent le nom en MAJUSCULES (« N'DAH STEPHANE ») — on
+  /// l'affiche proprement « Stephane » plutôt que « STEPHANE ».
+  String _capitalize(String s) {
+    if (s.isEmpty) return s;
+    return s[0].toUpperCase() + s.substring(1).toLowerCase();
+  }
+
   @override
   Widget build(BuildContext context) {
     final ready = _acceptCgu && _acceptPrivacy;
+
+    // Personnalisation : on salue l'utilisateur par son prénom quand on
+    // l'a (extrait du nom complet — premier mot). Plus chaleureux et
+    // rassurant pour des cibles rurales peu familières du digital.
+    final fullName = ref.watch(currentUserProvider)?.fullName?.trim();
+    final firstName = (fullName != null && fullName.isNotEmpty)
+        ? fullName.split(RegExp(r'\s+')).first
+        : null;
+    final titre = firstName != null
+        ? 'Bienvenue, ${_capitalize(firstName)}'
+        : 'Bienvenue sur FarmCash';
 
     // PopScope.canPop=false → ferme le back natif Android pour
     // garantir le caractère bloquant.
@@ -175,7 +194,7 @@ class _DialogConsentementState
               ),
               AppDimens.vGap16,
               Text(
-                'Bienvenue sur FarmCash',
+                titre,
                 textAlign: TextAlign.center,
                 style: AppTextStyles.titleMedium.copyWith(
                   fontSize: 18,

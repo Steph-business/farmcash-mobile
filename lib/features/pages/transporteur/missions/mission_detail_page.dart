@@ -9,6 +9,7 @@ import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/communs/vue_erreur.dart';
 import '../../../widgets/transporteur/missions/actions_sticky_mission.dart';
@@ -17,7 +18,6 @@ import '../../../widgets/transporteur/missions/carte_montant_mission.dart';
 import '../../../widgets/transporteur/missions/carte_statut_mission.dart';
 import '../../../widgets/transporteur/missions/carte_timeline_mission.dart';
 import '../../../widgets/transporteur/missions/carte_trajet_mission.dart';
-import '../../../widgets/transporteur/missions/entete_mission_detail.dart';
 import '../../../widgets/transporteur/missions/titre_section_mission.dart';
 import '../scanner_page.dart';
 
@@ -90,13 +90,13 @@ class _MissionDetailPageState extends ConsumerState<MissionDetailPage> {
         child: async.when(
           loading: () => const Column(
             children: [
-              EnteteMissionDetail(),
+              EntetePageStandard(titre: 'Mission'),
               Expanded(child: Chargement(size: 22)),
             ],
           ),
           error: (e, _) => Column(
             children: [
-              const EnteteMissionDetail(),
+              const EntetePageStandard(titre: 'Mission'),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(AppDimens.pagePaddingH),
@@ -113,7 +113,7 @@ class _MissionDetailPageState extends ConsumerState<MissionDetailPage> {
             if (bundle == null) {
               return const Column(
                 children: [
-                  EnteteMissionDetail(),
+                  EntetePageStandard(titre: 'Mission'),
                   Expanded(
                     child: Center(
                       child: Text('Mission introuvable'),
@@ -133,7 +133,7 @@ class _MissionDetailPageState extends ConsumerState<MissionDetailPage> {
     final m = bundle.mission;
     return Column(
       children: [
-        const EnteteMissionDetail(),
+        const EntetePageStandard(titre: 'Mission'),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),

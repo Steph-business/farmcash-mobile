@@ -7,8 +7,8 @@ import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
 import '../../widgets/acheteur/commandes/carte_reservation_acheteur.dart';
 import '../../widgets/acheteur/commandes/etat_vide_reservations_acheteur.dart';
-import '../../widgets/acheteur/commandes/header_reservations_acheteur.dart';
 import '../../widgets/communs/chargement.dart';
+import '../../widgets/communs/entete_page_standard.dart';
 import '../../widgets/communs/vue_erreur.dart';
 
 final _reservationsProvider =
@@ -31,7 +31,7 @@ class MesReservationsAcheteurPage extends ConsumerWidget {
         bottom: false,
         child: Column(
           children: [
-            const HeaderReservationsAcheteur(title: 'Mes réservations'),
+            const EntetePageStandard(titre: 'Mes réservations'),
             Expanded(
               child: async.when(
                 loading: () => const Padding(

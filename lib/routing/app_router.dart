@@ -76,6 +76,7 @@ import '../features/pages/producteur/publications/mes_reservations_recues_page.d
 import '../features/pages/producteur/publications/prevision_detail_page.dart';
 import '../features/pages/producteur/publications/publication_coop_detail_page.dart';
 import '../features/pages/producteur/marche/opportunites_matching_page.dart';
+import '../features/pages/producteur/stats/mes_statistiques_page.dart';
 import '../features/pages/producteur/publier/annonce_express_page.dart';
 import '../features/pages/producteur/publier/creer_prevision_page.dart';
 import '../features/pages/producteur/publier/parcelle_creer_page.dart';
@@ -400,15 +401,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const ContreOffresRecuesCoopPage(),
       ),
       // Plans d'approvisionnement B2B (chantier 2) — côté fournisseur.
+      // Utilise `pageBuilder` avec ValueKey unique pour éviter les
+      // duplicate-key errors quand la page est navigée multiple fois.
       GoRoute(
         path: RouteNames.cooperativePlansPublicsPath,
         name: RouteNames.cooperativePlansPublics,
-        builder: (_, _) => const PlansPublicsPage(),
+        pageBuilder: (_, __) => MaterialPage<void>(
+          key: ValueKey('plans-publics'),
+          child: const PlansPublicsPage(),
+        ),
       ),
       GoRoute(
         path: RouteNames.cooperativeMesContratsB2BPath,
         name: RouteNames.cooperativeMesContratsB2B,
-        builder: (_, _) => const MesContratsB2BPage(),
+        pageBuilder: (_, __) => MaterialPage<void>(
+          key: ValueKey('mes-contrats-b2b'),
+          child: const MesContratsB2BPage(),
+        ),
       ),
 
       // ─── Pages métier transporteur (push hors shell, ajoutées récemment) ─
@@ -1192,6 +1201,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: RouteNames.producteurOpportunitesPath,
         name: RouteNames.producteurOpportunites,
         builder: (_, _) => const OpportunitesMatchingPage(),
+      ),
+      // ─── Producteur — Mes statistiques (dashboard, push hors shell) ──
+      // Tableau de bord analytique : revenus 30j, KPI commerce, note,
+      // actions en attente, funnel de conversion (oversight/farmer/*).
+      GoRoute(
+        path: RouteNames.producteurStatistiquesPath,
+        name: RouteNames.producteurStatistiques,
+        builder: (_, _) => const MesStatistiquesPage(),
       ),
 
       // ─── Producteur — Outils IA (push hors shell) ──────────────────

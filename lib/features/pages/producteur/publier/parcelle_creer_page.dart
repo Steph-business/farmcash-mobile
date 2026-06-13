@@ -114,8 +114,7 @@ class _ParcelleCreerPageState extends ConsumerState<ParcelleCreerPage> {
 
   bool get _step2Valid => _superficieValeur != null;
 
-  bool get _canSubmit =>
-      !_isSubmitting && _step1Valid && _step2Valid;
+  bool get _canSubmit => !_isSubmitting && _step1Valid && _step2Valid;
 
   // ── Navigation entre étapes ────────────────────────────────────────
 
@@ -171,9 +170,7 @@ class _ParcelleCreerPageState extends ConsumerState<ParcelleCreerPage> {
       return null;
     }
     return Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-      ),
+      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
     );
   }
 
@@ -224,11 +221,13 @@ class _ParcelleCreerPageState extends ConsumerState<ParcelleCreerPage> {
       if (data == null) return;
       final addr = data['address'] as Map<String, dynamic>?;
       if (addr == null) return;
-      final ville = (addr['city'] ??
-              addr['town'] ??
-              addr['village'] ??
-              addr['suburb'] ??
-              addr['county']) as String?;
+      final ville =
+          (addr['city'] ??
+                  addr['town'] ??
+                  addr['village'] ??
+                  addr['suburb'] ??
+                  addr['county'])
+              as String?;
       if (!mounted || ville == null) return;
       setState(() => _villeDetectee = ville);
       // Tente de matcher avec le référentiel `Ville`.
@@ -275,10 +274,8 @@ class _ParcelleCreerPageState extends ConsumerState<ParcelleCreerPage> {
       shape: const RoundedRectangleBorder(
         borderRadius: AppDimens.brBottomSheet,
       ),
-      builder: (_) => SelectionVilleSheet(
-        villes: villes,
-        initialId: _selectedVille?.id,
-      ),
+      builder: (_) =>
+          SelectionVilleSheet(villes: villes, initialId: _selectedVille?.id),
     );
     if (selected == null || !mounted) return;
     setState(() {
@@ -384,15 +381,16 @@ class _ParcelleCreerPageState extends ConsumerState<ParcelleCreerPage> {
       _aireCalculeeHa = null;
     });
 
-    _walkSub = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.bestForNavigation,
-        distanceFilter: 3, // 3m entre chaque point capturé
-      ),
-    ).listen((pos) {
-      if (!mounted) return;
-      setState(() => _walkPoints.add(pos));
-    });
+    _walkSub =
+        Geolocator.getPositionStream(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.bestForNavigation,
+            distanceFilter: 3, // 3m entre chaque point capturé
+          ),
+        ).listen((pos) {
+          if (!mounted) return;
+          setState(() => _walkPoints.add(pos));
+        });
   }
 
   /// Aire d'un polygone défini en coordonnées GPS, retournée en hectares.
@@ -404,7 +402,8 @@ class _ParcelleCreerPageState extends ConsumerState<ParcelleCreerPage> {
     final cosLat0 = math.cos(lat0Rad);
     // Projection en mètres relatifs au premier point.
     final proj = pts.map((p) {
-      final dx = (p.longitude - pts.first.longitude) *
+      final dx =
+          (p.longitude - pts.first.longitude) *
           math.pi /
           180 *
           earthRadius *
@@ -455,15 +454,19 @@ class _ParcelleCreerPageState extends ConsumerState<ParcelleCreerPage> {
             ),
             const Divider(height: 1, color: AppColors.border),
             ListTile(
-              leading: const Icon(Icons.photo_camera_outlined,
-                  color: AppColors.primary),
+              leading: const Icon(
+                Icons.photo_camera_outlined,
+                color: AppColors.primary,
+              ),
               title: const Text('Prendre une photo'),
               onTap: () => Navigator.of(ctx).pop(ImageSource.camera),
             ),
             const Divider(height: 1, color: AppColors.border),
             ListTile(
-              leading: const Icon(Icons.photo_library_outlined,
-                  color: AppColors.primary),
+              leading: const Icon(
+                Icons.photo_library_outlined,
+                color: AppColors.primary,
+              ),
               title: const Text('Choisir dans la galerie'),
               onTap: () => Navigator.of(ctx).pop(ImageSource.gallery),
             ),
@@ -636,11 +639,7 @@ class _ParcelleCreerPageState extends ConsumerState<ParcelleCreerPage> {
                   controller: _pageController,
                   physics: const NeverScrollableScrollPhysics(),
                   onPageChanged: (i) => setState(() => _pageIndex = i),
-                  children: [
-                    _buildStep1(),
-                    _buildStep2(),
-                    _buildStep3(),
-                  ],
+                  children: [_buildStep1(), _buildStep2(), _buildStep3()],
                 ),
               ),
             ],
@@ -940,4 +939,3 @@ class _ParcelleCreerPageState extends ConsumerState<ParcelleCreerPage> {
     );
   }
 }
-

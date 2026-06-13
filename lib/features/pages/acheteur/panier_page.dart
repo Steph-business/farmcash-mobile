@@ -13,11 +13,11 @@ import '../../widgets/acheteur/commandes/bouton_sticky_commander.dart';
 import '../../widgets/acheteur/commandes/carte_adresse_panier.dart';
 import '../../widgets/acheteur/commandes/carte_item_panier.dart';
 import '../../widgets/acheteur/commandes/champ_coupon_panier.dart';
-import '../../widgets/acheteur/commandes/entete_panier_acheteur.dart';
 import '../../widgets/acheteur/commandes/recap_panier.dart';
 import '../../widgets/acheteur/commandes/titre_section_panier.dart';
 import '../../widgets/acheteur/commandes/vue_panier_vide.dart';
 import '../../widgets/communs/chargement.dart';
+import '../../widgets/communs/entete_page_standard.dart';
 import '../../widgets/communs/snackbars.dart';
 import '../../widgets/communs/vue_erreur.dart';
 
@@ -108,13 +108,13 @@ class _PanierAcheteurPageState extends ConsumerState<PanierAcheteurPage> {
         child: async.when(
           loading: () => const Column(
             children: [
-              EntetePanierAcheteur(count: 0, onVider: null),
+              EntetePageStandard(titre: 'Mon panier'),
               Expanded(child: Chargement(size: 22)),
             ],
           ),
           error: (e, _) => Column(
             children: [
-              const EntetePanierAcheteur(count: 0, onVider: null),
+              const EntetePageStandard(titre: 'Mon panier'),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(AppDimens.pagePaddingH),
@@ -139,9 +139,26 @@ class _PanierAcheteurPageState extends ConsumerState<PanierAcheteurPage> {
 
     return Column(
       children: [
-        EntetePanierAcheteur(
-          count: panier.items.length,
-          onVider: panier.items.isEmpty ? null : () => _viderTout(panier),
+        EntetePageStandard(
+          titre: 'Mon panier (${panier.items.length})',
+          actions: [
+            if (panier.items.isNotEmpty)
+              TextButton(
+                onPressed: () => _viderTout(panier),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.error,
+                  minimumSize: const Size(0, 36),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+                child: const Text(
+                  'Vider',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+          ],
         ),
         Expanded(
           child: panier.items.isEmpty

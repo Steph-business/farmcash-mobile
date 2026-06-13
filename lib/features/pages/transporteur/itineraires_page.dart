@@ -8,11 +8,12 @@ import '../../../routing/route_names.dart';
 import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
+import '../../../theme/app_text_styles.dart';
 import '../../widgets/communs/chargement.dart';
+import '../../widgets/communs/entete_page_standard.dart';
 import '../../widgets/communs/snackbars.dart';
 import '../../widgets/communs/vue_erreur.dart';
 import '../../widgets/transporteur/itineraires/carte_itineraire.dart';
-import '../../widgets/transporteur/itineraires/entete_itineraires.dart';
 import '../../widgets/transporteur/itineraires/etat_vide_itineraires.dart';
 
 final _itinerairesProvider =
@@ -99,15 +100,34 @@ class _ItinerairesTransporteurPageState
         bottom: false,
         child: Column(
           children: [
-            EnteteItineraires(
+            EntetePageStandard(
+              titre: 'Mes itinéraires',
               onBack: () => context.canPop()
                   ? context.pop()
                   : context.go(RouteNames.transporteurMissionsPath),
-              onAdd: () async {
-                await context
-                    .push(RouteNames.transporteurVehiculeAjouterPath);
-                _refresh();
-              },
+              actions: [
+                // Raccourci « Ajouter » conservé (push form + refresh au retour).
+                TextButton(
+                  onPressed: () async {
+                    await context
+                        .push(RouteNames.transporteurVehiculeAjouterPath);
+                    _refresh();
+                  },
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  child: Text(
+                    'Ajouter',
+                    style: AppTextStyles.labelMedium.copyWith(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+              ],
             ),
             Expanded(
               child: async.when(

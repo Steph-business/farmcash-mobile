@@ -11,6 +11,7 @@ import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
 import '../../../widgets/communs/badge_parrainage_coop.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/snackbars.dart';
 
 /// Provider : liste publique des coopératives (annuaire), avec filtre
@@ -18,10 +19,10 @@ import '../../../widgets/communs/snackbars.dart';
 /// pendant la frappe utilisateur.
 final _coopsProvider = FutureProvider.autoDispose
     .family<List<Cooperative>, String>((ref, search) async {
-  return ref
-      .read(cooperativesServiceProvider)
-      .listPublicCoops(search: search.isEmpty ? null : search);
-});
+      return ref
+          .read(cooperativesServiceProvider)
+          .listPublicCoops(search: search.isEmpty ? null : search);
+    });
 
 /// Page « Trouver une coopérative » — annuaire public côté producteur.
 ///
@@ -60,7 +61,7 @@ class _TrouverCoopPageState extends ConsumerState<TrouverCoopPage> {
         bottom: false,
         child: Column(
           children: [
-            _Header(onBack: () => context.pop()),
+            const EntetePageStandard(titre: 'Trouver une coopérative'),
             _BarreRecherche(
               controller: _searchCtrl,
               onChanged: (v) => setState(() => _search = v),
@@ -131,10 +132,9 @@ class _TrouverCoopPageState extends ConsumerState<TrouverCoopPage> {
 
   Future<void> _demanderAdhesion(Cooperative coop, String? message) async {
     try {
-      await ref.read(cooperativesServiceProvider).requestToJoin(
-            cooperativeId: coop.id,
-            message: message,
-          );
+      await ref
+          .read(cooperativesServiceProvider)
+          .requestToJoin(cooperativeId: coop.id, message: message);
       if (!mounted) return;
       Snackbars.showSucces(
         context,
@@ -150,40 +150,7 @@ class _TrouverCoopPageState extends ConsumerState<TrouverCoopPage> {
   }
 }
 
-// ─── Header + barre recherche ─────────────────────────────────────
-
-class _Header extends StatelessWidget {
-  const _Header({required this.onBack});
-  final VoidCallback onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 6, 16, 4),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: onBack,
-            icon: const Icon(Icons.arrow_back_rounded, color: AppColors.text),
-          ),
-          const SizedBox(width: 4),
-          Expanded(
-            child: Text(
-              'Trouver une coopérative',
-              style: AppTextStyles.titleLarge.copyWith(
-                fontFamily: 'Poppins',
-                fontSize: 17,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.3,
-                color: AppColors.text,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+// ─── Barre recherche ──────────────────────────────────────────────
 
 class _BarreRecherche extends StatelessWidget {
   const _BarreRecherche({required this.controller, required this.onChanged});
@@ -368,10 +335,7 @@ class _CarteCoop extends StatelessWidget {
 // ─── Bottom sheet « Demander à rejoindre » ─────────────────────────
 
 class _SheetDemandeAdhesion extends StatefulWidget {
-  const _SheetDemandeAdhesion({
-    required this.coop,
-    required this.onConfirme,
-  });
+  const _SheetDemandeAdhesion({required this.coop, required this.onConfirme});
   final Cooperative coop;
   final ValueChanged<String?> onConfirme;
 
@@ -444,8 +408,7 @@ class _SheetDemandeAdhesionState extends State<_SheetDemandeAdhesion> {
               BadgeParrainageCoop(
                 ambassadeurNom: widget.coop.ambassadeurNom,
                 ambassadeurTitre: widget.coop.ambassadeurTitre,
-                ambassadeurOrganisation:
-                    widget.coop.ambassadeurOrganisation,
+                ambassadeurOrganisation: widget.coop.ambassadeurOrganisation,
               ),
             ],
             const SizedBox(height: 16),

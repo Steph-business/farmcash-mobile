@@ -16,6 +16,7 @@ import '../../../../theme/app_text_styles.dart';
 import '../../../widgets/communs/carte_bon_de_commande_pdf.dart';
 import '../../../widgets/communs/carte_paiement_etage_vendeur.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/section_titre.dart';
 import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/communs/suivi_commande.dart';
@@ -26,7 +27,6 @@ import '../../../widgets/producteur/commandes/actions_commande_producteur.dart';
 import '../../../widgets/producteur/commandes/carte_acheteur_compacte.dart';
 import '../../../widgets/producteur/commandes/carte_distribution_coop.dart';
 import '../../../widgets/producteur/commandes/carte_resume_commande_producteur.dart';
-import '../../../widgets/producteur/commandes/entete_commande_detail.dart';
 
 // ─── Provider ────────────────────────────────────────────────────────────
 
@@ -35,11 +35,7 @@ import '../../../widgets/producteur/commandes/entete_commande_detail.dart';
 /// le shipment (quand il existe) pour alimenter la carte tracking
 /// transporteur en vraies données (nom, plaque, rating).
 class _CommandeBundle {
-  const _CommandeBundle({
-    required this.commande,
-    this.annonce,
-    this.shipment,
-  });
+  const _CommandeBundle({required this.commande, this.annonce, this.shipment});
   final Commande commande;
   final AnnonceVente? annonce;
   final Livraison? shipment;
@@ -47,37 +43,37 @@ class _CommandeBundle {
 
 final _commandeProvider = FutureProvider.autoDispose
     .family<_CommandeBundle, String>((ref, id) async {
-  final orders = ref.read(ordersServiceProvider);
-  final market = ref.read(marketplaceServiceProvider);
-  final logistics = ref.read(logisticsServiceProvider);
-  final cmd = await orders.getOrder(id);
-  AnnonceVente? annonce;
-  // `annonceId` est nullable : les commandes issues d'une proposition
-  // (négociation) n'ont pas d'annonce de vente source — `annonce_achat_id`
-  // est rempli à la place. On skip alors le fetch annonce.
-  final annonceId = cmd.annonceId;
-  if (annonceId != null && annonceId.isNotEmpty) {
-    try {
-      annonce = await market.getAnnonceVente(annonceId);
-    } catch (_) {
-      // L'annonce peut avoir été dépubliée — on garde la commande seule.
-    }
-  }
-  // Shipment : fetch en livraison (tracking GPS) ET en ACCEPTED (pour
-  // savoir si la coop a déjà demandé un transporteur — bouton « Demander
-  // un transporteur » caché si shipment déjà créé). Service tolérant
-  // au null (cf. logistics_service.dart).
-  Livraison? shipment;
-  if (cmd.status == OrderStatus.inProgress ||
-      cmd.status == OrderStatus.accepted) {
-    shipment = await logistics.getShipmentByCommande(id);
-  }
-  return _CommandeBundle(
-    commande: cmd,
-    annonce: annonce,
-    shipment: shipment,
-  );
-});
+      final orders = ref.read(ordersServiceProvider);
+      final market = ref.read(marketplaceServiceProvider);
+      final logistics = ref.read(logisticsServiceProvider);
+      final cmd = await orders.getOrder(id);
+      AnnonceVente? annonce;
+      // `annonceId` est nullable : les commandes issues d'une proposition
+      // (négociation) n'ont pas d'annonce de vente source — `annonce_achat_id`
+      // est rempli à la place. On skip alors le fetch annonce.
+      final annonceId = cmd.annonceId;
+      if (annonceId != null && annonceId.isNotEmpty) {
+        try {
+          annonce = await market.getAnnonceVente(annonceId);
+        } catch (_) {
+          // L'annonce peut avoir été dépubliée — on garde la commande seule.
+        }
+      }
+      // Shipment : fetch en livraison (tracking GPS) ET en ACCEPTED (pour
+      // savoir si la coop a déjà demandé un transporteur — bouton « Demander
+      // un transporteur » caché si shipment déjà créé). Service tolérant
+      // au null (cf. logistics_service.dart).
+      Livraison? shipment;
+      if (cmd.status == OrderStatus.inProgress ||
+          cmd.status == OrderStatus.accepted) {
+        shipment = await logistics.getShipmentByCommande(id);
+      }
+      return _CommandeBundle(
+        commande: cmd,
+        annonce: annonce,
+        shipment: shipment,
+      );
+    });
 
 /// Détail d'une commande côté producteur. Composition pure et alignée
 /// sur le détail acheteur (même layout, même hiérarchie visuelle) :
@@ -109,7 +105,7 @@ class CommandeDetailPage extends ConsumerWidget {
         bottom: false,
         child: Column(
           children: [
-            const EnteteCommandeDetail(),
+            const EntetePageStandard(titre: 'Commande'),
             Expanded(
               child: async.when(
                 loading: () => const Padding(
@@ -120,7 +116,8 @@ class CommandeDetailPage extends ConsumerWidget {
                   padding: const EdgeInsets.all(AppDimens.pagePaddingH),
                   child: VueErreur(
                     message: 'Impossible de charger la commande.',
-                    onRetry: () => ref.invalidate(_commandeProvider(commandeId)),
+                    onRetry: () =>
+                        ref.invalidate(_commandeProvider(commandeId)),
                   ),
                 ),
                 data: (bundle) => _Body(bundle: bundle),
@@ -168,13 +165,15 @@ class _Body extends ConsumerWidget {
     // commande sur une publication agrégée). Les 2 partagent cette page
     // détail (la coop redirige vers la route producteur).
     final viewerRole = ref.watch(currentUserProvider)?.role;
-    final isSellerViewer = viewerRole == UserRole.cooperative ||
-        viewerRole == UserRole.farmer;
+    final isSellerViewer =
+        viewerRole == UserRole.cooperative || viewerRole == UserRole.farmer;
     final shipment = bundle.shipment;
-    final canRequestTransport = isSellerViewer &&
+    final canRequestTransport =
+        isSellerViewer &&
         commande.status == OrderStatus.accepted &&
         shipment == null;
-    final transportAlreadyRequested = isSellerViewer &&
+    final transportAlreadyRequested =
+        isSellerViewer &&
         commande.status == OrderStatus.accepted &&
         shipment != null;
 
@@ -215,10 +214,8 @@ class _Body extends ConsumerWidget {
         if (commande.status == OrderStatus.inProgress) ...[
           CarteTrackingTransporteur(
             // Données réelles depuis le shipment joint (cf. bundle).
-            nomTransporteur: bundle.shipment?.transporterName
-                        ?.trim()
-                        .isNotEmpty ==
-                    true
+            nomTransporteur:
+                bundle.shipment?.transporterName?.trim().isNotEmpty == true
                 ? bundle.shipment!.transporterName!
                 : 'Transporteur assigné',
             note: bundle.shipment?.transporterRating ?? 0,
@@ -253,9 +250,7 @@ class _Body extends ConsumerWidget {
         // anti-litige interne demandée par l'utilisateur.
         if (viewerRole == UserRole.cooperative &&
             commande.publicationCoopId != null) ...[
-          CarteDistributionCoop(
-            publicationCoopId: commande.publicationCoopId!,
-          ),
+          CarteDistributionCoop(publicationCoopId: commande.publicationCoopId!),
           AppDimens.vGap12,
           // Bon de commande PDF — uniquement coop vendeur ≥ 500 kg.
           // L'éligibilité est vérifiée côté backend.
@@ -349,10 +344,7 @@ class _SuiviCliquableProducteur extends StatelessWidget {
             ),
             borderRadius: BorderRadius.circular(10),
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 11,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
               decoration: BoxDecoration(
                 color: AppColors.background,
                 borderRadius: BorderRadius.circular(10),
@@ -458,9 +450,7 @@ class _CarteDemanderTransporteurState
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.primary,
-            ),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
             child: const Text('Oui, je livre'),
           ),
         ],
@@ -469,9 +459,9 @@ class _CarteDemanderTransporteurState
     if (ok != true) return;
     setState(() => _isDeclaringInternal = true);
     try {
-      await ref.read(logisticsServiceProvider).declareInternalTransport(
-            commandeId: widget.commandeId,
-          );
+      await ref
+          .read(logisticsServiceProvider)
+          .declareInternalTransport(commandeId: widget.commandeId);
       if (!mounted) return;
       Snackbars.showSucces(
         context,
@@ -494,9 +484,7 @@ class _CarteDemanderTransporteurState
       decoration: BoxDecoration(
         color: AppColors.primary.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.30),
-        ),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.30)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -9,11 +9,11 @@ import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/vue_erreur.dart';
 import '../../../widgets/transporteur/missions/banniere_recap_historique.dart';
 import '../../../widgets/transporteur/missions/barre_onglets_historique.dart';
 import '../../../widgets/transporteur/missions/carte_mission_historique.dart';
-import '../../../widgets/transporteur/missions/entete_historique_missions.dart';
 import '../../../widgets/transporteur/missions/etat_vide_historique.dart';
 import '../../../widgets/transporteur/missions/onglet_historique.dart';
 
@@ -57,7 +57,7 @@ class _MissionsHistoriquePageState
         bottom: false,
         child: Column(
           children: [
-            const EnteteHistoriqueMissions(),
+            const EntetePageStandard(titre: 'Historique des missions'),
             Expanded(
               child: async.when(
                 loading: () => const Padding(

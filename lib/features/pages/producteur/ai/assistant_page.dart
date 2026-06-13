@@ -7,6 +7,7 @@ import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/communs/vue_erreur.dart';
 import '../../../widgets/producteur/ai/bulle_message_assistant.dart';
@@ -53,8 +54,7 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
       _historyError = false;
     });
     try {
-      final history =
-          await ref.read(aiServiceProvider).getAssistantHistory();
+      final history = await ref.read(aiServiceProvider).getAssistantHistory();
       if (!mounted) return;
       setState(() {
         _messages
@@ -173,32 +173,20 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: const BackButton(color: AppColors.text),
-        title: Text(
-          'Assistant FarmCash',
-          style: AppTextStyles.titleSmall.copyWith(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        centerTitle: false,
-        actions: [
-          IconButton(
-            onPressed: _messages.isEmpty ? null : _reset,
-            icon: const Icon(Icons.delete_outline),
-            color: AppColors.textSecondary,
-            tooltip: 'Effacer',
-          ),
-        ],
-      ),
       body: SafeArea(
-        top: false,
         child: Column(
           children: [
+            EntetePageStandard(
+              titre: 'Assistant FarmCash',
+              actions: [
+                IconButton(
+                  onPressed: _messages.isEmpty ? null : _reset,
+                  icon: const Icon(Icons.delete_outline),
+                  color: AppColors.textSecondary,
+                  tooltip: 'Effacer',
+                ),
+              ],
+            ),
             Expanded(child: _buildBody()),
             if (_messages.isEmpty && !_isLoadingHistory && !_historyError)
               SuggestionsAssistant(onTap: _envoyer),

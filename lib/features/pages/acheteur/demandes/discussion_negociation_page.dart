@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../api_client/api_exception.dart';
@@ -13,6 +12,7 @@ import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
 import '../../../state/auth_state.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/communs/vue_erreur.dart';
 
@@ -87,28 +87,11 @@ class _DiscussionNegociationPageState
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.text),
-          onPressed: () => context.pop(),
-        ),
-        title: Text(
-          'Discussion avec le vendeur',
-          style: AppTextStyles.titleSmall.copyWith(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: AppColors.text,
-          ),
-        ),
-        centerTitle: false,
-      ),
       body: SafeArea(
         bottom: false,
         child: Column(
           children: [
+            const EntetePageStandard(titre: 'Discussion'),
             // Carte contexte (produit + qté + prix + statut négociation).
             _CarteContexteNego(proposition: widget.proposition),
             // Liste messages.

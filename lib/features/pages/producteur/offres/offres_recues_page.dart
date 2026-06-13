@@ -7,16 +7,15 @@ import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/vue_erreur.dart';
 import '../../../widgets/producteur/offres/carte_offre.dart';
 import '../../../widgets/producteur/offres/etat_vide_offres.dart';
 import '../../../widgets/producteur/offres/filtres_offres.dart';
-import '../../../widgets/producteur/offres/header_offres.dart';
 import '../../../widgets/producteur/offres/offre_modeles.dart';
 import '../../../widgets/producteur/offres/sous_titre_offres.dart';
 
-final _offresProvider =
-    FutureProvider.autoDispose<OffresBundle>((ref) async {
+final _offresProvider = FutureProvider.autoDispose<OffresBundle>((ref) async {
   final svc = ref.read(negotiationServiceProvider);
   // Pas de `.catchError((_) => [])` ici : avaler les erreurs faisait
   // afficher "aucune offre" alors que l'API renvoyait un 401/500. Si
@@ -75,9 +74,11 @@ class _OffresRecuesPageState extends ConsumerState<OffresRecuesPage> {
             .toList();
       case StatusFilter.refused:
         return source
-            .where((o) =>
-                o.status == NegotiationStatus.rejected ||
-                o.status == NegotiationStatus.cancelled)
+            .where(
+              (o) =>
+                  o.status == NegotiationStatus.rejected ||
+                  o.status == NegotiationStatus.cancelled,
+            )
             .toList();
     }
   }
@@ -91,7 +92,7 @@ class _OffresRecuesPageState extends ConsumerState<OffresRecuesPage> {
         bottom: false,
         child: Column(
           children: [
-            const HeaderOffres(),
+            const EntetePageStandard(titre: 'Mes négociations'),
             Expanded(
               child: async.when(
                 loading: () => const Padding(

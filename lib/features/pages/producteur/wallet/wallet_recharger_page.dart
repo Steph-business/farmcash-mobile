@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/communs/wallet/wallet_widgets.dart';
 
@@ -74,7 +75,9 @@ class _WalletRechargerPageState extends ConsumerState<WalletRechargerPage> {
       final rand = math.Random();
       final idem =
           'recharge-${DateTime.now().millisecondsSinceEpoch}-${rand.nextInt(99999)}';
-      await ref.read(financeServiceProvider).topupWallet(
+      await ref
+          .read(financeServiceProvider)
+          .topupWallet(
             amount: amount.toDouble(),
             paymentMethodId: spec.apiId,
             idempotencyKey: idem,
@@ -102,8 +105,10 @@ class _WalletRechargerPageState extends ConsumerState<WalletRechargerPage> {
   @override
   Widget build(BuildContext context) {
     final selectedSpec = _methodes[_selected]!;
-    final amountFormatted =
-        NumberFormat('#,##0', 'fr_FR').format(_currentAmount);
+    final amountFormatted = NumberFormat(
+      '#,##0',
+      'fr_FR',
+    ).format(_currentAmount);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -111,17 +116,20 @@ class _WalletRechargerPageState extends ConsumerState<WalletRechargerPage> {
         bottom: false,
         child: Column(
           children: [
-            const EnteteWallet(
-              titre: 'Recharger mon wallet',
-              bordureBas: true,
-              tailleTitre: 15,
+            const EntetePageStandard(
+              titre: 'Recharger mon portefeuille',
+              montrerNotifications: false,
             ),
             Expanded(
               child: GestureDetector(
                 onTap: () => FocusScope.of(context).unfocus(),
                 child: ListView(
-                  padding:
-                      const EdgeInsets.fromLTRB(20, AppDimens.space16, 20, 120),
+                  padding: const EdgeInsets.fromLTRB(
+                    20,
+                    AppDimens.space16,
+                    20,
+                    120,
+                  ),
                   children: [
                     const BandeauSoldeCompact(
                       balance: 245800,

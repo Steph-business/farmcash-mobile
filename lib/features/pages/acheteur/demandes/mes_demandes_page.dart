@@ -7,11 +7,11 @@ import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
 import '../../../widgets/acheteur/demandes/corps_mes_demandes.dart';
-import '../../../widgets/acheteur/demandes/header_mes_demandes.dart';
 import '../../../widgets/acheteur/demandes/mapper_annonce_achat.dart';
 import '../../../widgets/acheteur/demandes/modele_demande_affichage.dart';
 import '../../../widgets/acheteur/demandes/onglets_mes_demandes.dart';
 import '../../../widgets/communs/chargement.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 
 final _mesDemandesProvider =
     FutureProvider.autoDispose<List<ModeleDemandeAffichage>>((ref) async {
@@ -47,7 +47,7 @@ class _MesDemandesAcheteurPageState
         bottom: false,
         child: Column(
           children: [
-            const HeaderMesDemandes(),
+            const EntetePageStandard(titre: 'Mes demandes'),
             Expanded(
               child: async.when(
                 loading: () => const Padding(

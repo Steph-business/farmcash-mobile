@@ -8,9 +8,9 @@ import '../../../services/providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
 import '../../widgets/acheteur/profil/etat_vide_favoris.dart';
-import '../../widgets/acheteur/profil/header_favoris_acheteur.dart';
 import '../../widgets/acheteur/profil/tuile_favori_annonce.dart';
 import '../../widgets/communs/chargement.dart';
+import '../../widgets/communs/entete_page_standard.dart';
 import '../../widgets/communs/snackbars.dart';
 import '../../widgets/communs/vue_erreur.dart';
 
@@ -37,7 +37,7 @@ class FavorisAcheteurPage extends ConsumerWidget {
         bottom: false,
         child: Column(
           children: [
-            const HeaderFavorisAcheteur(),
+            const EntetePageStandard(titre: 'Mes favoris'),
             Expanded(
               child: asyncFavoris.when(
                 loading: () => const Padding(

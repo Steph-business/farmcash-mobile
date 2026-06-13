@@ -55,17 +55,47 @@ class _ScannerPageState extends ConsumerState<ScannerPage> {
       body: SafeArea(
         child: Stack(
           children: [
-            // ─── Header : croix de fermeture ────────────────────────
+            // ─── Header overlay : back + titre ──────────────────────
+            // Scan plein écran (caméra) : on garde un overlay sombre minimal
+            // plutôt que l'EntetePageStandard blanc, mais avec flèche retour
+            // + titre pour rester cohérent avec le reste de l'app. Pas de
+            // cloche notifications ici (contexte caméra immersif).
             Positioned(
-              top: 8,
-              right: 8,
-              child: InkWell(
-                onTap: () => Navigator.of(context).pop(),
-                borderRadius: BorderRadius.circular(20),
-                child: const SizedBox(
-                  width: 44,
-                  height: 44,
-                  child: Icon(Icons.close, color: Colors.white, size: 24),
+              top: 0,
+              left: 0,
+              right: 0,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(4, 4, 8, 4),
+                child: Row(
+                  children: [
+                    InkWell(
+                      onTap: () => Navigator.of(context).pop(),
+                      borderRadius: BorderRadius.circular(20),
+                      child: const SizedBox(
+                        width: 44,
+                        height: 44,
+                        child: Icon(
+                          Icons.arrow_back,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        widget.mode == ScannerMode.delivery
+                            ? 'Scanner la livraison'
+                            : 'Scanner l\'enlèvement',
+                        style: AppTextStyles.titleMedium.copyWith(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

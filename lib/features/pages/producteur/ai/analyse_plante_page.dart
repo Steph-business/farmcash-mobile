@@ -9,6 +9,7 @@ import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/snackbars.dart';
 import '../../../widgets/producteur/ai/historique_court_analyses.dart';
 import '../../../widgets/producteur/ai/resultat_view_analyse.dart';
@@ -109,11 +110,14 @@ class _AnalysePlantePageState extends ConsumerState<AnalysePlantePage> {
     if (_photo == null || _isAnalyzing) return;
     setState(() => _isAnalyzing = true);
     try {
-      final analyse = await ref.read(aiServiceProvider).analyzePlant(
+      final analyse = await ref
+          .read(aiServiceProvider)
+          .analyzePlant(
             imagePath: _photo!.path,
             parcelleId: _parcelleId,
-            notes:
-                _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+            notes: _notesCtrl.text.trim().isEmpty
+                ? null
+                : _notesCtrl.text.trim(),
           );
       if (!mounted) return;
       setState(() {
@@ -145,35 +149,31 @@ class _AnalysePlantePageState extends ConsumerState<AnalysePlantePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: const BackButton(color: AppColors.text),
-        title: Text(
-          'Diagnostiquer une plante',
-          style: AppTextStyles.titleSmall.copyWith(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        centerTitle: false,
-      ),
-      body: _result != null
-          ? ResultatViewAnalyse(
-              analyse: _result!,
-              photo: _photo,
-              onRecommencer: _recommencer,
-            )
-          : SaisieViewAnalyse(
-              photo: _photo,
-              parcelleId: _parcelleId,
-              notesCtrl: _notesCtrl,
-              isAnalyzing: _isAnalyzing,
-              onPickPhoto: _pickImage,
-              onChangeParcelle: (v) => setState(() => _parcelleId = v),
-              onLancer: _lancerAnalyse,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            const EntetePageStandard(titre: 'Diagnostiquer une plante'),
+            Expanded(
+              child: _result != null
+                  ? ResultatViewAnalyse(
+                      analyse: _result!,
+                      photo: _photo,
+                      onRecommencer: _recommencer,
+                    )
+                  : SaisieViewAnalyse(
+                      photo: _photo,
+                      parcelleId: _parcelleId,
+                      notesCtrl: _notesCtrl,
+                      isAnalyzing: _isAnalyzing,
+                      onPickPhoto: _pickImage,
+                      onChangeParcelle: (v) => setState(() => _parcelleId = v),
+                      onLancer: _lancerAnalyse,
+                    ),
             ),
+          ],
+        ),
+      ),
     );
   }
 }

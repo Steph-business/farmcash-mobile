@@ -48,8 +48,9 @@ class _ProfilData {
 /// Charge en parallèle toutes les données nécessaires au profil producteur.
 /// Chaque appel est tolérant : un échec ponctuel retourne `null`/liste vide
 /// et la section concernée se masque ou affiche un fallback.
-final _profilProducteurDataProvider =
-    FutureProvider.autoDispose<_ProfilData>((ref) async {
+final _profilProducteurDataProvider = FutureProvider.autoDispose<_ProfilData>((
+  ref,
+) async {
   final marketplace = ref.watch(marketplaceServiceProvider);
   final finance = ref.watch(financeServiceProvider);
   final cooperatives = ref.watch(cooperativesServiceProvider);
@@ -206,10 +207,8 @@ class _ContenuProfilProducteur extends StatelessWidget {
           nom: nom,
           initiales: initialesProfilDepuisNom(user?.fullName),
           photoUrl: user?.photoUrl,
-          sousLigne:
-              sousLigneIdentiteProducteur(rating: user?.rating ?? 0),
-          onModifier: () =>
-              context.push(RouteNames.producteurProfilEditerPath),
+          sousLigne: sousLigneIdentiteProducteur(rating: user?.rating ?? 0),
+          onModifier: () => context.push(RouteNames.producteurProfilEditerPath),
           onEditPhoto: onChangerPhoto,
         ),
         AppDimens.vGap24,
@@ -223,8 +222,7 @@ class _ContenuProfilProducteur extends StatelessWidget {
               accent: true,
               label: 'Mes parcelles & cultures',
               sousTitre: sousTexteParcellesProducteur(data.parcelles),
-              onTap: () =>
-                  context.push(RouteNames.producteurMesParcellesPath),
+              onTap: () => context.push(RouteNames.producteurMesParcellesPath),
             ),
             TuileProfil(
               icone: Icons.eco_outlined,
@@ -234,8 +232,7 @@ class _ContenuProfilProducteur extends StatelessWidget {
                 data.parcelles,
                 data.produits,
               ),
-              onTap: () =>
-                  context.push(RouteNames.producteurMesParcellesPath),
+              onTap: () => context.push(RouteNames.producteurMesParcellesPath),
             ),
             TuileProfil(
               icone: Icons.groups_outlined,
@@ -261,8 +258,7 @@ class _ContenuProfilProducteur extends StatelessWidget {
               icone: Icons.account_balance_wallet_outlined,
               accent: true,
               label: 'Mon wallet',
-              trailingTexte:
-                  formatMontantProducteur(data.wallet?.balance ?? 0),
+              trailingTexte: formatMontantProducteur(data.wallet?.balance ?? 0),
               onTap: () => context.push(RouteNames.producteurWalletPath),
             ),
             TuileProfil(
@@ -281,8 +277,15 @@ class _ContenuProfilProducteur extends StatelessWidget {
 
         // 5 — Activité
         GroupeProfil(
-          titre: 'Activité',
+          titre: 'Mon activité',
           enfants: [
+            TuileProfil(
+              icone: Icons.bar_chart_rounded,
+              accent: true,
+              label: 'Mes statistiques',
+              sousTitre: 'Revenus, vues, conversion',
+              onTap: () => context.push(RouteNames.producteurStatistiquesPath),
+            ),
             TuileProfil(
               icone: Icons.list_alt_outlined,
               label: 'Mes annonces',
@@ -294,8 +297,7 @@ class _ContenuProfilProducteur extends StatelessWidget {
               icone: Icons.cloud_upload_outlined,
               label: 'Documents (KYC)',
               sousTitre: 'À compléter',
-              onTap: () =>
-                  context.push(RouteNames.producteurDocumentsKycPath),
+              onTap: () => context.push(RouteNames.producteurDocumentsKycPath),
             ),
           ],
         ),

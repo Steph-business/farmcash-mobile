@@ -18,7 +18,7 @@ import '../../../../services/providers.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_text_styles.dart';
-import '../../../widgets/communs/entete_page_compacte_acheteur.dart';
+import '../../../widgets/communs/entete_page_standard.dart';
 import '../../../widgets/communs/snackbars.dart';
 
 final _produitsForPlanProvider =
@@ -145,7 +145,7 @@ class _CreerPlanPageState extends ConsumerState<CreerPlanPage> {
         bottom: false,
         child: Column(
           children: [
-            const EntetePageCompacteAcheteur(title: 'Nouveau plan B2B'),
+            const EntetePageStandard(titre: 'Nouveau plan B2B'),
             Expanded(
               child: Form(
                 key: _formKey,
